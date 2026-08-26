@@ -8,6 +8,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ooro.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  icons: { icon: "/favicon.jpeg", shortcut: "/favicon.jpeg", apple: "/favicon.jpeg" },
   title: "OORO — Advertising that moves with your city",
   description: "OORO is a smart mobility advertising network founded by Varneeth Varma Nandimandalam, starting in Tirupati and expanding city by city across India.",
   keywords: ["OORO", "OORO advertising", "OORO Tirupati", "mobility advertising India", "digital vehicle advertising", "vehicle screen advertising", "Tirupati advertising", "Andhra Pradesh advertising", "smart city advertising", "digital out-of-home advertising", "DOOH India", "real world advertising", "Varneeth Varma", "Varneeth Varma Nandimandalam", "Sumanth Vasilanka", "Siri Girish"],
