@@ -1,0 +1,21 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cabin" x1="170" y1="120" x2="1070" y2="860" gradientUnits="userSpaceOnUse"><stop stop-color="#272727"/><stop offset="1" stop-color="#090909"/></linearGradient>
+    <linearGradient id="glass" x1="340" y1="90" x2="880" y2="470" gradientUnits="userSpaceOnUse"><stop stop-color="#252525"/><stop offset="1" stop-color="#111111"/></linearGradient>
+    <linearGradient id="screen" x1="538" y1="342" x2="795" y2="650" gradientUnits="userSpaceOnUse"><stop stop-color="#F1FF6C"/><stop offset="1" stop-color="#C9E82F"/></linearGradient>
+    <filter id="shadow" x="450" y="270" width="480" height="500" filterUnits="userSpaceOnUse"><feDropShadow dx="0" dy="30" stdDeviation="22" flood-opacity=".45"/></filter>
+  </defs>
+  <rect width="1200" height="900" fill="#0B0B0B"/>
+  <path d="M0 0H1200V388C1037 343 974 340 829 365C639 399 536 465 336 429C198 404 86 337 0 283V0Z" fill="url(#glass)"/>
+  <path d="M0 0H1200V180C1000 132 776 106 565 150C338 197 174 172 0 103V0Z" fill="#303030" opacity=".48"/>
+  <path d="M0 472C190 409 322 424 492 492C639 551 811 539 1200 424V900H0V472Z" fill="url(#cabin)"/>
+  <path d="M0 644C192 576 350 594 518 678C672 756 885 740 1200 632V900H0V644Z" fill="#151515"/>
+  <path d="M0 690C136 630 304 638 464 734C623 829 819 815 1200 700V900H0V690Z" fill="#0D0D0D"/>
+  <path d="M118 427C190 370 294 357 376 397C431 424 466 496 444 585L411 721H104L77 581C61 502 76 458 118 427Z" fill="#1A1A1A" stroke="#454545" stroke-width="4"/>
+  <path d="M851 396C930 349 1029 364 1101 423C1148 462 1164 509 1140 593L1102 720H794L784 577C777 493 798 428 851 396Z" fill="#1B1B1B" stroke="#454545" stroke-width="4"/>
+  <path d="M104 717H410" stroke="#5B5B5B" stroke-width="4"/><path d="M794 716H1103" stroke="#5B5B5B" stroke-width="4"/>
+  <path d="M427 500C451 438 524 397 622 397C721 397 788 438 811 500L849 659C860 705 824 754 774 754H458C409 754 375 706 388 659L427 500Z" fill="#222222" stroke="#565656" stroke-width="4"/>
+  <path d="M475 531C490 475 543 440 621 440C700 440 753 475 768 531L787 607C795 640 769 671 734 671H508C473 671 447 640 455 607L475 531Z" fill="#101010"/>
+  <g filter="url(#shadow)"><rect x="518" y="337" width="286" height="331" rx="20" fill="#050505" stroke="#6A6A6A" stroke-width="5"/><rect x="537" y="357" width="248" height="292" rx="12" fill="url(#screen)"/><path d="M560 397H702" stroke="#0B0B0B" stroke-width="5"/><path d="M560 418H669" stroke="#0B0B0B" stroke-width="5"/><text x="560" y="502" fill="#0B0B0B" font-family="Arial, Helvetica, sans-serif" font-size="45" font-weight="700" letter-spacing="-2">MORE</text><text x="560" y="548" fill="#0B0B0B" font-family="Arial, Helvetica, sans-serif" font-size="45" font-weight="700" letter-spacing="-2">TO SEE.</text><circle cx="758" cy="382" r="5" fill="#0B0B0B"/></g>
+  <path d="M0 852H1200" stroke="#3D3D3D" stroke-width="2"/><text x="52" y="79" fill="#F2F2F0" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="5">OORO</text><text x="52" y="110" fill="#B7B7B2" font-family="Arial, Helvetica, sans-serif" font-size="12" letter-spacing="2">SMART SCREENS. REAL IMPACT.</text>
+</svg>

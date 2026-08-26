@@ -1,0 +1,494 @@
+generator client {
+provider = "prisma-client-js"
+}
+datasource db {
+provider = "postgresql"
+url = env("DATABASE_URL")
+}
+
+model User {
+id String @id @default(uuid()) @db.Uuid
+phone String @unique
+email String? @unique
+name String?
+role String @default("DRIVER")
+accountStatus String @default("PENDING")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+sessions Session[]
+driver Driver?
+auditLogs AuditLog[]
+}
+model Session {
+id String @id @default(uuid()) @db.Uuid
+userId String @db.Uuid
+refreshTokenHash String @unique
+expiresAt DateTime
+revokedAt DateTime?
+createdAt DateTime @default(now())
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+@@index([userId, expiresAt])
+}
+model OtpChallenge {
+id String @id @default(uuid()) @db.Uuid
+phone String
+codeHash String
+expiresAt DateTime
+consumedAt DateTime?
+attempts Int @default(0)
+createdAt DateTime @default(now())
+@@index([phone, expiresAt])
+}
+model Driver {
+id String @id @default(uuid()) @db.Uuid
+userId String @unique @db.Uuid
+driverType String @default("INDIVIDUAL")
+onboardingStatus String @default("PROFILE")
+preferredLanguage String @default("English")
+city String?
+dateOfBirth DateTime?
+profilePhotoUrl String?
+emergencyContact Json?
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+documents KycDocument[]
+vehicles Vehicle[]
+integrations MobilityIntegration[]
+mobilityEvents MobilityEvent[]
+rides Ride[]
+candidates RideCandidate[]
+earnings EarningEntry[]
+payoutMethods PayoutMethod[]
+payouts Payout[]
+consents DriverConsent[]
+incidents SafetyIncident[]
+roadside RoadsideRequest[]
+tickets SupportTicket[]
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+model FleetInquiry {
+id String @id @default(uuid()) @db.Uuid
+name String
+phone String
+email String?
+companyName String?
+city String?
+fleetSize Int?
+vehicleTypes String[]
+message String?
+status String @default("NEW")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+model KycDocument {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+documentType String
+storageKey String
+maskedDocumentNumber String?
+status String @default("PENDING")
+submittedAt DateTime @default(now())
+verifiedAt DateTime?
+verifiedBy String?
+rejectionReason String?
+expiresAt DateTime?
+driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+@@index([driverId, status])
+}
+model Vehicle {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+type String
+cabType String?
+registrationNumber String @unique
+manufacturer String
+model String
+year Int?
+fuelType String?
+status String @default("PENDING")
+driver Driver @relation(fields: [driverId], references: [id])
+displays Display[]
+rides Ride[]
+candidates RideCandidate[]
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+model Display {
+id String @id @default(uuid()) @db.Uuid
+deviceId String @unique
+name String
+ownershipType String?
+vehicleId String? @db.Uuid
+vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+deviceTokenHash String? @unique
+state String @default("UNPAIRED")
+appVersion String?
+manifestVersion Int?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+pairingCodes DisplayPairingCode[]
+heartbeats DisplayHeartbeat[]
+commands DisplayCommand[]
+candidates RideCandidate[]
+rides Ride[]
+sessions CampaignSession[]
+playbackEvents PlaybackEvent[]
+proofs ProofOfPlay[]
+@@index([vehicleId, state])
+}
+model DisplayPairingCode {
+id String @id @default(uuid()) @db.Uuid
+displayId String @db.Uuid
+codeHash String @unique
+codeLast4 String
+expiresAt DateTime
+consumedAt DateTime?
+revokedAt DateTime?
+createdAt DateTime @default(now())
+display Display @relation(fields: [displayId], references: [id], onDelete: Cascade)
+@@index([displayId, expiresAt])
+}
+model DisplayHeartbeat {
+id String @id @default(uuid()) @db.Uuid
+displayId String @db.Uuid
+occurredAt DateTime
+receivedAt DateTime @default(now())
+appVersion String?
+deviceVersion String?
+storageFree BigInt?
+storageTotal BigInt?
+networkType String?
+networkConnected Boolean?
+manifestVersion Int?
+currentCreativeId String?
+playbackState String?
+screenState String?
+temperature Float?
+display Display @relation(fields: [displayId], references: [id], onDelete: Cascade)
+@@index([displayId, occurredAt])
+}
+model DisplayCommand {
+id String @id @default(uuid()) @db.Uuid
+displayId String @db.Uuid
+commandType String
+payload Json?
+status String @default("QUEUED")
+createdAt DateTime @default(now())
+deliveredAt DateTime?
+acknowledgedAt DateTime?
+failedAt DateTime?
+expiresAt DateTime?
+error String?
+display Display @relation(fields: [displayId], references: [id], onDelete: Cascade)
+@@index([displayId, status])
+}
+model MobilityIntegration {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+provider String
+enabled Boolean @default(false)
+lastEventAt DateTime?
+parserVersion Int?
+status String @default("DISCONNECTED")
+driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+@@unique([driverId, provider])
+}
+model MobilityEvent {
+id String @id @default(uuid()) @db.Uuid
+eventId String @unique
+driverId String @db.Uuid
+vehicleId String? @db.Uuid
+provider String
+eventType String
+occurredAt DateTime
+receivedAt DateTime @default(now())
+confidence Float
+source String?
+parserVersion Int?
+rawAllowed Boolean @default(false)
+driver Driver @relation(fields: [driverId], references: [id])
+@@index([driverId, occurredAt])
+}
+model RideCandidate {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+vehicleId String? @db.Uuid
+displayId String? @db.Uuid
+provider String
+source String
+state String @default("DETECTED")
+createdAt DateTime @default(now())
+lastEventAt DateTime
+verificationStatus String @default("PENDING")
+driver Driver @relation(fields: [driverId], references: [id])
+vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+display Display? @relation(fields: [displayId], references: [id])
+ride Ride?
+events RideEvent[]
+@@index([driverId, state])
+}
+model Ride {
+id String @id @default(uuid()) @db.Uuid
+candidateId String? @unique @db.Uuid
+driverId String @db.Uuid
+vehicleId String? @db.Uuid
+displayId String? @db.Uuid
+provider String
+state String @default("RIDE_ACCEPTED")
+source String
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+startedAt DateTime?
+completedAt DateTime?
+distanceMeters Float?
+verificationStatus String @default("PENDING")
+driver Driver @relation(fields: [driverId], references: [id])
+vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+display Display? @relation(fields: [displayId], references: [id])
+candidate RideCandidate? @relation(fields: [candidateId], references: [id])
+events RideEvent[]
+locations RideLocation[]
+verification RideVerification?
+fraudSignals FraudSignal[]
+  campaignSessions CampaignSession[]
+  playbackEvents PlaybackEvent[]
+  earnings EarningEntry[]
+proofs ProofOfPlay[]
+@@index([driverId, state])
+}
+model RideEvent {
+id String @id @default(uuid()) @db.Uuid
+eventId String @unique
+rideId String? @db.Uuid
+candidateId String? @db.Uuid
+provider String
+eventType String
+occurredAt DateTime
+receivedAt DateTime @default(now())
+confidence Float
+source String?
+ride Ride? @relation(fields: [rideId], references: [id])
+candidate RideCandidate? @relation(fields: [candidateId], references: [id])
+@@index([rideId, occurredAt])
+}
+model RideLocation {
+id String @id @default(uuid()) @db.Uuid
+rideId String @db.Uuid
+occurredAt DateTime
+receivedAt DateTime @default(now())
+latitude Float
+longitude Float
+accuracy Float
+speed Float?
+bearing Float?
+ride Ride @relation(fields: [rideId], references: [id], onDelete: Cascade)
+@@index([rideId, occurredAt])
+}
+model RideVerification {
+id String @id @default(uuid()) @db.Uuid
+rideId String @unique @db.Uuid
+score Int
+status String
+reasons String[]
+verifiedAt DateTime?
+reviewedBy String?
+reviewReason String?
+ride Ride @relation(fields: [rideId], references: [id], onDelete: Cascade)
+}
+model FraudSignal {
+id String @id @default(uuid()) @db.Uuid
+rideId String @db.Uuid
+code String
+weight Int
+metadata Json?
+createdAt DateTime @default(now())
+ride Ride @relation(fields: [rideId], references: [id], onDelete: Cascade)
+@@index([rideId])
+}
+model CampaignSession {
+id String @id @default(uuid()) @db.Uuid
+rideId String @db.Uuid
+driverId String @db.Uuid
+vehicleId String? @db.Uuid
+displayId String? @db.Uuid
+startedAt DateTime?
+endedAt DateTime?
+status String @default("PENDING")
+manifestVersion Int?
+ride Ride @relation(fields: [rideId], references: [id])
+display Display? @relation(fields: [displayId], references: [id])
+playbackEvents PlaybackEvent[]
+proofs ProofOfPlay[]
+earnings EarningEntry[]
+@@index([displayId, status])
+}
+model PlaybackEvent {
+id String @id @default(uuid()) @db.Uuid
+eventId String @unique
+displayId String @db.Uuid
+rideId String? @db.Uuid
+campaignSessionId String? @db.Uuid
+campaignId String?
+creativeId String?
+eventType String
+occurredAt DateTime
+receivedAt DateTime @default(now())
+position Int?
+duration Int?
+manifestVersion Int?
+playerVersion String?
+errorCode String?
+display Display @relation(fields: [displayId], references: [id])
+ride Ride? @relation(fields: [rideId], references: [id])
+campaignSession CampaignSession? @relation(fields: [campaignSessionId], references: [id])
+@@index([displayId, occurredAt])
+}
+model ProofOfPlay {
+id String @id @default(uuid()) @db.Uuid
+proofId String @unique
+rideId String @db.Uuid
+displayId String @db.Uuid
+campaignSessionId String? @db.Uuid
+campaignId String?
+creativeId String?
+playbackStartedAt DateTime
+playbackEndedAt DateTime?
+expectedDuration Int
+actualDuration Int?
+manifestVersion Int?
+playerVersion String?
+playbackCompleted Boolean
+status String @default("PENDING")
+invalidReason String?
+displayHeartbeatId String?
+ride Ride @relation(fields: [rideId], references: [id])
+display Display @relation(fields: [displayId], references: [id])
+campaignSession CampaignSession? @relation(fields: [campaignSessionId], references: [id])
+@@index([rideId, status])
+}
+model EarningEntry {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+rideId String? @db.Uuid
+campaignSessionId String? @db.Uuid
+type String
+amountMinor BigInt
+currency String @default("INR")
+status String @default("PENDING")
+availableAt DateTime?
+metadata Json?
+createdAt DateTime @default(now())
+driver Driver @relation(fields: [driverId], references: [id])
+ride Ride? @relation(fields: [rideId], references: [id])
+campaignSession CampaignSession? @relation(fields: [campaignSessionId], references: [id])
+@@index([driverId, status, createdAt])
+}
+model PayoutMethod {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+type String
+maskedValue String
+secretRef String
+verified Boolean @default(false)
+createdAt DateTime @default(now())
+driver Driver @relation(fields: [driverId], references: [id])
+payouts Payout[]
+}
+model Payout {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+payoutMethodId String @db.Uuid
+amountMinor BigInt
+currency String @default("INR")
+status String @default("REQUESTED")
+providerRef String?
+idempotencyKey String @unique
+failureReason String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+driver Driver @relation(fields: [driverId], references: [id])
+payoutMethod PayoutMethod @relation(fields: [payoutMethodId], references: [id])
+@@index([driverId, status])
+}
+model SafetyIncident {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+vehicleId String? @db.Uuid
+rideId String? @db.Uuid
+type String
+latitude Float?
+longitude Float?
+occurredAt DateTime
+status String @default("OPEN")
+notes String?
+driver Driver @relation(fields: [driverId], references: [id])
+@@index([driverId, status])
+}
+model RoadsideRequest {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+vehicleId String? @db.Uuid
+issueType String
+latitude Float?
+longitude Float?
+status String @default("REQUESTED")
+provider String?
+estimatedArrival DateTime?
+createdAt DateTime @default(now())
+driver Driver @relation(fields: [driverId], references: [id])
+@@index([driverId, status])
+}
+model SupportTicket {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+category String
+rideId String?
+displayId String?
+vehicleId String?
+description String
+status String @default("OPEN")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+driver Driver @relation(fields: [driverId], references: [id])
+}
+model AgreementVersion {
+id String @id @default(uuid()) @db.Uuid
+type String
+version String
+contentUrl String?
+required Boolean @default(true)
+createdAt DateTime @default(now())
+consents DriverConsent[]
+@@unique([type, version])
+}
+model DriverConsent {
+id String @id @default(uuid()) @db.Uuid
+driverId String @db.Uuid
+agreementVersionId String @db.Uuid
+acceptedAt DateTime @default(now())
+driver Driver @relation(fields: [driverId], references: [id])
+agreementVersion AgreementVersion @relation(fields: [agreementVersionId], references: [id])
+@@unique([driverId, agreementVersionId])
+}
+model AuditLog {
+id String @id @default(uuid()) @db.Uuid
+actorId String? @db.Uuid
+actorRole String?
+action String
+entityType String
+entityId String
+before Json?
+after Json?
+requestId String?
+createdAt DateTime @default(now())
+actor User? @relation(fields: [actorId], references: [id])
+@@index([entityType, entityId, createdAt])
+}
+model IdempotencyKey {
+id String @id @default(uuid()) @db.Uuid
+key String @unique
+scope String
+response Json
+createdAt DateTime @default(now())
+expiresAt DateTime
+}

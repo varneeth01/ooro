@@ -1,0 +1,55 @@
+openapi: 3.1.0
+info:
+  title: OORO Mobility API
+  version: 0.1.0
+  description: Server-authoritative contracts for drivers, displays, rides, proof and earnings.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/request-otp:
+    post: { security: [], summary: Request a one-time password }
+  /api/auth/verify-otp:
+    post: { security: [], summary: Verify OTP and create a driver session }
+  /api/auth/refresh:
+    post: { security: [], summary: Rotate a refresh session }
+  /api/drivers/me:
+    get: { summary: Read the authenticated driver }
+    patch: { summary: Update the authenticated driver }
+  /api/vehicles:
+    get: { summary: List owned vehicles }
+    post: { summary: Register a vehicle }
+  /api/displays/pairing-code:
+    post: { summary: Create a short-lived display pairing code }
+  /api/displays/pair:
+    post: { summary: Bind a display to a driver vehicle }
+  /api/device/pair:
+    post: { security: [], summary: Exchange a pairing code for device credentials }
+  /api/device/heartbeat:
+    post: { summary: Record an authenticated device heartbeat }
+  /api/device/manifest:
+    get: { summary: Fetch the device manifest }
+  /api/device/proof-of-play:
+    post: { summary: Ingest device playback/proof events }
+  /api/mobility/events:
+    post: { summary: Ingest normalized mobility events; server owns state transitions }
+  /api/rides/{rideId}/locations:
+    post: { summary: Ingest batched ride locations }
+  /api/playback/events:
+    post: { summary: Ingest playback events from an authenticated display }
+  /api/earnings/summary:
+    get: { summary: Read server-calculated earnings }
+  /api/wallet:
+    get: { summary: Read ledger-derived wallet balances }
+  /api/payouts:
+    get: { summary: List payouts }
+    post: { summary: Request a payout through the provider boundary }
+  /api/admin/displays/{displayId}/commands:
+    post: { summary: Queue an audited display command; delivery is separate }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT or device token

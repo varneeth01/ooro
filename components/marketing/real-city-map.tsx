@@ -1,0 +1,17 @@
+"use client";
+import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { useEffect } from "react";
+import type { LatLngBoundsExpression } from "leaflet";
+import type { OoroCity } from "./city-data";
+import "leaflet/dist/leaflet.css";
+
+const indiaBounds: LatLngBoundsExpression = [[6, 67], [36, 91]];
+
+export function RealCityMap({ cities, onSelect, locked }: { cities: OoroCity[]; onSelect: (city: OoroCity) => void; locked: boolean }) {
+  return <div className="real-map relative h-[330px] overflow-hidden bg-[#091014] sm:h-[430px]"><MapContainer center={[21, 79]} zoom={4.7} minZoom={4} maxZoom={11} maxBounds={indiaBounds} maxBoundsViscosity={0.8} scrollWheelZoom={false} className="h-full w-full" zoomControl><InteractionLock locked={locked}/><TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.72}/><MapGrid/><FitIndia/><div className="pointer-events-none absolute inset-0 z-[400] bg-[radial-gradient(circle_at_center,transparent_42%,rgba(4,9,12,.55)_100%)]"/>{cities.map(city => <CircleMarker key={city.id} center={[city.latitude, city.longitude]} radius={city.status === "active" ? 8 : 6} pathOptions={{ color: city.status === "active" ? "#dfff00" : "#c4c7bd", fillColor: city.status === "active" ? "#dfff00" : "#15191a", fillOpacity: 1, weight: city.status === "active" ? 2 : 1.5 }} eventHandlers={{ click: () => onSelect(city) }}><Tooltip direction="top" offset={[0, -8]} opacity={1}>{city.status === "active" ? "LIVE · " : "LOCKED · "}{city.name}</Tooltip><Popup><div className="min-w-[150px] font-sans" onClick={(event) => event.stopPropagation()}><strong className="text-base">{city.name}</strong><div className="mt-1 text-xs text-neutral-500">{city.state} · {city.country}</div><div className="mt-3 text-xs font-medium">{city.status === "active" ? "OORO is launching here" : "OORO isn’t here yet."}</div><button className="mt-3 border border-neutral-300 px-3 py-2 text-xs font-medium" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onSelect(city); }}>{city.status === "active" ? "Explore city" : `Help unlock ${city.name}`}</button></div></Popup></CircleMarker>)}</MapContainer><div className="pointer-events-none absolute bottom-3 left-3 z-[500] border border-white/15 bg-black/70 px-2 py-1 font-mono text-[9px] tracking-[.12em] text-neutral-400 backdrop-blur-sm">DRAG TO EXPLORE · SCROLL TO ZOOM</div></div>;
+}
+
+function InteractionLock({ locked }: { locked: boolean }) { const map = useMap(); useEffect(() => { const handlers = [map.dragging, map.scrollWheelZoom, map.doubleClickZoom, map.touchZoom, map.boxZoom, map.keyboard]; const states = handlers.map(handler => handler.enabled()); if (locked) handlers.forEach(handler => handler.disable()); return () => handlers.forEach((handler, index) => states[index] && handler.enable()); }, [locked, map]); return null; }
+
+function FitIndia() { const map = useMap(); return <button type="button" className="absolute right-3 top-3 z-[500] border border-white/15 bg-black/75 px-3 py-2 font-mono text-[9px] tracking-[.1em] text-white backdrop-blur-sm" onClick={() => map.fitBounds(indiaBounds, { padding: [18, 18] })}>RESET VIEW</button>; }
+function MapGrid() { return <div className="pointer-events-none absolute inset-0 z-[350] opacity-20 [background-image:linear-gradient(to_right,rgba(223,255,0,.25)_1px,transparent_1px),linear-gradient(to_bottom,rgba(223,255,0,.25)_1px,transparent_1px)] [background-size:56px_56px]"/>; }

@@ -1,0 +1,16 @@
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+async function main() {
+  const admin = await prisma.user.upsert({ where: { phone: '+910000000001' }, update: { role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' }, create: { phone: '+910000000001', role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' } })
+  const user = await prisma.user.upsert({ where: { phone: '+910000000002' }, update: { name: 'OORO Demo Driver', accountStatus: 'ACTIVE' }, create: { phone: '+910000000002', role: 'DRIVER', accountStatus: 'ACTIVE', name: 'OORO Demo Driver' } })
+  const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: { onboardingStatus: 'COMPLETE', city: 'Bengaluru' }, create: { userId: user.id, onboardingStatus: 'COMPLETE', city: 'Bengaluru' } })
+  const vehicle = await prisma.vehicle.upsert({ where: { registrationNumber: 'TS09AB1234' }, update: { driverId: driver.id, status: 'VERIFIED' }, create: { driverId: driver.id, type: 'AUTO', registrationNumber: 'TS09AB1234', manufacturer: 'OORO', model: 'Demo Auto', status: 'VERIFIED' } })
+  const display = await prisma.display.upsert({ where: { deviceId: 'OORO-DEMO' }, update: { vehicleId: vehicle.id, state: 'READY' }, create: { deviceId: 'OORO-DEMO', name: 'OORO Demo Display', vehicleId: vehicle.id, state: 'READY' } })
+  await prisma.mobilityIntegration.upsert({ where: { driverId_provider: { driverId: driver.id, provider: 'UBER' } }, update: { enabled: true, status: 'ACTIVE' }, create: { driverId: driver.id, provider: 'UBER', enabled: true, status: 'ACTIVE' } })
+  for (const type of ['DRIVER_PARTNER', 'DISPLAY', 'LOCATION', 'NOTIFICATION_ACCESS', 'MOBILITY_DETECTION', 'PAYOUT', 'SAFETY', 'PRIVACY']) await prisma.agreementVersion.upsert({ where: { type_version: { type, version: '1.0' } }, update: {}, create: { type, version: '1.0', required: true } })
+  console.log(JSON.stringify({ adminId: admin.id, driverId: driver.id, vehicleId: vehicle.id, displayId: display.id }))
+}
+
+main().finally(() => prisma.$disconnect())

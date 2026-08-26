@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { Brand } from "@/components/brand";
+export default function WelcomePage() { return <main className="flex min-h-screen flex-col items-center justify-between bg-[#f7f7f5] p-7 sm:p-10"><Brand/><section className="w-full max-w-xl text-center"><div className="eyebrow text-neutral-500">OORO / 001</div><h1 className="display mt-5 text-6xl font-medium">Welcome to OORO.</h1><p className="mx-auto mt-6 max-w-sm text-lg leading-8 text-neutral-500">We&apos;ll build onboarding next. For now, you&apos;re in the right place.</p><Link href="/" className="mt-10 inline-block rounded-[9px] bg-black px-5 py-3.5 text-sm font-medium text-white">Back to home</Link></section><span className="text-xs text-neutral-400">© OORO</span></main> }

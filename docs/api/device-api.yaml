@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: OORO Device API
+  version: 0.1.0
+servers:
+  - url: https://api.example.invalid
+paths:
+  /api/device/pair:
+    post:
+      summary: Bind a physical device to a screen using a one-time code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PairRequest' }
+      responses:
+        '200':
+          description: Paired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairResponse' }
+  /api/device/manifest:
+    get: { summary: Get the assigned screen manifest, responses: { '200': { description: Manifest } } }
+  /api/device/heartbeat:
+    post: { summary: Report device health, responses: { '204': { description: Accepted } } }
+  /api/device/proof-of-play:
+    post: { summary: Upload idempotent proof-of-play events, responses: { '204': { description: Accepted } } }
+  /api/device/errors:
+    post: { summary: Upload bounded diagnostic events, responses: { '204': { description: Accepted } } }
+  /api/device/unpair:
+    post: { summary: Revoke the device session, responses: { '204': { description: Unpaired } } }
+components:
+  schemas:
+    PairRequest:
+      type: object
+      required: [pairingCode, deviceId, manufacturer, model, androidVersion, appVersion]
+      properties:
+        pairingCode: { type: string, example: 7K4P2D }
+        deviceId: { type: string }
+        manufacturer: { type: string }
+        model: { type: string }
+        androidVersion: { type: string }
+        appVersion: { type: string }
+    PairResponse:
+      type: object
+      required: [deviceToken, screenId, workspaceId, deviceName]
+      properties:
+        deviceToken: { type: string, format: password }
+        screenId: { type: string }
+        workspaceId: { type: string }
+        deviceName: { type: string }

@@ -1,0 +1,9 @@
+import { ArrowDown, ArrowUpRight } from "lucide-react";
+import { HeroProduct } from "@/components/marketing/product/hero-product";
+import { Navbar } from "@/components/marketing/navbar";
+import { Tirupati, HowItWorks, Network, Cities, Brands, About, FinalCta } from "@/components/marketing/sections";
+import { Footer } from "@/components/marketing/footer";
+
+export default function Home() {
+  return <main><div className="hero-ambient text-white"><Navbar/><section className="container-ooro grid min-h-[700px] items-center gap-14 pb-12 pt-28 lg:grid-cols-[.85fr_1.15fr] lg:gap-20 lg:pb-14 lg:pt-32"><div><div className="eyebrow mb-8 text-neutral-400">The smart mobility advertising network</div><h1 className="display max-w-2xl text-[58px] font-medium sm:text-7xl lg:text-[84px]">Advertising that<br/><span className="text-[var(--brand-yellow)]">moves with your city.</span></h1><p className="mt-9 max-w-lg text-lg leading-8 text-neutral-400">OORO turns everyday vehicles into a smart digital media network, helping brands reach people in the real world—wherever the city moves.</p><div className="mt-10 flex flex-wrap items-center gap-6"><a href="#waitlist" className="focus-ring rounded-[8px] bg-[var(--brand-yellow)] px-5 py-3.5 text-sm font-medium text-black transition hover:-translate-y-px hover:brightness-95">Launch a Campaign <ArrowUpRight className="ml-8 inline" size={15}/></a><a href="#cities" className="focus-ring text-sm font-medium text-neutral-300 transition hover:text-white">Bring OORO to My City <ArrowDown className="ml-2 inline" size={15}/></a></div></div><div className="relative"><HeroProduct/></div></section><div className="container-ooro flex justify-between border-t border-white/10 py-5 text-[11px] tracking-[.08em] text-neutral-500"><span>STARTING IN TIRUPATI / INDIA</span><span className="hidden sm:block">SCROLL TO EXPLORE ↓</span></div></div><Tirupati/><Network/><HowItWorks/><Cities/><Brands/><About/><FinalCta/><Footer/></main>;
+}
