@@ -4,7 +4,8 @@ import { Check, LockKeyhole, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { ooroCities, type OoroCity } from "./city-data";
 
-const RealCityMap = dynamic(() => import("./real-city-map").then((module) => module.RealCityMap), { ssr: false, loading: () => <div className="flex h-[330px] items-center justify-center bg-[#091014] font-mono text-[10px] tracking-[.12em] text-neutral-500 sm:h-[430px]">LOADING CITY NETWORK…</div> });
+const LeafletCityMap = dynamic(() => import("./real-city-map").then((module) => module.RealCityMap), { ssr: false, loading: () => <div className="flex h-[330px] items-center justify-center bg-[#091014] font-mono text-[10px] tracking-[.12em] text-neutral-500 sm:h-[430px]">LOADING CITY NETWORK…</div> });
+function RealCityMap(props: { cities: OoroCity[]; locked: boolean; onSelect: (city: OoroCity) => void }) { const [visible, setVisible] = useState(false); const ref = useRef<HTMLDivElement>(null); useEffect(() => { const node = ref.current; if (!node) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } }, { rootMargin: "300px" }); observer.observe(node); return () => observer.disconnect(); }, []); return <div ref={ref}>{visible ? <LeafletCityMap {...props}/> : <div className="flex h-[330px] items-center justify-center bg-[#091014] font-mono text-[10px] tracking-[.12em] text-neutral-500 sm:h-[430px]">CITY NETWORK READY</div>}</div>; }
 
 const roles = ["Brand", "Business", "Vehicle Owner / Driver", "Agency", "Interested User"];
 type FormState = { name: string; email: string; phone: string; city: string; userType: string; company: string };
