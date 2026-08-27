@@ -29,6 +29,15 @@ export function About() {
   return <section id="about" className="container-ooro section-sm"><div className="grid gap-12 lg:grid-cols-[.8fr_1.2fr]"><div><span className="eyebrow text-neutral-500">About OORO</span><h2 className="display mt-5 text-5xl font-medium lg:text-[64px]">Building the media network outside the screen.</h2></div><div className="self-end space-y-5 text-lg leading-8 text-neutral-500"><p>OORO is building a new kind of advertising network—one that moves through cities instead of waiting for people to open an app.</p><p>Starting in Tirupati and expanding city by city.</p></div></div></section>;
 }
 
+export function Founders() {
+  const people = [
+    ["Varneeth Varma Nandimandalam", "CEO and Founder", "https://www.linkedin.com/in/varneeth-varma-nandimandalam/"],
+    ["Sumanth Vasilanka", "COO and Co-Founder", "https://www.linkedin.com/in/sumanth-vasilanka-6892902a9/"],
+    ["Siri Girish", "CMO and Brand Strategist", "https://www.linkedin.com/in/siri-girish-7b7b65378/"],
+  ];
+  return <section id="founders" className="border-t border-neutral-200 bg-[#f7f7f5]"><div className="container-ooro section-sm"><div className="grid gap-10 lg:grid-cols-[.8fr_1.2fr]"><div><span className="eyebrow text-neutral-500">The people behind OORO</span><h2 className="display mt-5 max-w-xl text-5xl font-medium lg:text-[68px]">Meet the OORO founders.</h2></div><div><p className="max-w-lg text-lg leading-8 text-neutral-500">OORO is being built by a founding team focused on making city movement useful for brands, businesses, drivers and the people around them.</p><div className="mt-10 divide-y border-y border-neutral-300">{people.map(([name, role, url]) => <a className="flex items-center justify-between gap-6 py-5 transition hover:pl-2" href={url} target="_blank" rel="noreferrer" key={name}><span><strong className="block font-medium text-black">{name}</strong><span className="mt-1 block text-sm text-neutral-500">{role}</span></span><ArrowUpRight size={16}/></a>)}</div></div></div></div></section>;
+}
+
 export function FinalCta() {
   return <section id="waitlist" className="relative overflow-hidden bg-[#090909] text-white"><div className="absolute -right-32 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-[var(--brand-yellow)] opacity-[.08] blur-3xl"/><div className="container-ooro section-sm relative flex flex-col gap-10"><h2 className="display max-w-3xl text-5xl font-medium sm:text-6xl lg:text-[82px]">Bring OORO to your city.</h2><p className="max-w-md text-lg leading-8 text-neutral-400">Tirupati is first. Join the waitlist and help us decide where OORO moves next.</p><a className="w-fit rounded-[8px] bg-[var(--brand-yellow)] px-5 py-3.5 text-sm font-medium text-black transition hover:-translate-y-px hover:brightness-95" href="#cities">Explore the city network <ChevronRight className="ml-5 inline" size={15}/></a></div></section>;
 }
