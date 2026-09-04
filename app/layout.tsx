@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://theooro.com";
 const siteName = "OORO";
 const siteDescription = "OORO is a smart mobility advertising network that helps brands reach people in the real world through digital displays on moving vehicles, starting in Tirupati, Andhra Pradesh, India.";
 
@@ -35,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       { "@type": "Organization", "@id": `${siteUrl}/#organization`, name: siteName, alternateName: ["Ooro", "Ooro mobility", "OORO advertising"], url: siteUrl, logo: `${siteUrl}/favicon.jpeg`, description: siteDescription, foundingLocation: { "@type": "Place", name: "Tirupati, Andhra Pradesh, India" }, founder: founders.slice(0, 2), employee: founders.slice(2), sameAs: founders.flatMap((founder) => founder.sameAs) },
       { "@type": "WebSite", "@id": `${siteUrl}/#website`, url: siteUrl, name: siteName, alternateName: "Ooro", description: siteDescription, publisher: { "@id": `${siteUrl}/#organization` }, inLanguage: "en-IN" },
       { "@type": "WebPage", "@id": `${siteUrl}/#webpage`, url: siteUrl, name: "OORO | Smart mobility advertising in India", isPartOf: { "@id": `${siteUrl}/#website` }, about: { "@id": `${siteUrl}/#organization` }, description: siteDescription, inLanguage: "en-IN" },
+      { "@type": "OfferCatalog", "@id": `${siteUrl}/#campaign-pricing`, name: "OORO Tirupati campaign pricing", url: `${siteUrl}/#campaign-pricing`, itemListElement: [3000, 6000, 9000, 15000, 5000, 10000, 15000, 25000].map((price, index) => ({ "@type": "Offer", name: `Tirupati ${[5, 10, 15, 25, 5, 10, 15, 25][index]}-auto ${index < 4 ? 4 : 8}-hour campaign`, price: String(price), priceCurrency: "INR", availability: "https://schema.org/InStock", url: `${siteUrl}/#campaign-pricing` })) },
       ...founders,
     ],
   };

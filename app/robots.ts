@@ -1,2 +1,10 @@
 import type { MetadataRoute } from "next";
-export default function robots(): MetadataRoute.Robots { const base = process.env.NEXT_PUBLIC_SITE_URL || "https://theooro.com"; return { rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/dashboard", "/api/", "/login", "/signup", "/welcome"] }], sitemap: `${base}/sitemap.xml`, host: base }; }
+import { siteUrl } from "@/lib/site";
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/dashboard", "/api/", "/login", "/signup", "/welcome"] }],
+    sitemap: `${siteUrl}/sitemap.xml`,
+    host: siteUrl,
+  };
+}

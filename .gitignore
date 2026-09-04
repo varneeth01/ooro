@@ -1,11 +1,45 @@
 # Android/Gradle
 **/.gradle/
 **/build/
+**/.cxx/
+**/.externalNativeBuild/
+**/captures/
 local.properties
 *.jks
 *.keystore
+*.apk
+*.aab
+*.hprof
 
 # Node
 node_modules/
 .next/
 out/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+*.pid
+.pnpm-debug.log*
+.env*
+!.env.example
+!**/.env.example
+*.pem
+*.p12
+*.crt
+*.key
+
+# Local tooling and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.vercel/
+.netlify/
+
+# Runtime/generated data
+tmp/
+logs/
+*.sqlite
+*.sqlite3
+*.db

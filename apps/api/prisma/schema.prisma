@@ -129,12 +129,108 @@ updatedAt DateTime @updatedAt
 pairingCodes DisplayPairingCode[]
 heartbeats DisplayHeartbeat[]
 commands DisplayCommand[]
+campaignAssignments DisplayCampaignAssignment[]
 candidates RideCandidate[]
 rides Ride[]
 sessions CampaignSession[]
 playbackEvents PlaybackEvent[]
 proofs ProofOfPlay[]
 @@index([vehicleId, state])
+}
+
+model Campaign {
+id String @id @default(uuid()) @db.Uuid
+name String
+status String @default("DRAFT")
+startsAt DateTime?
+endsAt DateTime?
+timezone String @default("Asia/Kolkata")
+layout String @default("FULLSCREEN_AD")
+priority Int @default(0)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+creatives Creative[]
+assignments DisplayCampaignAssignment[]
+@@index([status, startsAt, endsAt])
+}
+
+model Creative {
+id String @id @default(uuid()) @db.Uuid
+campaignId String @db.Uuid
+name String
+type String
+status String @default("ACTIVE")
+durationSeconds Int @default(10)
+displayOrder Int @default(0)
+campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+asset Asset?
+@@index([campaignId, status])
+}
+
+model Asset {
+id String @id @default(uuid()) @db.Uuid
+creativeId String @unique @db.Uuid
+url String
+checksum String?
+mimeType String?
+sizeBytes BigInt?
+active Boolean @default(true)
+creative Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+}
+
+model DisplayCampaignAssignment {
+id String @id @default(uuid()) @db.Uuid
+displayId String @db.Uuid
+campaignId String @db.Uuid
+active Boolean @default(true)
+createdAt DateTime @default(now())
+display Display @relation(fields: [displayId], references: [id], onDelete: Cascade)
+campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+@@unique([displayId, campaignId])
+@@index([displayId, active])
+}
+
+model GuestCampaignOrder {
+id String @id @default(uuid()) @db.Uuid
+publicOrderNumber String @unique
+customerName String
+customerEmail String
+customerPhone String
+businessName String
+gstin String?
+campaignNotes String?
+websiteOrInstagram String?
+packageId String
+city String
+autos Int
+hoursPerDay Int
+campaignDurationDays Int
+subtotal Int
+tax Int @default(0)
+total Int
+currency String @default("INR")
+status String @default("CREATED")
+razorpayOrderId String? @unique
+razorpayPaymentId String?
+paymentCapturedAt DateTime?
+campaignId String?
+receiptNumber String? @unique
+receiptAccessTokenHash String? @unique
+emailDeliveryStatus String @default("PENDING")
+emailLastError String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@index([status, createdAt])
+@@index([customerEmail])
+}
+
+model RazorpayWebhookEvent {
+id String @id @default(uuid()) @db.Uuid
+eventId String @unique
+eventType String
+payload Json
+processedAt DateTime?
+createdAt DateTime @default(now())
 }
 model DisplayPairingCode {
 id String @id @default(uuid()) @db.Uuid

@@ -15,17 +15,17 @@ The debug build uses `MockDeviceApi`; enter `OORO-DEMO` on the setup screen. Deb
 
 ## Behavior
 
-The device UUID is generated once and persisted. Pairing stores the device session, after which startup enters player mode and sync runs independently. The local manifest/database and bundled OORO fallback are intended to keep playback alive through network loss. Current demo playback is branded placeholder content; remote creative download and Media3 rendering are the next integration surface once the backend manifest is available.
+The device UUID and encrypted device token are persisted. Pairing stores the device session, manifests are activated only after required assets are cached, and the last valid manifest remains available during network loss. Images and videos are rendered from the local creative cache through Media3 for video playback.
 
 ## Kiosk and boot
 
-`BootReceiver` starts paired devices after `BOOT_COMPLETED`. Without Device Owner, the player uses immersive fullscreen only. Provision managed test hardware after a factory reset with:
+`BootReceiver` starts paired devices after boot and package replacement. Without Device Owner, the player uses immersive fullscreen only. When provisioned as Device Owner, the app configures Lock Task and starts it from the display activity. Provision managed test hardware after a factory reset with:
 
 ```bash
 adb shell dpm set-device-owner com.ooro.screenplayer/.kiosk.OoroDeviceAdminReceiver
 ```
 
-OEM support varies. Enable Lock Task from a device-owner provisioning controller and set OORO as the default HOME app manually in Settings where supported; the HOME intent is declared but never forced.
+OEM support varies. The HOME intent is declared; use the system HOME chooser, MDM, or OEM image provisioning where the platform does not expose a supported role API. See [`docs/DEVICE_PROVISIONING.md`](../../docs/DEVICE_PROVISIONING.md).
 
 ## Contract and troubleshooting
 

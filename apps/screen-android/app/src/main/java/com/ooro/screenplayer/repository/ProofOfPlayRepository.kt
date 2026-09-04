@@ -7,6 +7,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class ProofOfPlayRepository(private val db: OoroDatabase) {
-    suspend fun record(event: ProofOfPlay) = withContext(Dispatchers.IO) { db.proofDao().add(ProofEntity(event.eventId, JSONObject().put("eventId", event.eventId).put("screenId", event.screenId).put("deviceId", event.deviceId).put("campaignId", event.campaignId).put("creativeId", event.creativeId).put("scheduleItemId", event.scheduleItemId).put("startedAt", event.startedAt.toString()).put("endedAt", event.endedAt.toString()).put("success", event.success).put("appVersion", event.appVersion).toString())) }
+    suspend fun record(event: ProofOfPlay) = withContext(Dispatchers.IO) { db.proofDao().add(ProofEntity(event.eventId, JSONObject().put("eventId", event.eventId).put("screenId", event.screenId).put("deviceId", event.deviceId).put("campaignId", event.campaignId).put("creativeId", event.creativeId).put("scheduleItemId", event.scheduleItemId).put("startedAt", event.startedAt.toString()).put("endedAt", event.endedAt.toString()).put("expectedDurationMs", event.expectedDurationMs).put("actualPlayedMs", event.actualPlayedMs).put("success", event.success).put("failureReason", event.failureReason).put("appVersion", event.appVersion).toString())) }
     suspend fun pending(limit: Int = 50) = db.proofDao().pending(limit)
+    suspend fun pendingCount() = db.proofDao().pendingCount()
+    suspend fun remove(ids: List<String>) { if (ids.isNotEmpty()) db.proofDao().delete(ids) }
 }
