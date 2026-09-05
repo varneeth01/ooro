@@ -1,7 +1,5 @@
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "");
 
-if (!configuredApiUrl) {
-  throw new Error("NEXT_PUBLIC_API_URL must be configured for the frontend build and runtime.");
-}
-
-export const apiUrl = configuredApiUrl;
+// Production runs the API through the same-origin Netlify function. A local
+// override is useful when the standalone API is running on port 8080.
+export const apiUrl = configuredApiUrl ?? "";

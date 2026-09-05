@@ -66,6 +66,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@fastify/aws-lambda':
+        specifier: ^6.4.1
+        version: 6.4.1
       '@fastify/cors':
         specifier: ^10.0.1
         version: 10.1.0
@@ -322,6 +325,9 @@ packages:
 
   '@fastify/ajv-compiler@4.0.6':
     resolution: {integrity: sha512-NtuzM0SfaMJbGlnjr9LWQUN5LzgSrbB8tf/wRZNas+4E1O/Nmzl53e7ruT61HDZyRCJGC6FxIogmNZO1c5ETBA==}
+
+  '@fastify/aws-lambda@6.4.1':
+    resolution: {integrity: sha512-eTCkZJ8b4NAyafxChyM1VSVMUK1KnlyXj7NBfrQm8dRcXj42X8je5poyaZDZ9T5XTyykl3oLMiI4IvZJWXzLsw==}
 
   '@fastify/cors@10.1.0':
     resolution: {integrity: sha512-MZyBCBJtII60CU9Xme/iE4aEy8G7QpzGR8zkdXZkDFt7ElEMachbE61tfhAG/bvSaULlqlf0huMT12T7iqEmdQ==}
@@ -2654,6 +2660,8 @@ snapshots:
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       fast-uri: 4.1.2
+
+  '@fastify/aws-lambda@6.4.1': {}
 
   '@fastify/cors@10.1.0':
     dependencies:

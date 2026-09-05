@@ -6,6 +6,19 @@
 [build.environment]
   NODE_VERSION = "20"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Keep the backend's /api route prefix when Netlify invokes the function.
+# The function name is also api, so the second /api is the path passed to
+# Fastify; the public URL still contains /api exactly once.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+  force = true
+
 # Keep one canonical origin for search engines. Point all four domains at this
 # Netlify site, then the aliases will consolidate their SEO signals here.
 [[redirects]]
