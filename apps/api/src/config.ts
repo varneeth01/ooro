@@ -1,6 +1,10 @@
 import 'dotenv/config'
 
 const bool = (value: string | undefined, fallback = false) => value === undefined ? fallback : value === 'true'
+const list = (value: string | undefined) => value?.split(',').map((item) => item.trim()).filter(Boolean) ?? []
+
+const defaultCorsOrigins = ['https://theooro.com', 'https://www.theooro.com']
+const developmentCorsOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000']
 
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -22,6 +26,9 @@ export const config = {
   allowLiveRazorpayInDevelopment: bool(process.env.ALLOW_LIVE_RAZORPAY_IN_DEVELOPMENT),
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
+  corsOrigins: process.env.NODE_ENV === 'production'
+    ? [...defaultCorsOrigins, ...list(process.env.CORS_ORIGINS)]
+    : [...developmentCorsOrigins, ...list(process.env.CORS_ORIGINS)],
 }
 
 if (config.nodeEnv === 'production') {

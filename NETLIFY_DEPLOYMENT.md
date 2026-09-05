@@ -20,6 +20,7 @@ The checked-in `netlify.toml` installs `@netlify/plugin-nextjs`. This is require
 Copy `.env.example` into the Netlify environment settings:
 
 - `NEXT_PUBLIC_SITE_URL`: production site URL, used for canonical metadata and sitemap URLs. Set this to `https://theooro.com` (the canonical domain). The secondary domains are `ooro.media`, `ooro.network`, `ooro.digital`, and `oroo.tech`; point them at the same Netlify site so the redirect rule consolidates them to the primary domain.
+- `NEXT_PUBLIC_API_URL`: browser and server-side frontend API base URL. Set this to `https://api.theooro.com` in Netlify; local development uses `http://localhost:8080`.
 - `WAITLIST_WEBHOOK_URL`: optional HTTPS endpoint for waitlist persistence. Leave empty for local/demo browser persistence.
 - `NEXT_PUBLIC_DEVICE_DATA_SOURCE`: optional; do not set it in production unless mock admin data is intentional.
 

@@ -20,7 +20,7 @@ import { sendOrderConfirmation } from './domain/transactional-email.js'
 import { receiptPdf } from './domain/receipt.js'
 
 const app = Fastify({ logger: true })
-await app.register(cors, { origin: true })
+await app.register(cors, { origin: config.corsOrigins })
 await app.register(helmet)
 app.removeContentTypeParser('application/json')
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => { try { (request as any).rawBody = body; done(null, JSON.parse(body as string)) } catch (error) { done(error as Error, undefined) } })

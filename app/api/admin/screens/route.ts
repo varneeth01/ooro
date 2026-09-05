@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE } from "@/lib/auth/session";
-
-const apiBase = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+import { apiUrl } from "@/lib/api-url";
 
 async function authorized() {
   const session = (await cookies()).get(SESSION_COOKIE)?.value ?? "";
@@ -11,7 +10,7 @@ async function authorized() {
 
 export async function POST(request: Request) {
   if (!(await authorized())) return NextResponse.json({ error: "Admin API is not configured or access is denied" }, { status: 403 });
-  const response = await fetch(`${apiBase}/api/admin/displays`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OORO_ADMIN_API_TOKEN}` }, body: JSON.stringify(await request.json()), cache: "no-store" });
+  const response = await fetch(`${apiUrl}/api/admin/displays`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OORO_ADMIN_API_TOKEN}` }, body: JSON.stringify(await request.json()), cache: "no-store" });
   const payload = await response.json().catch(() => ({ error: "Backend returned invalid JSON" }));
   return NextResponse.json(payload, { status: response.status });
 }
