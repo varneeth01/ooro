@@ -1,11 +1,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { isProductionRuntime } from "./production-runtime";
 
 const keyId = () => process.env.RAZORPAY_KEY_ID ?? "";
 const keySecret = () => process.env.RAZORPAY_KEY_SECRET ?? "";
 
+export function assertPublicRazorpayKeyAllowed() {
+  if (keyId().startsWith("rzp_live_") && !isProductionRuntime() && process.env.ALLOW_LIVE_RAZORPAY_IN_DEVELOPMENT !== "true") throw new Error("LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT");
+}
+
 export async function createPublicRazorpayOrder(receipt: string, amount: number, notes: Record<string, string>) {
   if (!keyId() || !keySecret()) throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
-  if (keyId().startsWith("rzp_live_") && process.env.NODE_ENV !== "production" && process.env.ALLOW_LIVE_RAZORPAY_IN_DEVELOPMENT !== "true") throw new Error("LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT");
+  assertPublicRazorpayKeyAllowed();
   const response = await fetch("https://api.razorpay.com/v1/orders", {
     method: "POST",
     headers: { Authorization: `Basic ${Buffer.from(`${keyId()}:${keySecret()}`).toString("base64")}`, "Content-Type": "application/json" },

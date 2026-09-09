@@ -13,7 +13,8 @@ export const normalizePhone = (value: string) => { const normalized = normalizeI
 
 export const createRazorpayOrder = async (receipt: string, amount: number, notes: Record<string, string>) => {
   if (!config.razorpayKeyId || !config.razorpayKeySecret) throw new ApiError('PAYMENT_PROVIDER_NOT_CONFIGURED', 'Payment setup is temporarily unavailable', 503)
-  if (config.razorpayKeyId.startsWith('rzp_live_') && config.nodeEnv !== 'production' && !config.allowLiveRazorpayInDevelopment) throw new ApiError('LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT', 'Live payment keys are not allowed in development', 503)
+  const productionRuntime = process.env.CONTEXT === 'production' || process.env.DEPLOY_CONTEXT === 'production' || process.env.NODE_ENV === 'production'
+  if (config.razorpayKeyId.startsWith('rzp_live_') && !productionRuntime && !config.allowLiveRazorpayInDevelopment) throw new ApiError('LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT', 'Live payment keys are not allowed in development', 503)
   console.info(JSON.stringify({ mode: config.razorpayKeyId.startsWith('rzp_live_') ? 'LIVE' : 'TEST', packageId: notes.packageId, amountRupees: amount, amountPaise: amount * 100, orderNumber: receipt }))
   const response = await fetch('https://api.razorpay.com/v1/orders', { method: 'POST', headers: { Authorization: `Basic ${Buffer.from(`${config.razorpayKeyId}:${config.razorpayKeySecret}`).toString('base64')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: amount * 100, currency: 'INR', receipt, notes }) })
   if (!response.ok) throw new ApiError('PAYMENT_PROVIDER_UNAVAILABLE', 'Payment provider is temporarily unavailable', 503)
