@@ -20,6 +20,9 @@ importers:
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@19.2.8)
+      mongoose:
+        specifier: ^9.9.4
+        version: 9.9.4
       next:
         specifier: ^15.5.0
         version: 15.5.23(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
