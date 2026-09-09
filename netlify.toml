@@ -1,6 +1,8 @@
 [build]
   base = "."
-  command = "pnpm build"
+  # Generate Prisma before Next's root-app type checker runs. The payment
+  # function remains isolated from Prisma at runtime.
+  command = "pnpm --filter @ooro/api exec prisma generate && pnpm build"
   publish = ".next"
 
 [build.environment]
