@@ -49,7 +49,7 @@ const normalizedPath = (path = '') => {
   const withoutQuery = path.split('?')[0]
   return withoutQuery
     .replace(/^\/.netlify\/functions\/payments/, '')
-    .replace(/^\/api\//, '/')
+    .replace(/^\/api\/(?:public\/)?/, '/')
     .replace(/^\/$/, '') || '/'
 }
 

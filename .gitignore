@@ -45,3 +45,5 @@ logs/
 *.sqlite3
 *.db
 netlify/functions/api.zip
+netlify/functions/manifest.json
+netlify/functions/payments.mjs
