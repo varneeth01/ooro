@@ -1,14 +1,38 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { webPrisma } from "@/lib/web-prisma";
 import { webOwnerEmail } from "@/lib/web-owner";
 
 const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
+type CampaignAnalyticsRow = Prisma.CampaignGetPayload<{
+  include: {
+    creatives: { select: { id: true } };
+    assignments: {
+      where: { active: true };
+      select: {
+        displayId: true;
+        display: {
+          select: {
+            name: true;
+            state: true;
+            heartbeats: {
+              orderBy: { occurredAt: "desc" };
+              take: 1;
+              select: { occurredAt: true };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
 export async function GET() {
   const ownerEmail = await webOwnerEmail();
   if (!ownerEmail) return NextResponse.json({ error: { message: "Sign in to view analytics" } }, { status: 401 });
   try {
-    const campaigns = await webPrisma.campaign.findMany({
+    const campaigns: CampaignAnalyticsRow[] = await webPrisma.campaign.findMany({
       where: { ownerEmail }, orderBy: { updatedAt: "desc" },
       include: { creatives: { select: { id: true } }, assignments: { where: { active: true }, select: { displayId: true, display: { select: { name: true, state: true, heartbeats: { orderBy: { occurredAt: "desc" }, take: 1, select: { occurredAt: true } } } } } } },
     });
