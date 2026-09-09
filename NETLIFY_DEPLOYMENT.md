@@ -20,9 +20,14 @@ The checked-in `netlify.toml` installs `@netlify/plugin-nextjs`. This is require
 Copy `.env.example` into the Netlify environment settings:
 
 - `NEXT_PUBLIC_SITE_URL`: production site URL, used for canonical metadata and sitemap URLs. Set this to `https://theooro.com` (the canonical domain). The secondary domains are `ooro.media`, `ooro.network`, `ooro.digital`, and `oroo.tech`; point them at the same Netlify site so the redirect rule consolidates them to the primary domain.
-- `NEXT_PUBLIC_API_URL`: optional local-only standalone API override. Leave it unset in Netlify so browser requests use same-origin `/api/*`; local development may set it to `http://localhost:8080`.
-- `WAITLIST_WEBHOOK_URL`: optional HTTPS endpoint for waitlist persistence. Leave empty for local/demo browser persistence.
+- `NEXT_PUBLIC_API_URL`: optional standalone API override. Leave it unset in Netlify so browser and server-side admin requests use the configured `NEXT_PUBLIC_SITE_URL` and same-origin `/api/*`; local development may set it to `http://localhost:8080`.
+- `WAITLIST_WEBHOOK_URL`: optional HTTPS notification endpoint. Waitlist submissions are persisted by the backend even when this is empty.
 - `NEXT_PUBLIC_DEVICE_DATA_SOURCE`: optional; do not set it in production unless mock admin data is intentional.
+- `OORO_ADMIN_API_TOKEN`: server-only JWT used by the Next.js admin proxy for backend admin routes. Never prefix it with `NEXT_PUBLIC_`.
+- `ALLOW_ADMIN_TOKEN_FALLBACK`: keep `false` or unset in production; logged-in admin sessions are the production authentication path.
+- `OORO_SESSION_SECRET`: optional session-encryption secret; set a strong value in production.
+
+Do not run the development Prisma seed against production. The seed exits without creating a development admin when `NODE_ENV=production`.
 
 The backend now runs in the same site's `netlify/functions/api` function. Add the `apps/api` server variables to the Netlify environment as server-only values: `DATABASE_URL`, `MONGODB_URI`, `JWT_SECRET`, Razorpay secrets, email settings, and `CORS_ORIGINS`. Never prefix these with `NEXT_PUBLIC_`.
 

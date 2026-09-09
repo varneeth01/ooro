@@ -12,6 +12,10 @@ paths:
     post: { security: [], summary: Request a one-time password }
   /api/auth/verify-otp:
     post: { security: [], summary: Verify OTP and create a driver session }
+  /api/auth/admin/request-otp:
+    post: { security: [], summary: Request an OTP for an existing admin account }
+  /api/auth/admin/verify-otp:
+    post: { security: [], summary: Verify an admin OTP and create a rotating admin session }
   /api/auth/refresh:
     post: { security: [], summary: Rotate a refresh session }
   /api/drivers/me:

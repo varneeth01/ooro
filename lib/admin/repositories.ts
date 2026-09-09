@@ -4,9 +4,12 @@ import type { CreateScreenInput, DeviceActivity, DeviceCommand, DeviceHeartbeat,
 export interface ScreenRepository { listScreens(filters?: ScreenFilters): Promise<Screen[]>; getScreen(id: string): Promise<Screen | null>; createScreen(input: CreateScreenInput): Promise<Screen> }
 export interface DeviceHealthRepository { getLatestHealth(screenId: string): Promise<DeviceHealth | null>; getFleetHealth(): Promise<{ screens: DeviceHealth[]; summary: ReturnType<typeof fleetHealth> }>; getHeartbeatHistory(screenId: string, limit?: number): Promise<DeviceHeartbeat[]>; getActivity(screenId: string, limit?: number): Promise<DeviceActivity[]> }
 export interface PairingRepository { getActiveCode(screenId: string): Promise<PairingCode | null>; createCode(screenId: string): Promise<PairingCode>; revokeCode(code: string): Promise<void> }
-export interface DeviceCommandRepository { createCommand(screenId: string, type: DeviceCommand["type"]): Promise<DeviceCommand> }
+export interface DeviceCommandRepository { createCommand(screenId: string, type: DeviceCommand["type"]): Promise<DeviceCommand>; getLatestCommand(screenId: string): Promise<DeviceCommand | null> }
 
-export const isMockDeviceData = process.env.NEXT_PUBLIC_DEVICE_DATA_SOURCE === "mock";
+// Fixtures are useful while developing the admin UI, but must never be able to
+// replace live device data in a production build, even if an environment
+// variable is accidentally carried into deployment.
+export const isMockDeviceData = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DEVICE_DATA_SOURCE === "mock";
 
 const now = Date.now();
 const mockScreens: Screen[] = [
@@ -39,22 +42,38 @@ class MockScreenRepository implements ScreenRepository {
   async getScreen(id: string) { return mockScreens.find(screen => screen.screenId === id) ?? null; }
   async createScreen(input: CreateScreenInput) { const screen: Screen = { ...input, screenId: `screen-${String(mockScreens.length + 14).padStart(3, "0")}`, deviceId: `pending-${Date.now()}`, createdAt: new Date().toISOString(), pairingStatus: "PAIRING_CODE_ACTIVE" }; mockScreens.push(screen); return screen; }
 }
-class EmptyScreenRepository implements ScreenRepository { async listScreens() { return []; } async getScreen() { return null; } async createScreen(input: CreateScreenInput) { return { ...input, screenId: "unavailable", deviceId: "unavailable", createdAt: new Date().toISOString(), pairingStatus: "UNPAIRED" as const }; } }
+class LiveScreenRepository implements ScreenRepository {
+  async listScreens() { const response = await fetch("/api/admin/screens", { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load screens"); const payload = await response.json(); return (payload.data ?? []) as Screen[]; }
+  async getScreen(id: string) { const screens = await this.listScreens(); return screens.find(screen => screen.screenId === id) ?? null; }
+  async createScreen(input: CreateScreenInput): Promise<Screen> { void input; throw new Error("Use the admin screen creation route"); }
+}
 class MockDeviceHealthRepository implements DeviceHealthRepository {
   async getLatestHealth(screenId: string) { return deriveHealth(mockHeartbeats.find(item => item.screenId === screenId)); }
   async getFleetHealth() { const screens = mockHeartbeats.map(heartbeat => deriveHealth(heartbeat)).filter((item): item is DeviceHealth => Boolean(item)); return { screens, summary: fleetHealth(screens) }; }
   async getHeartbeatHistory(screenId: string, limit = 10) { return mockHeartbeats.filter(item => item.screenId === screenId).slice(0, limit); }
   async getActivity(screenId: string, limit = 10) { return mockActivity.filter(item => item.screenId === screenId).slice(0, limit); }
 }
-class EmptyDeviceHealthRepository implements DeviceHealthRepository { async getLatestHealth() { return null; } async getFleetHealth() { return { screens: [], summary: fleetHealth([]) }; } async getHeartbeatHistory() { return []; } async getActivity() { return []; } }
+class LiveDeviceHealthRepository implements DeviceHealthRepository {
+  async getLatestHealth(screenId: string) { const payload = await this.read(screenId); return payload.health as DeviceHealth | null; }
+  async getFleetHealth() { const screens = await screenRepository.listScreens(); const health = await Promise.all(screens.map(screen => this.getLatestHealth(screen.screenId))); const current = health.filter((item): item is DeviceHealth => Boolean(item)); return { screens: current, summary: fleetHealth(current) }; }
+  async getHeartbeatHistory(screenId: string) { return (await this.read(screenId)).history as DeviceHeartbeat[]; }
+  async getActivity() { return []; }
+  private async read(screenId: string) { const response = await fetch(`/api/admin/screens/${screenId}/health`, { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load device health"); const payload = await response.json(); return payload.data ?? { health: null, history: [] }; }
+}
 class MockPairingRepository implements PairingRepository {
   async getActiveCode(screenId: string) { return pairingCodes.find(code => code.screenId === screenId && code.status === "ACTIVE") ?? null; }
   async createCode(screenId: string) { const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"; const bytes = new Uint8Array(6); crypto.getRandomValues(bytes); const code = Array.from(bytes, byte => alphabet[byte % alphabet.length]).join(""); const pairingCode: PairingCode = { code, screenId, status: "ACTIVE", createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() }; pairingCodes.push(pairingCode); return pairingCode; }
   async revokeCode(code: string) { const match = pairingCodes.find(item => item.code === code); if (match) match.status = "REVOKED"; }
 }
-class MockCommandRepository implements DeviceCommandRepository { async createCommand(screenId: string, type: DeviceCommand["type"]) { return { id: `command-${Date.now()}`, screenId, type, status: "QUEUED" as const, createdAt: new Date().toISOString() }; } }
+class LivePairingRepository implements PairingRepository {
+  async getActiveCode() { return null; }
+  async createCode(screenId: string) { const response = await fetch(`/api/admin/screens/${screenId}/pairing-code`, { method: "POST" }); const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.error?.message || "Unable to generate pairing code"); return payload.data as PairingCode; }
+  async revokeCode() { return; }
+}
+class MockCommandRepository implements DeviceCommandRepository { async createCommand(screenId: string, type: DeviceCommand["type"]) { return { id: `command-${Date.now()}`, screenId, type, status: "QUEUED" as const, createdAt: new Date().toISOString() }; } async getLatestCommand() { return null; } }
+class LiveCommandRepository implements DeviceCommandRepository { async createCommand(screenId: string, type: DeviceCommand["type"]) { const response = await fetch(`/api/admin/screens/${screenId}/commands`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commandType: type }) }); const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.error?.message || "Unable to queue display command"); const command = payload.data ?? payload; return { id: command.id, screenId, type: command.commandType as DeviceCommand["type"], status: command.status as DeviceCommand["status"], createdAt: command.createdAt }; } async getLatestCommand(screenId: string) { const response = await fetch(`/api/admin/screens/${screenId}/commands`, { cache: "no-store" }); const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.error?.message || "Unable to load display commands"); const command = payload.data?.[0]; return command ? { id: command.id, screenId, type: command.commandType as DeviceCommand["type"], status: command.status as DeviceCommand["status"], createdAt: command.createdAt } : null; } }
 
-export const screenRepository: ScreenRepository = isMockDeviceData ? new MockScreenRepository() : new EmptyScreenRepository();
-export const deviceHealthRepository: DeviceHealthRepository = isMockDeviceData ? new MockDeviceHealthRepository() : new EmptyDeviceHealthRepository();
-export const pairingRepository: PairingRepository = new MockPairingRepository();
-export const deviceCommandRepository: DeviceCommandRepository = new MockCommandRepository();
+export const screenRepository: ScreenRepository = isMockDeviceData ? new MockScreenRepository() : new LiveScreenRepository();
+export const deviceHealthRepository: DeviceHealthRepository = isMockDeviceData ? new MockDeviceHealthRepository() : new LiveDeviceHealthRepository();
+export const pairingRepository: PairingRepository = isMockDeviceData ? new MockPairingRepository() : new LivePairingRepository();
+export const deviceCommandRepository: DeviceCommandRepository = isMockDeviceData ? new MockCommandRepository() : new LiveCommandRepository();

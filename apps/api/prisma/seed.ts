@@ -3,7 +3,12 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  const admin = await prisma.user.upsert({ where: { phone: '+910000000001' }, update: { role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' }, create: { phone: '+910000000001', role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' } })
+  if (process.env.NODE_ENV === 'production') {
+    console.log(JSON.stringify({ developmentAdminSeeded: false, reason: 'production' }))
+    return
+  }
+  const adminPhone = process.env.DEV_ADMIN_PHONE ?? '+910000000001'
+  const admin = await prisma.user.upsert({ where: { phone: adminPhone }, update: { role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' }, create: { phone: adminPhone, role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' } })
   const user = await prisma.user.upsert({ where: { phone: '+910000000002' }, update: { name: 'OORO Demo Driver', accountStatus: 'ACTIVE' }, create: { phone: '+910000000002', role: 'DRIVER', accountStatus: 'ACTIVE', name: 'OORO Demo Driver' } })
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: { onboardingStatus: 'COMPLETE', city: 'Bengaluru' }, create: { userId: user.id, onboardingStatus: 'COMPLETE', city: 'Bengaluru' } })
   const vehicle = await prisma.vehicle.upsert({ where: { registrationNumber: 'TS09AB1234' }, update: { driverId: driver.id, status: 'VERIFIED' }, create: { driverId: driver.id, type: 'AUTO', registrationNumber: 'TS09AB1234', manufacturer: 'OORO', model: 'Demo Auto', status: 'VERIFIED' } })

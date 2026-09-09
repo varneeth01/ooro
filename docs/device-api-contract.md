@@ -47,4 +47,4 @@ Future commands (`SYNC_NOW`, `REFRESH_MANIFEST`, `RESTART_PLAYER`, `REBOOT_DEVIC
 
 ## Admin security boundary
 
-`AdminGuard` and `canAccessAdmin()` are local/mock seams only. Production must enforce `SUPER_ADMIN`/`ADMIN` authorization in middleware/server components and every API route. Client-side hiding and route redirects are not sufficient. Device secrets must never be returned by screen-list or health endpoints and must never be stored in browser localStorage.
+Admin page guards are user-experience checks only. Production authorization is enforced by the authenticated backend session and every admin API route. Client-side hiding and route redirects are not sufficient. Device secrets must never be returned by screen-list or health endpoints and must never be stored in browser localStorage.

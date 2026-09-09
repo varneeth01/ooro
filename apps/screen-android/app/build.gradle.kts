@@ -13,7 +13,16 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
     buildFeatures { compose = true; buildConfig = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
     buildTypes {
-        debug { manifestPlaceholders["allowCleartext"] = true; buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "true"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "true"); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15") }
+        debug {
+            val apiBaseUrl = project.findProperty("deviceApiBaseUrl")?.toString() ?: "http://10.0.2.2:8080"
+            val useMockBackend = project.findProperty("useMockBackend")?.toString()?.toBoolean() ?: true
+            manifestPlaceholders["allowCleartext"] = true
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            buildConfigField("boolean", "USE_MOCK_BACKEND", useMockBackend.toString())
+            buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "true")
+            buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\"")
+            buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15")
+        }
         release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"https://api.example.invalid\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "false"); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15") }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }

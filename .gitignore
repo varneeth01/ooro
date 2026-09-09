@@ -22,6 +22,7 @@ coverage/
 *.pid
 .pnpm-debug.log*
 .env*
+public/uploads/
 !.env.example
 !**/.env.example
 *.pem

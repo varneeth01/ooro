@@ -1,14 +1,30 @@
 "use client";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { normalizeIndianPhone } from "@/apps/api/src/domain/phone";
 import { apiUrl } from "@/lib/api-url";
 
 type Plan = { id: string; autos: number; hoursPerDay: 4 | 8; amount: number; city: string; durationDays: number };
-const plans: Plan[] = [
-  ...([5, 10, 15, 25] as const).map((autos, i) => ({ id: `TPT_30D_4H_${autos}`, autos, hoursPerDay: 4 as const, amount: [3000, 6000, 9000, 15000][i], city: "Tirupati", durationDays: 30 })),
-  ...([5, 10, 15, 25] as const).map((autos, i) => ({ id: `TPT_30D_8H_${autos}`, autos, hoursPerDay: 8 as const, amount: [5000, 10000, 15000, 25000][i], city: "Tirupati", durationDays: 30 })),
-];
-export function CampaignPricing() { const [hours, setHours] = useState<4 | 8>(4); const [selected, setSelected] = useState<Plan | null>(null); const visible = useMemo(() => plans.filter(p => p.hoursPerDay === hours), [hours]); return <section id="campaign-pricing" className="border-y border-white/10 bg-[#0b0b0b] py-20 text-white"><div className="container-ooro"><span className="eyebrow text-neutral-500">Tirupati launch pricing · 30-day campaign</span><div className="mt-5 flex flex-col justify-between gap-8 md:flex-row md:items-end"><h2 className="display max-w-2xl text-5xl font-medium sm:text-6xl">Put your brand<br/><span className="text-[var(--brand-yellow)]">in motion.</span></h2><p className="max-w-sm text-sm leading-6 text-neutral-400">Choose your daily reach. No account required—just your campaign details and a secure checkout.</p></div><div className="mt-10 inline-flex rounded-full border border-white/15 p-1">{([4, 8] as const).map(value => <button key={value} onClick={() => setHours(value)} className={`rounded-full px-5 py-2 text-sm ${hours === value ? "bg-[var(--brand-yellow)] text-black" : "text-neutral-400"}`}>{value} Hours / Day</button>)}</div><div className="mt-8 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">{visible.map(plan => <div key={plan.id} className="bg-[#0b0b0b] p-6"><p className="text-sm text-neutral-400">{plan.autos} autos</p><p className="mt-6 text-3xl font-medium">₹{plan.amount.toLocaleString("en-IN")}</p><p className="mt-2 text-xs text-neutral-500">{plan.hoursPerDay} hours/day · 30 days</p><button onClick={() => setSelected(plan)} className="mt-8 w-full rounded-[7px] bg-white px-4 py-3 text-sm font-medium text-black hover:bg-[var(--brand-yellow)]">Book campaign</button></div>)}</div></div>{selected && <Checkout plan={selected} close={() => setSelected(null)}/>}</section> }
+export function CampaignPricing() {
+  const [hours, setHours] = useState<4 | 8>(4);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [selected, setSelected] = useState<Plan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const visible = useMemo(() => plans.filter(p => p.hoursPerDay === hours), [plans, hours]);
+  useEffect(() => {
+    let active = true;
+    fetch(`${apiUrl}/api/public/campaign-packages`, { cache: "no-store" })
+      .then(async response => {
+        const payload = await response.json().catch(() => null) as { data?: Plan[]; error?: { message?: string } } | null;
+        if (!response.ok || !payload?.data) throw new Error(payload?.error?.message || "Pricing is temporarily unavailable.");
+        if (active) setPlans(payload.data);
+      })
+      .catch(caught => { if (active) setError(caught instanceof Error ? caught.message : "Pricing is temporarily unavailable."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  return <section id="campaign-pricing" className="border-y border-white/10 bg-[#0b0b0b] py-20 text-white"><div className="container-ooro"><span className="eyebrow text-neutral-500">Tirupati launch pricing · 30-day campaign</span><div className="mt-5 flex flex-col justify-between gap-8 md:flex-row md:items-end"><h2 className="display max-w-2xl text-5xl font-medium sm:text-6xl">Put your brand<br/><span className="text-[var(--brand-yellow)]">in motion.</span></h2><p className="max-w-sm text-sm leading-6 text-neutral-400">Choose your daily reach. No account required—just your campaign details and a secure checkout.</p></div>{error ? <p role="alert" className="mt-10 border border-red-400/40 bg-red-950/30 p-4 text-sm text-red-200">{error}</p> : loading ? <p className="mt-10 text-sm text-neutral-400">Loading current campaign pricing…</p> : <><div className="mt-10 inline-flex rounded-full border border-white/15 p-1">{([4, 8] as const).map(value => <button type="button" key={value} onClick={() => setHours(value)} className={`rounded-full px-5 py-2 text-sm ${hours === value ? "bg-[var(--brand-yellow)] text-black" : "text-neutral-400"}`}>{value} Hours / Day</button>)}</div><div className="mt-8 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">{visible.map(plan => <div key={plan.id} className="bg-[#0b0b0b] p-6"><p className="text-sm text-neutral-400">{plan.autos} autos</p><p className="mt-6 text-3xl font-medium">₹{plan.amount.toLocaleString("en-IN")}</p><p className="mt-2 text-xs text-neutral-500">{plan.hoursPerDay} hours/day · {plan.durationDays} days</p><button type="button" onClick={() => setSelected(plan)} className="mt-8 w-full rounded-[7px] bg-white px-4 py-3 text-sm font-medium text-black hover:bg-[var(--brand-yellow)]">Book campaign</button></div>)}</div></>}</div>{selected && <Checkout plan={selected} close={() => setSelected(null)}/>}</section>;
+}
 
 function Checkout({ plan, close }: { plan: Plan; close: () => void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");

@@ -140,7 +140,10 @@ proofs ProofOfPlay[]
 
 model Campaign {
 id String @id @default(uuid()) @db.Uuid
+ownerEmail String?
 name String
+description String?
+metadata Json?
 status String @default("DRAFT")
 startsAt DateTime?
 endsAt DateTime?
@@ -152,6 +155,32 @@ updatedAt DateTime @updatedAt
 creatives Creative[]
 assignments DisplayCampaignAssignment[]
 @@index([status, startsAt, endsAt])
+}
+
+model WorkspaceBrand {
+id String @id @default(uuid()) @db.Uuid
+ownerEmail String
+name String
+website String @default("")
+industry String @default("")
+market String @default("")
+description String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@index([ownerEmail, updatedAt])
+}
+
+model SavedAudience {
+id String @id @default(uuid()) @db.Uuid
+ownerEmail String
+name String
+description String
+locations String @default("")
+ageRange String @default("")
+interests String @default("")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@index([ownerEmail, updatedAt])
 }
 
 model Creative {
@@ -170,10 +199,15 @@ asset Asset?
 model Asset {
 id String @id @default(uuid()) @db.Uuid
 creativeId String @unique @db.Uuid
+fileName String
+storageKey String
 url String
 checksum String?
 mimeType String?
 sizeBytes BigInt?
+width Int?
+height Int?
+durationSeconds Int?
 active Boolean @default(true)
 creative Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
 }
@@ -587,4 +621,71 @@ scope String
 response Json
 createdAt DateTime @default(now())
 expiresAt DateTime
+}
+
+model WaitlistSubmission {
+id String @id @default(uuid()) @db.Uuid
+name String
+email String
+phone String
+city String
+userType String
+company String @default("")
+status String @default("NEW")
+source String @default("direct")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@unique([email, city])
+@@index([city, status, createdAt])
+}
+
+model WorkspaceSettings {
+id String @id @default(uuid()) @db.Uuid
+ownerEmail String @unique
+workspaceName String
+workspaceType String
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+
+model TeamInvite {
+id String @id @default(uuid()) @db.Uuid
+ownerEmail String
+inviteEmail String
+role String @default("MEMBER")
+status String @default("PENDING")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@unique([ownerEmail, inviteEmail])
+@@index([ownerEmail, status, createdAt])
+}
+
+model QuoteRequest {
+id String @id @default(uuid()) @db.Uuid
+ownerEmail String
+title String
+details String
+status String @default("REQUESTED")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@index([ownerEmail, status, createdAt])
+}
+
+model WebAccount {
+id String @id @default(uuid()) @db.Uuid
+email String @unique
+passwordHash String
+name String
+accountType String
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+
+model WebSession {
+id String @id @default(uuid()) @db.Uuid
+tokenHash String @unique
+ownerEmail String
+expiresAt DateTime
+createdAt DateTime @default(now())
+@@index([ownerEmail, expiresAt])
 }

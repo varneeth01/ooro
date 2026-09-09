@@ -8,5 +8,6 @@ export const ooroCities: OoroCity[] = [
   { id: "vijayawada", name: "Vijayawada", state: "Andhra Pradesh", country: "India", latitude: 16.5062, longitude: 80.648, status: "locked" },
   { id: "visakhapatnam", name: "Visakhapatnam", state: "Andhra Pradesh", country: "India", latitude: 17.6868, longitude: 83.2185, status: "locked" },
   { id: "mumbai", name: "Mumbai", state: "Maharashtra", country: "India", latitude: 19.076, longitude: 72.8777, status: "locked" },
+  { id: "kolkata", name: "Kolkata", state: "West Bengal", country: "India", latitude: 22.5726, longitude: 88.3639, status: "locked" },
   { id: "delhi", name: "Delhi", state: "Delhi", country: "India", latitude: 28.6139, longitude: 77.209, status: "locked" },
 ];
