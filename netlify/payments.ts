@@ -68,7 +68,12 @@ async function campaignPackages() {
 }
 
 async function createCampaignOrder(event: NetlifyEvent) {
-  const parsed = inputSchema.safeParse(readJson(event))
+  const raw = readJson(event) as Record<string, unknown> | null
+  const parsed = inputSchema.safeParse({
+    ...raw,
+    name: raw?.name ?? raw?.contactName,
+    businessName: raw?.businessName ?? raw?.brandName,
+  })
   if (!parsed.success) return failure(400, 'VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
   const input = parsed.data
   const selected = publicCampaignPackageFor(input.packageId)
@@ -95,7 +100,13 @@ async function createCampaignOrder(event: NetlifyEvent) {
 }
 
 async function verifyCampaignOrder(event: NetlifyEvent) {
-  const parsed = verifySchema.safeParse(readJson(event))
+  const raw = readJson(event) as Record<string, unknown> | null
+  const parsed = verifySchema.safeParse({
+    orderId: raw?.orderId ?? raw?.order_id,
+    razorpayOrderId: raw?.razorpayOrderId ?? raw?.razorpay_order_id,
+    razorpayPaymentId: raw?.razorpayPaymentId ?? raw?.razorpay_payment_id,
+    razorpaySignature: raw?.razorpaySignature ?? raw?.razorpay_signature,
+  })
   if (!parsed.success || !signatureMatches(process.env.RAZORPAY_KEY_SECRET ?? '', parsed.success ? `${parsed.data.razorpayOrderId}|${parsed.data.razorpayPaymentId}` : '', parsed.success ? parsed.data.razorpaySignature : '')) return failure(400, 'INVALID_PAYMENT_SIGNATURE', 'Payment could not be verified')
   try {
     await connectPublicMongo()
