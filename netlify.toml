@@ -9,14 +9,39 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  # @prisma/client loads its generated runtime from this sibling package at
-  # runtime. Netlify's dependency tracing can otherwise omit it from the
-  # function bundle, causing Runtime.ImportModuleError.
+
+# Only the legacy Prisma-backed function needs the generated Prisma runtime.
+# Keeping this function-specific prevents the isolated payments function from
+# inheriting any Prisma files.
+[functions."api"]
   included_files = ["node_modules/.prisma/client/**"]
 
-# Keep the backend's /api route prefix when Netlify invokes the function.
-# The function name is also api, so the second /api is the path passed to
-# Fastify; the public URL still contains /api exactly once.
+# Public checkout must bypass the Prisma-backed backend function entirely.
+[[redirects]]
+  from = "/api/public/campaign-packages"
+  to = "/.netlify/functions/payments/campaign-packages"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/public/campaign-orders/verify"
+  to = "/.netlify/functions/payments/campaign-orders/verify"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/public/campaign-orders"
+  to = "/.netlify/functions/payments/campaign-orders"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/webhooks/razorpay"
+  to = "/.netlify/functions/payments/webhooks/razorpay"
+  status = 200
+  force = true
+
+# All other API traffic continues to use the existing backend function.
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/api/:splat"
