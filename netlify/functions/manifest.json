@@ -1,0 +1,1 @@
+{"functions":[{"bundler":"esbuild","buildData":{"runtimeAPIVersion":1},"mainFile":"/home/varneeth/Documents/oodo/netlify/functions/api.mjs","name":"api","priority":10,"path":"/home/varneeth/Documents/oodo/netlify/functions/api.zip","runtime":"js"}],"system":{"arch":"x64","platform":"linux"},"timestamp":1788944910931,"version":1}

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "esbuild netlify/payments.ts --bundle --platform=node --format=esm --outfile=netlify/functions/payments.mjs",
     "dev": "next dev",
     "build": "pnpm --filter @ooro/api build && next build",
     "start": "next start",
