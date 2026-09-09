@@ -2,7 +2,7 @@ import { randomUUID, timingSafeEqual, createHmac } from 'node:crypto'
 import { z } from 'zod'
 import { publicCampaignPackages, publicCampaignPackageFor } from '../lib/public-campaign-packages'
 import { connectPublicMongo, publicMongoError, PublicCampaignOrderModel } from '../lib/public-campaign-orders'
-import { createPublicRazorpayOrder, publicRazorpayKeyId } from '../lib/public-razorpay'
+import { createPublicRazorpayOrder, publicRazorpayErrorCode, publicRazorpayKeyId } from '../lib/public-razorpay'
 
 type NetlifyEvent = {
   httpMethod?: string
@@ -89,9 +89,9 @@ async function createCampaignOrder(event: NetlifyEvent) {
       return response(200, { orderId: id, razorpayOrderId: razorpay.id, keyId: publicRazorpayKeyId(), amount: razorpay.amount, currency: razorpay.currency, name: input.name, email: input.email.toLowerCase(), phone: normalizedPhone })
     } catch (error) {
       await PublicCampaignOrderModel.updateOne({ _id: saved._id }, { $set: { paymentStatus: 'FAILED' } })
-      const message = error instanceof Error ? error.message : ''
-      const code = message === 'PAYMENT_PROVIDER_NOT_CONFIGURED' ? 'PAYMENT_PROVIDER_NOT_CONFIGURED' : message === 'LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT' ? 'LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT' : 'PAYMENT_PROVIDER_UNAVAILABLE'
-      return failure(503, code, code === 'PAYMENT_PROVIDER_NOT_CONFIGURED' ? 'Payment setup is temporarily unavailable' : code === 'LIVE_PAYMENT_KEYS_NOT_ALLOWED_IN_DEVELOPMENT' ? 'Live payment keys are not allowed in development' : 'Payment provider is temporarily unavailable')
+      const code = publicRazorpayErrorCode(error)
+      const message = code === 'RAZORPAY_MODE_NOT_CONFIGURED' ? 'Razorpay mode is not configured' : code === 'RAZORPAY_KEY_MODE_MISMATCH' ? 'Razorpay key does not match configured mode' : code === 'PAYMENT_PROVIDER_NOT_CONFIGURED' ? 'Payment setup is temporarily unavailable' : 'Payment provider is temporarily unavailable'
+      return failure(503, code, message)
     }
   } catch (error) {
     console.error(JSON.stringify({ event: 'paymentOrderFailure', errorType: error instanceof Error ? error.name : 'unknown', mongo: publicMongoError(error) }))

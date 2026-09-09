@@ -23,7 +23,7 @@ export const config = {
   razorpayKeyId: process.env.RAZORPAY_KEY_ID ?? '',
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
-  allowLiveRazorpayInDevelopment: bool(process.env.ALLOW_LIVE_RAZORPAY_IN_DEVELOPMENT),
+  razorpayMode: process.env.RAZORPAY_MODE?.trim().toLowerCase() ?? '',
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
   corsOrigins: process.env.NODE_ENV === 'production'
