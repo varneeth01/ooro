@@ -10,11 +10,14 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Only the legacy Prisma-backed function needs the generated Prisma runtime.
-# Keeping this function-specific prevents the isolated payments function from
-# inheriting any Prisma files.
-[functions."api"]
-  included_files = ["node_modules/.prisma/client/**"]
+# Explicitly exclude Prisma from the isolated public payment artifact. The
+# root workspace contains the legacy API's generated client, and Netlify's
+# function packager can otherwise carry that shared workspace material into
+# unrelated function archives.
+[functions."payments"]
+  included_files = ["!node_modules/.prisma/client/**", "!node_modules/@prisma/client/**"]
+  ignored_node_modules = ["@prisma/client", "prisma"]
+
 
 # Public checkout must bypass the Prisma-backed backend function entirely.
 [[redirects]]
