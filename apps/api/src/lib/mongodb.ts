@@ -3,6 +3,8 @@ import { config } from '../config.js'
 
 let connectionPromise: Promise<typeof mongoose> | null = null
 
+export const mongoInitialized = () => mongoose.connection.readyState === 1
+
 export async function connectMongo() {
   if (!config.mongodbUri) throw new Error('MONGODB_URI is not configured')
   if (mongoose.connection.readyState === 1) return mongoose

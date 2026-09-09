@@ -31,6 +31,15 @@ export const config = {
     : [...developmentCorsOrigins, ...list(process.env.CORS_ORIGINS)],
 }
 
+const productionDatabaseUrl = process.env.DATABASE_URL
+if (config.nodeEnv === 'production' && (!productionDatabaseUrl || /(?:^|[@:/])(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(productionDatabaseUrl))) {
+  console.warn(JSON.stringify({
+    event: 'startupDiagnostics',
+    databaseUrlConfigured: Boolean(productionDatabaseUrl),
+    databaseUrlLooksLocal: Boolean(productionDatabaseUrl && /(?:^|[@:/])(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(productionDatabaseUrl)),
+  }))
+}
+
 if (config.nodeEnv === 'production') {
   if (config.jwtSecret === 'development-only-change-me') throw new Error('JWT_SECRET must be configured in production')
   if (config.devMockOtpEnabled) throw new Error('DEV_MOCK_OTP_ENABLED must be false in production')

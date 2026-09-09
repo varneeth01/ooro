@@ -9,6 +9,10 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # @prisma/client loads its generated runtime from this sibling package at
+  # runtime. Netlify's dependency tracing can otherwise omit it from the
+  # function bundle, causing Runtime.ImportModuleError.
+  included_files = ["node_modules/.prisma/client/**"]
 
 # Keep the backend's /api route prefix when Netlify invokes the function.
 # The function name is also api, so the second /api is the path passed to

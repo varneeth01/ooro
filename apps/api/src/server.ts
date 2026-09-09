@@ -23,6 +23,9 @@ import { receiptPdf } from './domain/receipt.js'
 const app = Fastify({ logger: true })
 app.register(cors, { origin: config.corsOrigins })
 app.register(helmet)
+app.addHook('onRequest', async (request) => {
+  request.log.info({ requestPath: request.raw.url?.split('?')[0] ?? request.url.split('?')[0] }, 'requestPath')
+})
 app.removeContentTypeParser('application/json')
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => { try { (request as any).rawBody = body; done(null, JSON.parse(body as string)) } catch (error) { done(error as Error, undefined) } })
 app.addHook('preHandler', async (request) => { if (request.url.split('?')[0] === '/api/webhooks/razorpay') await connectMongo() })
