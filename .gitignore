@@ -47,3 +47,4 @@ logs/
 netlify/functions/api.zip
 netlify/functions/manifest.json
 netlify/functions/payments.mjs
+netlify/functions/*.zip
