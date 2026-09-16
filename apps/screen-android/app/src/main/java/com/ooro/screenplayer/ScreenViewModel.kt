@@ -17,6 +17,7 @@ import com.ooro.screenplayer.repository.ProofOfPlayRepository
 import com.ooro.screenplayer.player.ProofPolicy
 import com.ooro.screenplayer.sync.CommandProcessor
 import android.util.Log
+import com.ooro.screenplayer.location.LocationReporter
 
 sealed interface ScreenState { data object Preparing : ScreenState; data class Setup(val message: String? = null) : ScreenState; data class Player(val manifest: DeviceManifest) : ScreenState; data class Admin(val manifest: DeviceManifest?) : ScreenState }
 class ScreenViewModel(private val context: Context, private val store: DeviceStore, private val api: DeviceApi, private val db: OoroDatabase, private val assets: AssetManager) : ViewModel() {
@@ -25,10 +26,13 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     private val _diagnostic = MutableStateFlow("Not synced yet")
     val diagnostic: StateFlow<String> = _diagnostic
     val deviceId get() = store.deviceId
+    fun refreshLocationPermission() { location.start(); if (location.current() == null) _diagnostic.value = "Location permission required for live screen tracking · playback is unaffected" }
     var online = false; private set
     private var active: DeviceManifest? = null
     private val scheduler = ScheduleEngine(); private val proof = ProofOfPlayRepository(db); private var session: PlaybackSession? = null
-    init { viewModelScope.launch { active = db.manifestDao().active()?.let { ManifestCodec.parse(it.json) }; if (store.credentials() != null) sync(); ManifestRefreshBus.events.collect { sync() } } }
+    private var playbackPositionMs: Long? = null
+    private val location = LocationReporter(context)
+    init { location.start(); viewModelScope.launch { while (true) { val credentials = store.credentials(); if (credentials != null) { val fix = location.current(); val current = session; runCatching { api.heartbeat(credentials, if (current != null) PlayerStatus.PLAYING else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(fix, current?.campaignId, current?.creativeId, current?.assetId, current?.let { "PLAYING" } ?: "IDLE", current?.startedAt, if (current != null) playbackPositionMs else null, current?.expectedDurationMs)) }; kotlinx.coroutines.delay(com.ooro.screenplayer.location.LocationCadence.heartbeatIntervalMs(fix?.speedMps)) } else kotlinx.coroutines.delay(90_000) } }; viewModelScope.launch { active = db.manifestDao().active()?.let { ManifestCodec.parse(it.json) }; if (store.credentials() != null) sync(); ManifestRefreshBus.events.collect { sync() } } }
     fun pair(rawCode: String) { val code = rawCode.trim().uppercase(); if (code.isBlank()) { _state.value = ScreenState.Setup("Enter a pairing code"); return }; viewModelScope.launch { runCatching { val result = api.pair(PairRequest(code,deviceId,android.os.Build.MANUFACTURER,android.os.Build.MODEL,android.os.Build.VERSION.RELEASE,BuildConfig.VERSION_NAME)); store.save(result.credentials); Log.i("OoroScreen", "pairing succeeded displayId=${result.credentials.screenId} tokenPresent=${result.credentials.token.isNotBlank()} paired=true"); sync() }.onFailure { error -> Log.e("OoroScreen", "pairing failed displayId=$deviceId", error); _state.value = ScreenState.Setup("Pairing failed. Check the code and network connection.") } } }
     fun sync() { viewModelScope.launch {
         val c = store.credentials() ?: run { Log.w("OoroScreen", "sync skipped tokenPresent=false paired=false"); return@launch }
@@ -76,12 +80,15 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             .onFailure { error -> Log.w("OoroScreen", "command poll failed displayId=${c.screenId}", error) }
     } }
     fun currentItem(manifest: DeviceManifest): ManifestItem? = scheduler.next(manifest)
-    fun creativeStarted(item: ManifestItem) { if (session?.assetId == item.id) return; session = PlaybackSession(java.util.UUID.randomUUID().toString(), item.campaignId, item.creativeId, item.id, Instant.now(), item.durationSeconds * 1000L) }
-    fun creativeFinished(item: ManifestItem, actualMs: Long, success: Boolean, reason: String? = null) { val s = session ?: return; if (s.assetId != item.id) return; session = null; val accepted = success && (item.type != CreativeType.VIDEO || ProofPolicy().videoSuccess(s.expectedDurationMs, actualMs)); viewModelScope.launch { proof.record(ProofOfPlay(s.eventId, store.credentials()?.screenId ?: "", deviceId, s.campaignId, s.creativeId, s.assetId, s.startedAt, Instant.now(), s.expectedDurationMs, actualMs, accepted, reason ?: if (!accepted) "PLAYBACK_BELOW_COMPLETION_POLICY" else null, BuildConfig.VERSION_NAME)) } }
+    fun creativeStarted(item: ManifestItem) { if (session?.itemId == item.id) return; session = PlaybackSession(java.util.UUID.randomUUID().toString(), item.id, item.campaignId, item.creativeId, item.assetId, Instant.now(), item.durationSeconds * 1000L); playbackPositionMs = 0; reportPlayback(item, "PLAYING") }
+    fun creativePosition(item: ManifestItem, positionMs: Long) { if (session?.itemId == item.id) playbackPositionMs = positionMs.coerceAtLeast(0) }
+    fun creativeFinished(item: ManifestItem, actualMs: Long, success: Boolean, reason: String? = null) { val s = session ?: return; if (s.itemId != item.id) return; session = null; val accepted = success && (item.type != CreativeType.VIDEO || ProofPolicy().videoSuccess(s.expectedDurationMs, actualMs)); reportPlayback(item, if (accepted) "IDLE" else "FAILED", actualMs); playbackPositionMs = null; viewModelScope.launch { proof.record(ProofOfPlay(eventId = s.eventId, screenId = store.credentials()?.screenId ?: "", deviceId = deviceId, campaignId = s.campaignId, creativeId = s.creativeId, scheduleItemId = s.itemId, startedAt = s.startedAt, endedAt = Instant.now(), expectedDurationMs = s.expectedDurationMs, actualPlayedMs = actualMs, success = accepted, failureReason = reason ?: if (!accepted) "PLAYBACK_BELOW_COMPLETION_POLICY" else null, appVersion = BuildConfig.VERSION_NAME, assetId = s.assetId)) } }
+    private fun reportPlayback(item: ManifestItem, state: String, positionMs: Long? = null) { viewModelScope.launch { store.credentials()?.let { credentials -> runCatching { api.heartbeat(credentials, if (state == "PLAYING") PlayerStatus.PLAYING else if (state == "FAILED") PlayerStatus.ERROR else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(location.current(), item.campaignId, item.creativeId, item.assetId, state, session?.startedAt, positionMs, item.durationSeconds * 1000L)) } } } }
     suspend fun localFile(item: ManifestItem): String? = assets.ensure(item)?.absolutePath
     fun showAdmin() { _state.value = ScreenState.Admin(active) }
     fun closeAdmin() { _state.value = ScreenState.Player(active ?: fallback(store.credentials() ?: return)) }
     fun unpair() { viewModelScope.launch { store.credentials()?.let { runCatching { api.unpair(it) } }; store.clear(); active=null; _state.value=ScreenState.Setup("Screen unpaired") } }
     private fun fallback(c: DeviceCredentials) = DeviceManifest(0,c.screenId,BuildConfig.DEFAULT_TIMEZONE,emptyList(),null)
+    override fun onCleared() { location.stop(); super.onCleared() }
     companion object { fun factory(context: Context) = object: ViewModelProvider.Factory { override fun <T:ViewModel> create(type:Class<T>):T = ScreenViewModel(context,DeviceStore(context),ApiProvider(DeviceStore(context)).api,OoroDatabase.get(context),AssetManager(context)) as T } }
 }

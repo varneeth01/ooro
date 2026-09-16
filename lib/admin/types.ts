@@ -2,7 +2,7 @@ export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "MEMBER" | "VIEWER";
 export type ScreenType = "AUTO_SCREEN" | "CAB_SCREEN" | "RETAIL_SCREEN" | "BILLBOARD_SCREEN" | "OTHER";
 export type PairingStatus = "UNPAIRED" | "PAIRING_CODE_ACTIVE" | "PAIRING" | "PAIRED" | "PAIRING_FAILED" | "PAIRING_EXPIRED";
 export type ConnectivityStatus = "ONLINE" | "STALE" | "OFFLINE" | "NEVER_CONNECTED";
-export type PlayerStatus = "STARTING" | "SYNCING" | "READY" | "PLAYING" | "FALLBACK" | "OFFLINE_PLAYBACK" | "ERROR";
+export type PlayerStatus = "STARTING" | "SYNCING" | "READY" | "IDLE" | "LOADING" | "PLAYING" | "PAUSED" | "FAILED" | "FALLBACK" | "OFFLINE_PLAYBACK" | "ERROR";
 export type ManifestStatus = "CURRENT" | "DOWNLOADING" | "PENDING_ACTIVATION" | "OUTDATED" | "ERROR";
 export type HealthSeverity = "HEALTHY" | "INFO" | "WARNING" | "CRITICAL";
 export type NetworkType = "WIFI" | "CELLULAR" | "ETHERNET" | "OFFLINE" | "UNKNOWN";
@@ -11,6 +11,9 @@ export interface AdminUser { id: string; name: string; role: AdminRole }
 export interface Screen {
   screenId: string; deviceId: string; screenName: string; inventoryId?: string; vehicleId?: string;
   screenType: ScreenType; city: string; area: string; createdAt: string; pairedAt?: string; pairingStatus: PairingStatus;
+  vehicleIdentifier?: string | null; latitude?: number | null; longitude?: number | null; lastLocationAt?: string | null; lastHeartbeatAt?: string | null;
+  connectivity?: ConnectivityStatus;
+  currentCampaignId?: string | null; currentCreativeId?: string | null; playbackState?: string | null; manifestVersion?: number | null; networkType?: string | null; appVersion?: string | null;
 }
 export interface DeviceHeartbeat {
   id: string; screenId: string; deviceId: string; timestamp: string; appVersion: string; appVersionCode?: number;
@@ -20,6 +23,9 @@ export interface DeviceHeartbeat {
   expectedDurationSeconds?: number; manifestVersion?: number; kioskActive?: boolean; deviceOwner?: boolean;
   playerState: PlayerStatus; syncState?: string; lastManifestSync?: string; availableAssetCount?: number;
   pendingAssetCount?: number; failedAssetCount?: number; errorMessage?: string;
+  currentAssetId?: string; playbackPositionMs?: number; expectedDurationMs?: number; latitude?: number; longitude?: number; accuracyMeters?: number; locationOccurredAt?: string;
+  currentCreativeUrl?: string; currentCreativeMimeType?: string; currentCreativeFileName?: string; vehicleIdentifier?: string; batteryLevel?: number; chargingState?: string;
+  connectivity?: ConnectivityStatus; lastProof?: { eventType?: string; occurredAt?: string; campaignId?: string; creativeId?: string; playbackCompleted?: boolean; status?: string } | null;
 }
 export interface HealthIssue { code: string; label: string; severity: HealthSeverity; detail: string }
 export interface DeviceHealth extends DeviceHeartbeat { connectivity: ConnectivityStatus; issues: HealthIssue[]; storageHealth: "NORMAL" | "LOW" | "CRITICAL" | "UNKNOWN" }

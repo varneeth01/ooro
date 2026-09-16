@@ -11,6 +11,9 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # Prisma Client resolves its generated runtime through the hidden
+  # node_modules/.prisma tree. Keep that runtime with the API function bundle.
+  included_files = ["node_modules/.prisma/client/**"]
 
 
 # Public checkout must bypass the Prisma-backed backend function entirely.

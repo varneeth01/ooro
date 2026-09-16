@@ -22,7 +22,7 @@ function issue(code: string, label: string, severity: HealthSeverity, detail: st
 
 export function deriveHealth(heartbeat?: DeviceHeartbeat, now = Date.now()): DeviceHealth | null {
   if (!heartbeat) return null;
-  const connectivity = getDeviceConnectivity(heartbeat.timestamp, now);
+  const connectivity = heartbeat.connectivity ?? getDeviceConnectivity(heartbeat.timestamp, now);
   const storageHealth = getStorageHealth(heartbeat.freeStorageBytes, heartbeat.totalStorageBytes);
   const issues: HealthIssue[] = [];
   if (connectivity === "OFFLINE") issues.push(issue("OFFLINE", "Screen offline", "CRITICAL", "Heartbeat is outside the offline threshold."));

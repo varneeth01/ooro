@@ -125,10 +125,29 @@ deviceTokenHash String? @unique
 state String @default("UNPAIRED")
 appVersion String?
 manifestVersion Int?
+lastLatitude Float?
+lastLongitude Float?
+lastLocationAccuracy Float?
+lastLocationAt DateTime?
+lastHeartbeatAt DateTime?
+currentCampaignId String?
+currentCreativeId String?
+currentAssetId String?
+currentPlaybackState String?
+currentPlaybackStartedAt DateTime?
+currentPlaybackPositionMs Int?
+currentExpectedDurationMs Int?
+manufacturer String?
+model String?
+androidVersion String?
+batteryLevel Int?
+chargingState String?
+lastNetworkType String?
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 pairingCodes DisplayPairingCode[]
 heartbeats DisplayHeartbeat[]
+locationEvents DisplayLocationEvent[]
 commands DisplayCommand[]
 campaignAssignments DisplayCampaignAssignment[]
 candidates RideCandidate[]
@@ -295,8 +314,38 @@ currentCreativeId String?
 playbackState String?
 screenState String?
 temperature Float?
+latitude Float?
+longitude Float?
+accuracyMeters Float?
+speedMps Float?
+headingDegrees Float?
+locationOccurredAt DateTime?
+currentCampaignId String?
+currentAssetId String?
+playbackStartedAt DateTime?
+playbackPositionMs Int?
+expectedDurationMs Int?
+manufacturer String?
+model String?
+androidVersion String?
+batteryLevel Int?
+chargingState String?
 display Display @relation(fields: [displayId], references: [id], onDelete: Cascade)
 @@index([displayId, occurredAt])
+}
+model DisplayLocationEvent {
+id String @id @default(uuid()) @db.Uuid
+displayId String @db.Uuid
+latitude Float
+longitude Float
+accuracyMeters Float
+speedMps Float?
+headingDegrees Float?
+occurredAt DateTime
+receivedAt DateTime @default(now())
+display Display @relation(fields: [displayId], references: [id], onDelete: Cascade)
+@@index([displayId, occurredAt])
+@@index([occurredAt])
 }
 model DisplayCommand {
 id String @id @default(uuid()) @db.Uuid
@@ -469,6 +518,10 @@ duration Int?
 manifestVersion Int?
 playerVersion String?
 errorCode String?
+latitude Float?
+longitude Float?
+locationAccuracy Float?
+locationOccurredAt DateTime?
 display Display @relation(fields: [displayId], references: [id])
 ride Ride? @relation(fields: [rideId], references: [id])
 campaignSession CampaignSession? @relation(fields: [campaignSessionId], references: [id])
@@ -477,11 +530,12 @@ campaignSession CampaignSession? @relation(fields: [campaignSessionId], referenc
 model ProofOfPlay {
 id String @id @default(uuid()) @db.Uuid
 proofId String @unique
-rideId String @db.Uuid
+rideId String? @db.Uuid
 displayId String @db.Uuid
 campaignSessionId String? @db.Uuid
 campaignId String?
 creativeId String?
+assetId String?
 playbackStartedAt DateTime
 playbackEndedAt DateTime?
 expectedDuration Int
@@ -492,7 +546,11 @@ playbackCompleted Boolean
 status String @default("PENDING")
 invalidReason String?
 displayHeartbeatId String?
-ride Ride @relation(fields: [rideId], references: [id])
+latitude Float?
+longitude Float?
+locationAccuracy Float?
+locationOccurredAt DateTime?
+ride Ride? @relation(fields: [rideId], references: [id])
 display Display @relation(fields: [displayId], references: [id])
 campaignSession CampaignSession? @relation(fields: [campaignSessionId], references: [id])
 @@index([rideId, status])
