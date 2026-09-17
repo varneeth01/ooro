@@ -13,7 +13,10 @@
   node_bundler = "esbuild"
   # Prisma Client resolves its generated runtime through the hidden
   # node_modules/.prisma tree. Keep that runtime with the API function bundle.
-  included_files = ["node_modules/.prisma/client/**"]
+  # Keep both Prisma's generated client and the package shim in every
+  # Netlify function zip. Without the generated client, the function crashes
+  # at module load with: Cannot find module '.prisma/client/default'.
+  included_files = ["node_modules/.prisma/client/**", "node_modules/@prisma/client/**"]
 
 
 # Public checkout must bypass the Prisma-backed backend function entirely.

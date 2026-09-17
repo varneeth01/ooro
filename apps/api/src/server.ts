@@ -59,6 +59,14 @@ const authStoreError = (error: unknown) => {
 
 app.get('/health', async (request, reply) => ok(request, { status: 'ok', service: 'ooro-api' }, reply))
 app.get('/api/health', async (request, reply) => ok(request, { status: 'ok', service: 'ooro-api' }, reply))
+app.get('/api/health/db', async (request, reply) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    return ok(request, { status: 'ok', service: 'ooro-api', database: 'ok' }, reply)
+  } catch {
+    return reply.code(503).send({ data: null, error: { code: 'DATABASE_UNAVAILABLE', message: 'Database dependency unavailable' } })
+  }
+})
 app.get('/go/:token', async (request, reply) => {
   const token = String((request.params as { token?: string }).token ?? '')
   if (!/^[A-Za-z0-9_-]{32}$/.test(token)) throw notFound('Tracking link not found')
