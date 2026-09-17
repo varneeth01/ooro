@@ -155,12 +155,15 @@ rides Ride[]
 sessions CampaignSession[]
 playbackEvents PlaybackEvent[]
 proofs ProofOfPlay[]
+trackingLinks CampaignTrackingLink[]
+inventoryConfig ScreenInventoryConfig?
 @@index([vehicleId, state])
 }
 
 model Campaign {
 id String @id @default(uuid()) @db.Uuid
 ownerEmail String?
+userId String?
 name String
 description String?
 metadata Json?
@@ -170,11 +173,30 @@ endsAt DateTime?
 timezone String @default("Asia/Kolkata")
 layout String @default("FULLSCREEN_AD")
 priority Int @default(0)
+campaignCenterLat Float?
+campaignCenterLng Float?
+radiusKm Float?
+forecastSnapshot Json?
+forecastGeneratedAt DateTime?
+forecastExpiresAt DateTime?
+forecastVersion String?
+acceptedForecastVersion String?
+acceptedForecastAt DateTime?
+agencyOrganizationId String? @db.Uuid
+agencyClientId String? @db.Uuid
+pricingPlanId String? @db.Uuid
+pricingSource String?
+effectiveRate Int?
+pricingSnapshot Json?
+  deliveryTier String @default("STANDARD")
+  commercialFundingStatus String @default("UNFUNDED")
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 creatives Creative[]
 assignments DisplayCampaignAssignment[]
+trackingLinks CampaignTrackingLink[]
 @@index([status, startsAt, endsAt])
+@@index([agencyOrganizationId, agencyClientId, updatedAt])
 }
 
 model WorkspaceBrand {
@@ -213,7 +235,40 @@ durationSeconds Int @default(10)
 displayOrder Int @default(0)
 campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 asset Asset?
+trackingLinks CampaignTrackingLink[]
 @@index([campaignId, status])
+}
+
+model CampaignTrackingLink {
+id String @id @default(uuid()) @db.Uuid
+token String @unique
+campaignId String @db.Uuid
+creativeId String @db.Uuid
+displayId String? @db.Uuid
+destinationUrl String
+ctaType String
+active Boolean @default(true)
+createdAt DateTime @default(now())
+expiresAt DateTime?
+campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+creative Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+display Display? @relation(fields: [displayId], references: [id], onDelete: SetNull)
+scans QrScan[]
+@@index([campaignId, creativeId, displayId])
+@@index([active, expiresAt])
+}
+
+model QrScan {
+id String @id @default(uuid()) @db.Uuid
+eventId String @unique
+trackingLinkId String @db.Uuid
+campaignId String @db.Uuid
+creativeId String @db.Uuid
+displayId String? @db.Uuid
+occurredAt DateTime @default(now())
+trackingLink CampaignTrackingLink @relation(fields: [trackingLinkId], references: [id], onDelete: Cascade)
+@@index([campaignId, occurredAt])
+@@index([trackingLinkId, occurredAt])
 }
 
 model Asset {
@@ -268,6 +323,19 @@ razorpayOrderId String? @unique
 razorpayPaymentId String?
 paymentCapturedAt DateTime?
 campaignId String?
+ownerEmail String?
+holdId String?
+userId String?
+paymentProcessedAt DateTime?
+failureReason String?
+resolutionStatus String @default("OPEN")
+resolutionNote String?
+resolvedAt DateTime?
+resolvedBy String?
+refundReference String?
+refundAmount Int?
+refundedAt DateTime?
+refundedBy String?
 receiptNumber String? @unique
 receiptAccessTokenHash String? @unique
 emailDeliveryStatus String @default("PENDING")
@@ -276,6 +344,59 @@ createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 @@index([status, createdAt])
 @@index([customerEmail])
+@@index([campaignId, ownerEmail, status])
+}
+
+model SelfServePaymentEvent {
+id String @id @default(uuid()) @db.Uuid
+orderId String
+campaignId String?
+eventType String
+actor String?
+metadata Json?
+createdAt DateTime @default(now())
+@@index([orderId, createdAt])
+@@index([eventType, createdAt])
+}
+
+model AdBalanceAccount {
+  id String @id @default(uuid()) @db.Uuid
+  accountId String @unique
+  currency String @default("INR")
+  cachedBalancePaise BigInt @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entries AdBalanceLedgerEntry[]
+  @@index([accountId])
+}
+
+model AdBalanceLedgerEntry {
+  id String @id @default(uuid()) @db.Uuid
+  accountId String @db.Uuid
+  type String
+  amountPaise BigInt
+  currency String @default("INR")
+  campaignId String?
+  razorpayOrderId String?
+  razorpayPaymentId String?
+  idempotencyKey String @unique
+  metadata Json?
+  createdAt DateTime @default(now())
+  account AdBalanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  @@index([accountId, createdAt])
+  @@index([campaignId, createdAt])
+}
+
+model AdBalanceRechargeOrder {
+  id String @id @default(uuid()) @db.Uuid
+  accountId String
+  razorpayOrderId String @unique
+  amountPaise BigInt
+  status String @default("CREATED")
+  razorpayPaymentId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([accountId, createdAt])
 }
 
 model RazorpayWebhookEvent {
@@ -736,6 +857,11 @@ email String @unique
 passwordHash String
 name String
 accountType String
+phone String?
+onboardingStatus String @default("NOT_STARTED")
+onboardingStep Int @default(0)
+onboardingCompletedAt DateTime?
+onboardingData Json?
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 }
@@ -747,4 +873,177 @@ ownerEmail String
 expiresAt DateTime
 createdAt DateTime @default(now())
 @@index([ownerEmail, expiresAt])
+}
+
+model Organization {
+id String @id @default(uuid()) @db.Uuid
+name String
+type String @default("CONSUMER")
+domain String?
+website String?
+verificationStatus String @default("UNVERIFIED")
+verifiedAt DateTime?
+verifiedBy String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+members OrganizationMember[]
+verificationRequests VerificationRequest[]
+pricingOverrides OrganizationPricingOverride[]
+agencyProfile AgencyProfile?
+agencyClients AgencyClient[] @relation("AgencyOrganization")
+@@index([type, verificationStatus, updatedAt])
+}
+
+model OrganizationMember {
+id String @id @default(uuid()) @db.Uuid
+organizationId String @db.Uuid
+userId String @db.Uuid
+role String @default("MEMBER")
+createdAt DateTime @default(now())
+organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+@@unique([organizationId, userId])
+@@index([userId])
+}
+
+model VerificationRequest {
+id String @id @default(uuid()) @db.Uuid
+organizationId String @db.Uuid
+status String @default("PENDING_REVIEW")
+requestedAt DateTime @default(now())
+reviewedAt DateTime?
+reviewerId String?
+notes String?
+metadata Json?
+organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+history VerificationHistory[]
+@@index([status, requestedAt])
+@@index([organizationId, requestedAt])
+}
+
+model VerificationHistory {
+id String @id @default(uuid()) @db.Uuid
+verificationRequestId String @db.Uuid
+fromStatus String?
+toStatus String
+reviewerId String?
+notes String?
+createdAt DateTime @default(now())
+verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+@@index([verificationRequestId, createdAt])
+}
+
+model PricingPlan {
+id String @id @default(uuid()) @db.Uuid
+name String
+customerType String
+commitmentMonths Int?
+autoDayRate Int?
+impressionRate Int?
+isPublic Boolean @default(false)
+active Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+overrides OrganizationPricingOverride[]
+@@index([customerType, active, isPublic])
+}
+
+model OrganizationPricingOverride {
+id String @id @default(uuid()) @db.Uuid
+organizationId String @db.Uuid
+pricingPlanId String @db.Uuid
+customRate Int
+effectiveFrom DateTime @default(now())
+effectiveUntil DateTime?
+organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+pricingPlan PricingPlan @relation(fields: [pricingPlanId], references: [id], onDelete: Cascade)
+@@index([organizationId, effectiveFrom, effectiveUntil])
+@@unique([organizationId, pricingPlanId, effectiveFrom])
+}
+
+model AgencyProfile {
+id String @id @default(uuid()) @db.Uuid
+organizationId String @unique @db.Uuid
+applicationStatus String @default("APPLICATION_RECEIVED")
+salesStage String @default("NEW_LEAD")
+monthlySpendEstimate Int?
+clientCount Int?
+headquarters String?
+teamSize String?
+primaryMarkets String?
+clientCategories String?
+gstDetails String?
+salesOwner String?
+nextFollowUp DateTime?
+notes String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model AgencyClient {
+id String @id @default(uuid()) @db.Uuid
+agencyOrganizationId String @db.Uuid
+clientName String
+clientBrandId String?
+industry String?
+contactName String?
+contactEmail String?
+phone String?
+website String?
+notes String?
+status String @default("ACTIVE")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+agencyOrganization Organization @relation("AgencyOrganization", fields: [agencyOrganizationId], references: [id], onDelete: Cascade)
+@@index([agencyOrganizationId, status, updatedAt])
+}
+
+model ScreenInventoryConfig {
+id String @id @default(uuid()) @db.Uuid
+screenId String @unique @db.Uuid
+totalSlots Int @default(28)
+commercialSlots Int @default(28)
+premiumSlots Int @default(0)
+houseSlots Int @default(0)
+  blockedSlots Int @default(0)
+  commercialEnabled Boolean @default(true)
+  city String?
+  coverage Json?
+  premiumEligible Boolean @default(false)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+screen Display @relation(fields: [screenId], references: [id], onDelete: Cascade)
+@@index([commercialSlots, premiumSlots])
+}
+
+model ForecastSetting {
+id String @id @default(uuid()) @db.Uuid
+key String @unique
+averageRidesPerDay Int @default(12)
+averagePassengersPerRide Int @default(2)
+fallbackActiveAutoFactor Float @default(0.6)
+minimumSelfServeBudget Int @default(1000)
+forecastTtlMinutes Int @default(15)
+inventoryHoldMinutes Int @default(15)
+updatedBy String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+
+model InventoryAllocation {
+id String @id @default(uuid()) @db.Uuid
+campaignId String @db.Uuid
+screenId String @db.Uuid
+autoId String?
+date DateTime
+slot Int
+rate Int?
+pricingSource String?
+status String @default("RESERVED")
+holdId String?
+expiresAt DateTime?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+@@unique([screenId, date, slot])
+@@index([campaignId, date, status])
 }

@@ -1,0 +1,6 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { canAccessPricing } from "./advertiser-access.js";
+test("only public self-serve plans are available without an organization", () => { assert.equal(canAccessPricing({}, "SELF_SERVE"), true); assert.equal(canAccessPricing({}, "BRAND"), false); assert.equal(canAccessPricing({}, "AGENCY"), false); });
+test("unverified and needs-information brands remain locked", () => { for (const status of ["UNVERIFIED", "PENDING_REVIEW", "NEEDS_INFORMATION", "REJECTED"]) assert.equal(canAccessPricing({ organizationType: "BRAND", verificationStatus: status }, "BRAND"), false); assert.equal(canAccessPricing({ organizationType: "BRAND", verificationStatus: "VERIFIED" }, "BRAND"), true); });
+test("only approved or active agencies receive agency pricing", () => { assert.equal(canAccessPricing({ organizationType: "AGENCY", verificationStatus: "VERIFIED", agencyApplicationStatus: "APPLICATION_RECEIVED" }, "AGENCY"), false); assert.equal(canAccessPricing({ organizationType: "AGENCY", verificationStatus: "VERIFIED", agencyApplicationStatus: "APPROVED" }, "AGENCY"), true); assert.equal(canAccessPricing({ organizationType: "AGENCY", verificationStatus: "VERIFIED", agencyApplicationStatus: "ACTIVE" }, "AGENCY"), true); });

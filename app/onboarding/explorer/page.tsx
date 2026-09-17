@@ -1,0 +1,2 @@
+import { SelfServeOnboardingForm } from "@/components/onboarding/self-serve-onboarding-form";
+export default function ExplorerOnboardingPage() { return <main className="min-h-screen bg-[#f7f7f5] px-5 py-12 sm:px-8"><div className="mx-auto max-w-xl"><p className="app-eyebrow">OORO / EXPLORER</p><h1 className="mt-4 text-4xl font-medium">Stay close to what OORO is building.</h1><div className="mt-8 border border-neutral-200 bg-white p-5 sm:p-8"><SelfServeOnboardingForm kind="explorer"/></div></div></main>; }

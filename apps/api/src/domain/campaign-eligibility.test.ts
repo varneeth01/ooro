@@ -9,7 +9,8 @@ test('manifest versions fit persisted signed INT4 fields', () => {
 })
 
 test('relative asset URLs become device-fetchable URLs in development', () => {
-  assert.equal(deliveryAssetUrl('/uploads/creative.png'), 'http://127.0.0.1:3000/uploads/creative.png')
+  const base = process.env.PUBLIC_ASSET_BASE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:3000'
+  assert.equal(deliveryAssetUrl('/uploads/creative.png'), `${base}/uploads/creative.png`)
   assert.equal(deliveryAssetUrl('https://cdn.example/creative.png'), 'https://cdn.example/creative.png')
 })
 

@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import { webPrisma } from "@/lib/web-prisma";
 import { storeCreative } from "@/lib/creative-storage";
-import { webOwnerEmail } from "@/lib/web-owner";
+import { webContext, webOwnerEmail } from "@/lib/web-owner";
 
 const allowed = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]);
 const maxBytes = 100 * 1024 * 1024;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const ownerEmail = await webOwnerEmail(); if (!ownerEmail) return NextResponse.json({ error: { message: "Sign in to upload creatives" } }, { status: 401 });
+  const context = await webContext(); const ownerEmail = context?.email ?? await webOwnerEmail(); if (!ownerEmail) return NextResponse.json({ error: { message: "Sign in to upload creatives" } }, { status: 401 });
   const { id: campaignId } = await params; const body = await request.json().catch(() => null) as { fileName?: string; mimeType?: string; base64?: string; displayIds?: string[]; durationSeconds?: number; width?: number; height?: number } | null;
   if (!body?.fileName || !body.mimeType || !body.base64 || !allowed.has(body.mimeType)) return NextResponse.json({ error: { message: "Unsupported creative format" } }, { status: 422 });
   const bytes = Buffer.from(body.base64, "base64"); if (!bytes.length || bytes.length > maxBytes) return NextResponse.json({ error: { message: "Creative must be smaller than 100 MB" } }, { status: 422 });
   try {
-    const campaign = await webPrisma.campaign.findFirst({ where: { id: campaignId, ownerEmail } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
-    const targets = [...new Set(body.displayIds ?? [])]; if (!targets.length) return NextResponse.json({ error: { message: "Select at least one display" } }, { status: 422 });
-    const displays = await webPrisma.display.findMany({ where: { id: { in: targets }, deviceTokenHash: { not: null }, state: { not: "DISABLED" } }, select: { id: true } });
+    const campaign = await webPrisma.campaign.findUnique({ where: { id: campaignId } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
+    if (campaign.userId !== context?.account.id && campaign.ownerEmail !== ownerEmail) return NextResponse.json({ error: { message: "You do not have access to this campaign" } }, { status: 403 });
+    const targets = [...new Set(body.displayIds ?? [])];
+    if (context?.account.accountType === "BUSINESS" && targets.length) return NextResponse.json({ error: { code: "SCREEN_SELECTION_NOT_ALLOWED", message: "Business campaigns are allocated by OORO." } }, { status: 403 });
+    const displays = targets.length ? await webPrisma.display.findMany({ where: { id: { in: targets }, deviceTokenHash: { not: null }, state: { not: "DISABLED" } }, select: { id: true } }) : [];
     if (displays.length !== targets.length) return NextResponse.json({ error: { message: "One or more selected displays are unavailable" } }, { status: 422 });
     const stored = await storeCreative(bytes, body.fileName, body.mimeType);
     const type = body.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE";

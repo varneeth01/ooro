@@ -1,2 +1,2 @@
-import { CampaignWizard } from "@/components/app/campaign-wizard";
-export default function NewCampaignPage() { return <CampaignWizard/>; }
+import { BusinessCampaignFlow } from "@/components/app/business-campaign-flow";
+export default function NewCampaignPage() { return <BusinessCampaignFlow/>; }

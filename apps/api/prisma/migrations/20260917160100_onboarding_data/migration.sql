@@ -1,0 +1,1 @@
+ALTER TABLE "WebAccount" ADD COLUMN IF NOT EXISTS "onboardingData" JSONB;

@@ -11,7 +11,7 @@ cd apps/screen-android
 ./gradlew assembleDebug
 ```
 
-Debug defaults to mock mode and `http://10.0.2.2:8080` for an Android emulator. For a physical device, pass a developer-machine LAN address reachable from that device and disable the mock backend, for example `./gradlew assembleDebug -PuseMockBackend=false -PdeviceApiBaseUrl=http://192.168.1.20:8080`. Do not commit a LAN IP; production builds must use HTTPS.
+Debug defaults to mock mode and `http://10.0.2.2:8080` for an Android emulator. For a physical device, pass a developer-machine LAN address reachable from that device and disable the mock backend, for example `./gradlew assembleDebug -PuseMockBackend=false -PdeviceApiBaseUrl=http://192.168.1.20:8080`. The same values may be supplied as `OORO_USE_MOCK_BACKEND=false OORO_DEVICE_API_URL=http://192.168.1.20:8080`. The debug technical diagnostics repair gate defaults to the development OORO code `798162`; override it with `-PrepairAccessCode=...` or `OORO_REPAIR_ACCESS_CODE=...` when required. Do not commit a LAN IP; production builds must use HTTPS.
 
 ## Behavior
 

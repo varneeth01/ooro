@@ -1,0 +1,36 @@
+# OORO
+
+> OORO is a smart physical-media platform connecting brands with measurable digital displays in real-world environments, beginning with mobility.
+
+## About
+
+OORO helps brands plan, deliver and understand campaigns shown on connected displays across moving vehicles and other physical environments.
+
+## Product
+
+- Connected digital advertising displays
+- Campaign and creative management
+- Context-aware delivery where supported
+- Proof of Play for delivered creative
+- QR-based campaign engagement
+- Advertiser campaign management and reporting
+
+## Smart Screen
+
+OORO passenger screens combine an advertising region, a live location utility panel, and a campaign-specific offer and QR panel. The offer and QR follow the creative currently playing. Routing and turn-by-turn directions are not currently part of the public product claim.
+
+## Advertisers
+
+Brands can choose a campaign package, provide campaign and creative details, deliver media to assigned screens, and review playback and QR engagement data where available.
+
+## Measurement
+
+OORO separates delivery measurement from engagement measurement. Playback events and Proof of Play describe creative delivery; QR scans describe passenger engagement.
+
+## Links
+
+- https://theooro.com/
+- https://theooro.com/about
+- https://theooro.com/#campaign-pricing
+- https://theooro.com/privacy
+- https://theooro.com/terms

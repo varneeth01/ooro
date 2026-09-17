@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 const siteName = "OORO";
 const siteDescription = "OORO is a smart mobility advertising network that helps brands reach people in the real world through digital displays on moving vehicles, starting in Tirupati, Andhra Pradesh, India.";
 
@@ -39,5 +36,5 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       ...founders,
     ],
   };
-  return <html lang="en"><body className={`${geist.variable} ${mono.variable}`}>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}/></body></html>;
+  return <html lang="en"><body>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}/></body></html>;
 }

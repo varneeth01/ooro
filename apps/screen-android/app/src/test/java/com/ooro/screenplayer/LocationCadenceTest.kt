@@ -6,5 +6,5 @@ import org.junit.Test
 
 class LocationCadenceTest {
     @Test fun movingHeartbeatUsesFifteenSeconds() { assertEquals(15_000L, LocationCadence.heartbeatIntervalMs(4.0)) }
-    @Test fun stationaryOrUnavailableUsesNinetySeconds() { assertEquals(90_000L, LocationCadence.heartbeatIntervalMs(0.0)); assertEquals(90_000L, LocationCadence.heartbeatIntervalMs(null)) }
+    @Test fun stationaryOrUnavailableUsesThirtySeconds() { assertEquals(30_000L, LocationCadence.heartbeatIntervalMs(0.0)); assertEquals(30_000L, LocationCadence.heartbeatIntervalMs(null)) }
 }

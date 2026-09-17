@@ -1,6 +1,5 @@
 "use client";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { apiUrl } from "@/lib/api-url";
 
 type Plan = { id: string; autos: number; hoursPerDay: 4 | 8; amount: number; city: string; durationDays: number };
 export function CampaignPricing() {
@@ -12,7 +11,7 @@ export function CampaignPricing() {
   const visible = useMemo(() => plans.filter(p => p.hoursPerDay === hours), [plans, hours]);
   useEffect(() => {
     let active = true;
-    fetch(`${apiUrl}/api/public/campaign-packages`, { cache: "no-store" })
+    fetch("/api/public/campaign-packages", { cache: "no-store" })
       .then(async response => {
         const payload = await response.json().catch(() => null) as { data?: Plan[]; error?: { message?: string } } | null;
         if (!response.ok || !payload?.data) throw new Error(payload?.error?.message || "Pricing is temporarily unavailable.");
@@ -33,12 +32,12 @@ function Checkout({ plan, close }: { plan: Plan; close: () => void }) {
     const phone = String(data.phone ?? "").trim();
     if (!/^(?:\+91[- ]?)?[6-9]\d{9}$/.test(phone)) { setError("Enter a valid 10-digit Indian mobile number"); setBusy(false); return; }
     try {
-      const response = await fetch(`${apiUrl}/api/public/campaign-orders`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, phone, packageId: plan.id }) });
+      const response = await fetch("/api/public/campaign-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, phone, packageId: plan.id }) });
       const result = await response.json() as { data?: { orderId: string; razorpayOrderId: string; keyId: string; amount: number; currency: string; name: string; email: string; phone: string }; error?: { code?: string; message?: string } };
       if (!response.ok || !result.data) { const code = result.error?.code; if (code === "INVALID_PHONE") throw new Error("Enter a valid 10-digit Indian mobile number"); if (code === "INVALID_PACKAGE") throw new Error("This package is no longer available."); if (code === "PAYMENT_PROVIDER_NOT_CONFIGURED" || code === "PAYMENT_PROVIDER_UNAVAILABLE") throw new Error("Payment setup is temporarily unavailable. Please try again shortly."); throw new Error(result.error?.message ?? "Could not start checkout."); }
       const script = document.createElement("script"); script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onerror = () => { setError("Secure checkout could not be loaded. Please try again."); setBusy(false); };
-      script.onload = () => { const checkout = new (window as typeof window & { Razorpay: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay({ key: result.data!.keyId, amount: result.data!.amount, currency: result.data!.currency, name: "OORO", description: `${plan.city} · ${plan.autos} autos · ${plan.hoursPerDay} hours/day`, order_id: result.data!.razorpayOrderId, prefill: { name: result.data!.name, email: result.data!.email, contact: result.data!.phone }, handler: async (payment: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => { try { const verified = await fetch(`${apiUrl}/api/public/campaign-orders/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: result.data!.orderId, razorpayOrderId: payment.razorpay_order_id, razorpayPaymentId: payment.razorpay_payment_id, razorpaySignature: payment.razorpay_signature }) }); if (!verified.ok) throw new Error("Payment verification failed"); window.location.href = `/payment/success/${result.data!.orderId}`; } catch (caught) { setError(caught instanceof Error ? caught.message : "Payment verification failed."); setBusy(false); } } }); checkout.open(); };
+      script.onload = () => { const checkout = new (window as typeof window & { Razorpay: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay({ key: result.data!.keyId, amount: result.data!.amount, currency: result.data!.currency, name: "OORO", description: `${plan.city} · ${plan.autos} autos · ${plan.hoursPerDay} hours/day`, order_id: result.data!.razorpayOrderId, prefill: { name: result.data!.name, email: result.data!.email, contact: result.data!.phone }, handler: async (payment: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => { try { const verified = await fetch("/api/public/campaign-orders/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: result.data!.orderId, razorpayOrderId: payment.razorpay_order_id, razorpayPaymentId: payment.razorpay_payment_id, razorpaySignature: payment.razorpay_signature }) }); if (!verified.ok) throw new Error("Payment verification failed"); window.location.href = `/payment/success/${result.data!.orderId}`; } catch (caught) { setError(caught instanceof Error ? caught.message : "Payment verification failed."); setBusy(false); } } }); checkout.open(); };
       document.body.appendChild(script);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not start checkout."); setBusy(false); }
   }

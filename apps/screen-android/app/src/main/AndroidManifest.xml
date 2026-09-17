@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <application android:name=".OoroApplication" android:theme="@style/Theme.Ooro" android:label="OORO Screen Player" android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="${allowCleartext}">
+    <application android:name=".OoroApplication" android:theme="@style/Theme.Ooro" android:label="OORO Screen Player" android:icon="@drawable/ooro_logo" android:roundIcon="@drawable/ooro_logo" android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="${allowCleartext}">
         <activity android:name=".MainActivity" android:screenOrientation="landscape" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
             <intent-filter android:autoVerify="false"><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>

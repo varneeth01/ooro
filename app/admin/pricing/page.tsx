@@ -1,0 +1,3 @@
+import { PageHeader } from "@/components/app/app-ui";
+import { PricingOverrideForm, PricingTable } from "@/components/admin/pricing-inventory";
+export default function AdminPricingPage() { return <div className="space-y-8"><PageHeader title="Pricing" description="Server-side plan catalogue for self-serve, Brand and Agency commercial access."/><PricingTable/><PricingOverrideForm/><div className="border border-neutral-200 bg-white p-5 text-sm leading-7 text-neutral-600">Private rates are only returned to verified organisations by <code>/api/plans</code>. Organization-specific overrides are persisted in the pricing override table.</div></div>; }

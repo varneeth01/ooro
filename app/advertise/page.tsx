@@ -1,0 +1,5 @@
+import type { Metadata } from "next";
+import { SelfServeForecastBuilder } from "@/components/marketing/self-serve-forecast-builder";
+import { PublicCta, PublicPage, PublicSection } from "@/components/marketing/public-page";
+export const metadata: Metadata = { title: "Advertise with OORO", description: "Launch a self-serve campaign across OORO's connected mobility advertising network." };
+export default function AdvertisePage() { return <PublicPage eyebrow="Self-serve advertising" title="Advertise where your customers move." description="Choose an area, set your budget, and see estimated campaign delivery across OORO's connected mobility network."><div className="container-ooro py-12 sm:py-20"><SelfServeForecastBuilder/></div><PublicSection title="Simple buying for local businesses"><p>Start from ₹500. OORO estimates delivery from your selected location, radius, dates, budget and available inventory. Verified Proof-of-Play confirms what screens actually played.</p><div className="mt-8"><PublicCta href="/signup">Launch campaign</PublicCta></div></PublicSection></PublicPage>; }

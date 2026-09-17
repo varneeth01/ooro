@@ -1,2 +1,2 @@
-import { Discover } from "@/components/app/foundation-pages";
-export default function DiscoverPage() { return <Discover/>; }
+import { redirect } from "next/navigation";
+export default function DiscoverPage() { redirect("/campaigns/new"); }

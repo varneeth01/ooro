@@ -9,6 +9,7 @@ const developmentCorsOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.API_PORT ?? 8080),
+  trackingBaseUrl: (process.env.TRACKING_BASE_URL ?? 'https://theooro.com').replace(/\/$/, ''),
   databaseUrl: process.env.DATABASE_URL ?? 'postgresql://ooro:ooro@localhost:5432/ooro',
   mongodbUri: process.env.MONGODB_URI ?? '',
   jwtSecret: process.env.JWT_SECRET ?? 'development-only-change-me',

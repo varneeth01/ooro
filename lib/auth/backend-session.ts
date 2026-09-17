@@ -34,9 +34,19 @@ export async function saveBackendSession(tokens: TokenSet) {
   (await cookies()).set(SESSION_COOKIE, seal(tokens), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });
 }
 
-export async function clearBackendSession() { (await cookies()).set(SESSION_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" }); }
+export async function clearBackendSession() {
+  const cookieStore = await cookies();
+  const value = cookieStore.get(SESSION_COOKIE)?.value;
+  const tokens = value ? unseal(value) : null;
+  if (tokens) {
+    try {
+      await fetch(backendUrl("/api/auth/logout"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ refreshToken: tokens.refreshToken }), cache: "no-store" });
+    } catch { /* Local cookie removal must still complete when the API is unavailable. */ }
+  }
+  cookieStore.set(SESSION_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
+}
 
-const configuredBackendUrl = () => apiUrl || process.env.OORO_BACKEND_API_URL?.trim().replace(/\/$/, "") || (process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || null : "http://127.0.0.1:8080");
+const configuredBackendUrl = () => process.env.OORO_BACKEND_API_URL?.trim().replace(/\/$/, "") || apiUrl || (process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || null : "http://127.0.0.1:8080");
 const backendUrl = (path: string) => {
   const base = configuredBackendUrl();
   if (!base) throw new AdminAuthError("ADMIN_BACKEND_UNAVAILABLE", 502);

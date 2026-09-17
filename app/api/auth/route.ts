@@ -3,6 +3,8 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypt
 import { WEB_SESSION_COOKIE } from "@/lib/auth/session";
 import { testUsers } from "@/lib/auth/test-users";
 import { webPrisma } from "@/lib/web-prisma";
+import { normalizeIndianPhone } from "@/apps/api/src/domain/phone";
+import { isPublicAccountType } from "@/apps/api/src/domain/web-account";
 
 function hashPassword(password: string) { const salt = randomBytes(16).toString("hex"); return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`; }
 function verifyPassword(password: string, stored: string) { const [salt, digest] = stored.split(":"); if (!salt || !digest) return false; const expected = Buffer.from(digest, "hex"); const actual = scryptSync(password, salt, 64); return expected.length === actual.length && timingSafeEqual(expected, actual); }
@@ -13,11 +15,13 @@ export async function POST(request: Request) {
   const password = String(body?.password || "");
   const accountType = String(body?.accountType || "").trim().toUpperCase();
   const name = String(body?.name || "").trim();
-  if (!email.includes("@") || password.length < 8) return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
+  const phone = String(body?.phone || "");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8) return NextResponse.json({ error: "Enter a valid email and password of at least 8 characters." }, { status: 400 });
   let resolvedAccount: { name: string } | null = null;
   if (accountType) {
-    if (!["BRAND", "BUSINESS", "NETWORK", "EXPLORER"].includes(accountType) || !name) return NextResponse.json({ error: "Account type and name are required" }, { status: 400 });
-    try { const created = await webPrisma.webAccount.create({ data: { email, passwordHash: hashPassword(password), name, accountType } }); resolvedAccount = created; }
+    if (!isPublicAccountType(accountType) || !name) return NextResponse.json({ error: "Choose a valid account type and enter your name." }, { status: 400 });
+    const normalizedPhone = normalizeIndianPhone(phone); if (!normalizedPhone) return NextResponse.json({ error: "Enter a valid phone number." }, { status: 422 });
+    try { const created = await webPrisma.webAccount.create({ data: { email, passwordHash: hashPassword(password), name, accountType, phone: normalizedPhone } }); resolvedAccount = created; }
     catch (error) { if (error && typeof error === "object" && "code" in error && error.code === "P2002") return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 }); return NextResponse.json({ error: "Account could not be created" }, { status: 503 }); }
   } else {
     let account = await webPrisma.webAccount.findUnique({ where: { email } }).catch(() => null);

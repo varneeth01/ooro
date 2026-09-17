@@ -13,10 +13,22 @@ async function main() {
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: { onboardingStatus: 'COMPLETE', city: 'Bengaluru' }, create: { userId: user.id, onboardingStatus: 'COMPLETE', city: 'Bengaluru' } })
   const vehicle = await prisma.vehicle.upsert({ where: { registrationNumber: 'TS09AB1234' }, update: { driverId: driver.id, status: 'VERIFIED' }, create: { driverId: driver.id, type: 'AUTO', registrationNumber: 'TS09AB1234', manufacturer: 'OORO', model: 'Demo Auto', status: 'VERIFIED' } })
   const display = await prisma.display.upsert({ where: { deviceId: 'OORO-DEMO' }, update: { vehicleId: vehicle.id, state: 'READY' }, create: { deviceId: 'OORO-DEMO', name: 'OORO Demo Display', vehicleId: vehicle.id, state: 'READY' } })
+  const pricing = [
+    ['10000000-0000-0000-0000-000000000001', 'Standard', 'SELF_SERVE', null, null, 5, true],
+    ['10000000-0000-0000-0000-000000000002', 'Premium+', 'SELF_SERVE', null, null, 10, true],
+    ['10000000-0000-0000-0000-000000000011', 'Brand · 1 month', 'BRAND', 1, 69, null, false],
+    ['10000000-0000-0000-0000-000000000012', 'Brand · 3+ months', 'BRAND', 3, 59, null, false],
+    ['10000000-0000-0000-0000-000000000013', 'Brand · 6+ months', 'BRAND', 6, 49, null, false],
+    ['10000000-0000-0000-0000-000000000021', 'Agency · 1 month', 'AGENCY', 1, 62, null, false],
+    ['10000000-0000-0000-0000-000000000022', 'Agency · 3+ months', 'AGENCY', 3, 52, null, false],
+    ['10000000-0000-0000-0000-000000000023', 'Agency · 6+ months', 'AGENCY', 6, 42, null, false],
+  ] as const
+  for (const [id, name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic] of pricing) await prisma.pricingPlan.upsert({ where: { id }, update: { name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, active: true }, create: { id, name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, active: true } })
+  await prisma.forecastSetting.upsert({ where: { key: 'DEFAULT' }, update: {}, create: { key: 'DEFAULT', averageRidesPerDay: 12, averagePassengersPerRide: 2, fallbackActiveAutoFactor: 0.6, minimumSelfServeBudget: 1000, forecastTtlMinutes: 15, inventoryHoldMinutes: 15 } })
   if (process.env.NODE_ENV !== 'production' && process.env.OORO_SEED_CAMPAIGN === 'true') {
     const campaign = await prisma.campaign.upsert({ where: { id: '00000000-0000-0000-0000-000000000101' }, update: { status: 'ACTIVE', startsAt: new Date(Date.now() - 86400000), endsAt: new Date(Date.now() + 86400000 * 30) }, create: { id: '00000000-0000-0000-0000-000000000101', name: 'OORO Development Campaign', status: 'ACTIVE', startsAt: new Date(Date.now() - 86400000), endsAt: new Date(Date.now() + 86400000 * 30), priority: 10 } })
     const creative = await prisma.creative.upsert({ where: { id: '00000000-0000-0000-0000-000000000102' }, update: { campaignId: campaign.id, status: 'ACTIVE' }, create: { id: '00000000-0000-0000-0000-000000000102', campaignId: campaign.id, name: 'OORO Development Card', type: 'IMAGE', durationSeconds: 10, status: 'ACTIVE' } })
-    await prisma.asset.upsert({ where: { creativeId: creative.id }, update: { url: process.env.OORO_DEV_ASSET_URL ?? 'http://localhost:3000/dev-assets/ooro-demo.svg', active: true }, create: { id: '00000000-0000-0000-0000-000000000103', creativeId: creative.id, url: process.env.OORO_DEV_ASSET_URL ?? 'http://localhost:3000/dev-assets/ooro-demo.svg', active: true } })
+    await prisma.asset.upsert({ where: { creativeId: creative.id }, update: { url: process.env.OORO_DEV_ASSET_URL ?? 'http://localhost:3000/dev-assets/ooro-demo.svg', active: true, fileName: 'ooro-demo.svg', storageKey: 'dev-assets/ooro-demo.svg' }, create: { id: '00000000-0000-0000-0000-000000000103', creativeId: creative.id, url: process.env.OORO_DEV_ASSET_URL ?? 'http://localhost:3000/dev-assets/ooro-demo.svg', active: true, fileName: 'ooro-demo.svg', storageKey: 'dev-assets/ooro-demo.svg' } })
     await prisma.displayCampaignAssignment.upsert({ where: { displayId_campaignId: { displayId: display.id, campaignId: campaign.id } }, update: { active: true }, create: { displayId: display.id, campaignId: campaign.id, active: true } })
   }
   await prisma.mobilityIntegration.upsert({ where: { driverId_provider: { driverId: driver.id, provider: 'UBER' } }, update: { enabled: true, status: 'ACTIVE' }, create: { driverId: driver.id, provider: 'UBER', enabled: true, status: 'ACTIVE' } })

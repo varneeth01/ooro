@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts"
   },
+  "prisma": { "seed": "tsx prisma/seed.ts" },
   "dependencies": {
     "@fastify/aws-lambda": "^6.4.1",
     "@fastify/cors": "^10.0.1",

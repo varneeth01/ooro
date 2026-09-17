@@ -1,19 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assertPublicRazorpayKeyAllowed, publicRazorpayConfig } from "./public-razorpay.ts";
+import { assertPublicRazorpayKeyAllowed, publicRazorpayConfig } from "./public-razorpay";
 
-const keys = ["RAZORPAY_MODE", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"] as const;
+const keys = ["RAZORPAY_MODE", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "NODE_ENV"] as const;
 
 function withEnvironment(values: Partial<Record<(typeof keys)[number], string | undefined>>, callback: () => void) {
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
   for (const key of keys) {
-    if (key in values && values[key] !== undefined) process.env[key] = values[key];
-    else delete process.env[key];
+    if (key in values && values[key] !== undefined) (process.env as Record<string, string | undefined>)[key] = values[key];
+    else delete (process.env as Record<string, string | undefined>)[key];
   }
-  try { callback(); } finally { for (const key of keys) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; } }
+  try { callback(); } finally { for (const key of keys) { if (previous[key] === undefined) delete (process.env as Record<string, string | undefined>)[key]; else (process.env as Record<string, string | undefined>)[key] = previous[key]; } }
 }
 
-test("allows live mode with a live key", () => withEnvironment({ RAZORPAY_MODE: "live", RAZORPAY_KEY_ID: "rzp_live_test", RAZORPAY_KEY_SECRET: "secret" }, () => {
+test("allows live mode with a live key in production", () => withEnvironment({ RAZORPAY_MODE: "live", RAZORPAY_KEY_ID: "rzp_live_test", RAZORPAY_KEY_SECRET: "secret", NODE_ENV: "production" }, () => {
   assert.equal(publicRazorpayConfig().mode, "live");
   assert.doesNotThrow(assertPublicRazorpayKeyAllowed);
 }));

@@ -1,2 +1,2 @@
-import { Analytics } from "@/components/app/foundation-pages";
-export default function AnalyticsPage() { return <Analytics/>; }
+import { BusinessAnalytics } from "@/components/app/business-overview";
+export default function AnalyticsPage() { return <BusinessAnalytics/>; }

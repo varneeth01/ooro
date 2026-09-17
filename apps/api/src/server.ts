@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { z } from 'zod'
-import { createHash, randomBytes, randomInt } from 'node:crypto'
+import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { config } from './config.js'
 import { prisma } from './prisma.js'
 import { ApiError, forbidden, notFound, unauthorized } from './errors.js'
@@ -22,6 +22,7 @@ import { receiptPdf } from './domain/receipt.js'
 import { boundedLocationLimit, shouldRecordDisplayLocation, validDisplayLocation } from './domain/display-location.js'
 import { getDisplayConnectivity } from './domain/display-health.js'
 import { canonicalProofId, canonicalProofStatus } from './domain/proof-policy.js'
+import { adminRoles, isAdminRole } from './domain/admin-auth.js'
 
 const app = Fastify({ logger: true })
 app.register(cors, { origin: config.corsOrigins })
@@ -49,10 +50,35 @@ const driverFrom = async (auth: { driverId?: string }) => {
 }
 const hashOtp = (phone: string, code: string) => createHash('sha256').update(`${phone}:${code}`).digest('hex')
 const generatePairingCode = () => { const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; const bytes = randomBytes(6); return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('') }
-const adminRoles = ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE']
+const authStoreError = (error: unknown) => {
+  if (error instanceof ApiError) return error
+  if (error instanceof Prisma.PrismaClientInitializationError) return new ApiError('AUTH_STORE_UNAVAILABLE', 'Authentication is temporarily unavailable', 503)
+  if (error instanceof Prisma.PrismaClientKnownRequestError && ['P1001', 'P2022'].includes(error.code)) return new ApiError('AUTH_STORE_UNAVAILABLE', 'Authentication is temporarily unavailable', 503)
+  return error
+}
 
 app.get('/health', async (request, reply) => ok(request, { status: 'ok', service: 'ooro-api' }, reply))
 app.get('/api/health', async (request, reply) => ok(request, { status: 'ok', service: 'ooro-api' }, reply))
+app.get('/go/:token', async (request, reply) => {
+  const token = String((request.params as { token?: string }).token ?? '')
+  if (!/^[A-Za-z0-9_-]{32}$/.test(token)) throw notFound('Tracking link not found')
+  const link = await prisma.campaignTrackingLink.findUnique({ where: { token } })
+  if (!link || !link.active || (link.expiresAt && link.expiresAt <= new Date())) throw notFound('Tracking link not found')
+  let destination: URL
+  try { destination = new URL(link.destinationUrl) } catch { throw notFound('Tracking link not found') }
+  if (destination.protocol !== 'https:' && !(config.nodeEnv === 'development' && ['localhost', '127.0.0.1'].includes(destination.hostname))) throw notFound('Tracking link not found')
+  await prisma.qrScan.create({ data: { eventId: randomUUID(), trackingLinkId: link.id, campaignId: link.campaignId, creativeId: link.creativeId, displayId: link.displayId } })
+  return reply.code(302).header('Location', destination.toString()).send()
+})
+app.get('/api/admin/campaigns/:campaignId/qr-analytics', async (request, reply) => {
+  await requireRoles(request, adminRoles)
+  const { campaignId } = request.params as { campaignId: string }
+  const [completedPlays, qrScans] = await Promise.all([
+    prisma.proofOfPlay.count({ where: { campaignId, playbackCompleted: true } }),
+    prisma.qrScan.count({ where: { campaignId } }),
+  ])
+  return ok(request, { completedPlays, qrScans, scanRate: completedPlays === 0 ? null : (qrScans / completedPlays) * 100 }, reply)
+})
 app.get('/api/public/campaign-packages', async (request, reply) => ok(request, campaignPackages.filter((item) => item.active), reply))
 app.post('/api/public/campaign-orders', async (request, reply) => { const input = bodyOf(request, guestOrderInput); const selected = packageFor(input.packageId); if (!selected) throw new ApiError('INVALID_PACKAGE', 'This campaign package is unavailable', 422); const phone = normalizePhone(input.phone); const orderNumber = `OORO-${Date.now().toString(36).toUpperCase()}-${randomSecret(3).toUpperCase()}`; request.log.info({ route: request.url, orderNumber, stage: 'MONGO_INSERT' }, 'creating guest campaign order'); let order; try { order = await createGuestOrder({ orderNumber, name: input.name, email: input.email.toLowerCase(), phone, businessName: input.businessName, gstin: input.gstin, campaignNotes: input.campaignNotes, websiteOrInstagram: input.websiteOrInstagram, packageId: selected.id, city: selected.city, autos: selected.autos, hoursPerDay: selected.hoursPerDay, campaignDurationDays: selected.durationDays, amount: selected.amount, currency: selected.currency }); } catch (error) { request.log.error({ route: request.url, orderNumber, stage: 'MONGO_INSERT', errorType: error instanceof Error ? error.name : 'unknown' }, 'guest order persistence failed'); if (isMongoError(error)) throw new ApiError('GUEST_STORE_UNAVAILABLE', 'Guest checkout storage is temporarily unavailable', 503); throw error } try { request.log.info({ route: request.url, orderNumber, stage: 'RAZORPAY_ORDER_CREATE' }, 'creating Razorpay order'); const razorpay = await createRazorpayOrder(orderNumber, selected.amount, { ooroOrder: order.id.toString(), packageId: selected.id }); await attachRazorpayOrder(orderNumber, razorpay.id); return ok(request, { orderNumber, razorpayOrderId: razorpay.id, keyId: config.razorpayKeyId, amount: razorpay.amount, currency: razorpay.currency, name: input.name, email: input.email.toLowerCase(), phone }, reply) } catch (error) { request.log.warn({ route: request.url, orderNumber, stage: 'RAZORPAY_ORDER_CREATE', errorType: error instanceof Error ? error.name : 'unknown' }, 'Razorpay order creation failed'); await updateGuestOrder(order.id.toString(), { status: error instanceof ApiError && error.code === 'PAYMENT_PROVIDER_NOT_CONFIGURED' ? 'CREATED' : 'PAYMENT_FAILED', emailLastError: error instanceof Error ? error.message : 'Razorpay order failed' }); throw error } })
 app.post('/api/public/campaign-orders/verify', async (request, reply) => { const input = bodyOf(request, z.object({ orderNumber: z.string(), razorpayOrderId: z.string(), razorpayPaymentId: z.string(), razorpaySignature: z.string() })); if (!verifyCheckoutSignature(input.razorpayOrderId, input.razorpayPaymentId, input.razorpaySignature)) throw new ApiError('INVALID_PAYMENT_SIGNATURE', 'Payment could not be verified', 400); const order = await findGuestOrderByRazorpayOrder(input.razorpayOrderId); if (!order || order.orderNumber !== input.orderNumber) throw notFound('Order not found'); const paid = await markOrderPaid(input.razorpayOrderId, input.razorpayPaymentId); if (paid?.order && paid.order.emailDeliveryStatus === 'PENDING') { try { const delivery = await sendOrderConfirmation(paid.order); await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: delivery }) } catch (error) { await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: 'FAILED', emailLastError: error instanceof Error ? error.message : 'Email failed' }) } } return ok(request, { orderNumber: paid?.order.orderNumber, status: paid?.order.status, accessToken: paid?.accessToken }, reply) })
@@ -80,24 +106,29 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
 })
 
 app.post('/api/auth/admin/request-otp', async (request, reply) => {
-  const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
-  const user = await prisma.user.findUnique({ where: { phone } })
-  if (!user || !adminRoles.includes(user.role)) throw unauthorized('Admin account not found')
-  const code = config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
-  const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
-  await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })
-  return ok(request, { expiresAt, ...(config.nodeEnv !== 'production' && config.devMockOtpEnabled ? { devOtp: code } : {}) }, reply)
+  try {
+    const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
+    const user = await prisma.user.findUnique({ where: { phone } })
+    if (!user) throw unauthorized('Admin account not found')
+    if (!isAdminRole(user.role)) throw forbidden('Admin account is not permitted')
+    const code = config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
+    const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
+    await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })
+    return ok(request, { expiresAt, ...(config.nodeEnv !== 'production' && config.devMockOtpEnabled ? { devOtp: code } : {}) }, reply)
+  } catch (error) { throw authStoreError(error) }
 })
 
 app.post('/api/auth/admin/verify-otp', async (request, reply) => {
-  const { phone, code } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6) }))
-  const challenge = await prisma.otpChallenge.findFirst({ where: { phone, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
-  const user = await prisma.user.findUnique({ where: { phone } })
-  if (!challenge || challenge.codeHash !== hashOtp(phone, code)) throw unauthorized('Invalid or expired admin OTP')
-  if (!user || !adminRoles.includes(user.role) || user.accountStatus !== 'ACTIVE') throw forbidden('Admin account is not permitted')
-  await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } })
-  const tokens = await issueTokens(user.id, user.role)
-  return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role, name: user.name } }, reply)
+  try {
+    const { phone, code } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6) }))
+    const challenge = await prisma.otpChallenge.findFirst({ where: { phone, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
+    const user = await prisma.user.findUnique({ where: { phone } })
+    if (!challenge || challenge.codeHash !== hashOtp(phone, code)) throw unauthorized('Invalid or expired admin OTP')
+    if (!user || !isAdminRole(user.role) || user.accountStatus !== 'ACTIVE') throw forbidden('Admin account is not permitted')
+    await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } })
+    const tokens = await issueTokens(user.id, user.role)
+    return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role, name: user.name } }, reply)
+  } catch (error) { throw authStoreError(error) }
 })
 
 app.post('/api/auth/refresh', async (request, reply) => {
@@ -168,9 +199,10 @@ app.post('/api/device/heartbeat', async (request, reply) => {
     return row
   })
   const latest = await buildDisplayManifest(display.id); if (latest.manifest.version !== (input.manifestVersion ?? -1)) { try { await prisma.$transaction(async (tx) => { const pending = await tx.displayCommand.findFirst({ where: { displayId: display.id, commandType: { in: ['REFRESH_MANIFEST', 'SYNC_MANIFEST'] }, status: { in: ['QUEUED', 'DELIVERED'] } }, select: { id: true } }); if (!pending) await tx.displayCommand.create({ data: { displayId: display.id, commandType: 'REFRESH_MANIFEST', payload: { manifestVersion: latest.manifest.version }, expiresAt: null } }); }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }); } catch (error) { if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2034') throw error } }
-  return ok(request, { accepted: true, heartbeatId: hb.id, serverTime: new Date() }, reply)
+  const commands = await prisma.displayCommand.findMany({ where: { displayId: display.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { createdAt: 'asc' }, take: 20, select: { id: true, commandType: true, payload: true, expiresAt: true } })
+  return ok(request, { accepted: true, heartbeatId: hb.id, serverTime: new Date(), currentManifestVersion: latest.manifest.version, manifestUpdateAvailable: latest.manifest.version !== (input.manifestVersion ?? -1), commands: asJson(commands) }, reply)
 })
-app.get('/api/device/manifest', async (request, reply) => { const display = await authenticateDisplay(request); const { manifest, reasons } = await buildDisplayManifest(display.id); request.log.info({ displayId: display.id, reasons, itemCount: manifest.items.length }, 'display manifest evaluated'); return ok(request, { version: manifest.version, manifestId: manifest.manifestId, screenId: display.id, generatedAt: manifest.generatedAt, validUntil: manifest.expiresAt, timezone: 'Asia/Kolkata', layout: manifest.layout, items: manifest.items.map((item) => ({ id: item.id, campaignId: item.campaignId, creativeId: item.creativeId, assetId: item.assetId, type: item.type, url: item.url, checksum: item.checksum, durationSeconds: item.durationSeconds, priority: item.priority, startAt: item.startAt, endAt: item.endAt })) }, reply) })
+app.get('/api/device/manifest', async (request, reply) => { const display = await authenticateDisplay(request); const { manifest, reasons } = await buildDisplayManifest(display.id); request.log.info({ displayId: display.id, reasons, itemCount: manifest.items.length }, 'display manifest evaluated'); return ok(request, { version: manifest.version, manifestId: manifest.manifestId, screenId: display.id, generatedAt: manifest.generatedAt, validUntil: manifest.expiresAt, timezone: 'Asia/Kolkata', layout: manifest.layout, items: manifest.items }, reply) })
 app.get('/api/admin/displays/:displayId/manifest-debug', async (request, reply) => { await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']); const { displayId } = request.params as { displayId: string }; const { manifest, reasons } = await buildDisplayManifest(displayId); return ok(request, { displayId, reasons, selected: manifest.items, manifestVersion: manifest.version }, reply) })
 app.get('/api/device/commands', async (request, reply) => { const display = await authenticateDisplay(request); const now = new Date(); await prisma.displayCommand.updateMany({ where: { displayId: display.id, status: 'QUEUED', expiresAt: { lt: now } }, data: { status: 'FAILED', failedAt: now, error: 'EXPIRED' } }); const commands = await prisma.displayCommand.findMany({ where: { displayId: display.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { createdAt: 'asc' }, take: 20 }); if (commands.length) { const deliveredAt = new Date(); await prisma.displayCommand.updateMany({ where: { id: { in: commands.map((c) => c.id) } }, data: { status: 'DELIVERED', deliveredAt } }); commands.forEach((command) => { command.status = 'DELIVERED'; command.deliveredAt = deliveredAt }); } return ok(request, asJson(commands), reply) })
 app.post('/api/device/commands/:commandId/ack', async (request, reply) => { const display = await authenticateDisplay(request); const { commandId } = request.params as { commandId: string }; const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED','PROCESSING','SUCCEEDED','FAILED','UNSUPPORTED']), receivedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), completedAt: z.coerce.date().optional(), errorCode: z.string().optional(), errorMessage: z.string().optional() })); const command = await prisma.displayCommand.findFirst({ where: { id: commandId, displayId: display.id } }); if (!command) throw notFound('Command not found'); const terminal = ['SUCCEEDED', 'FAILED', 'UNSUPPORTED'].includes(input.status); return ok(request, await prisma.displayCommand.update({ where: { id: commandId }, data: { status: input.status, acknowledgedAt: terminal || input.status === 'RECEIVED' || input.status === 'PROCESSING' ? new Date() : command.acknowledgedAt, failedAt: input.status === 'FAILED' ? new Date() : undefined, error: input.errorMessage } }), reply) })

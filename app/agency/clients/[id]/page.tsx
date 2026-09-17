@@ -1,0 +1,2 @@
+import { PageHeader, EmptyState } from "@/components/app/app-ui";
+export default async function AgencyClientPage({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; return <div className="space-y-8"><PageHeader eyebrow="Agency client" title={id} description="Client campaign delivery and billing will appear here when this client is active."/><EmptyState title="Client data unavailable." description="This client has no persisted campaign records yet."/></div>; }

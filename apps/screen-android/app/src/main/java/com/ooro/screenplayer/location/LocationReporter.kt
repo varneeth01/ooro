@@ -18,7 +18,7 @@ object LocationSnapshots {
         return LocationSnapshot(latitude, longitude, accuracyMeters, speedMps?.takeIf { it.isFinite() && it >= 0.0 }, headingDegrees?.takeIf { it.isFinite() }, occurredAt)
     }
 }
-object LocationCadence { fun heartbeatIntervalMs(speedMps: Double?): Long = if (speedMps != null && speedMps.isFinite() && speedMps >= 1.2) 15_000L else 90_000L }
+object LocationCadence { fun heartbeatIntervalMs(speedMps: Double?): Long = if (speedMps != null && speedMps.isFinite() && speedMps >= 1.2) 15_000L else 30_000L }
 
 class LocationReporter(private val context: Context) {
     @Volatile private var cached: LocationSnapshot? = null

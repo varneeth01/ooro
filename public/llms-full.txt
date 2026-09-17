@@ -1,0 +1,57 @@
+# OORO — Product context
+
+## Overview
+
+OORO is a smart physical advertising platform. It begins with a mobility network of connected digital displays and is designed to make offline campaigns easier to plan, deliver and measure.
+
+## Product architecture
+
+At a high level, OORO connects advertiser campaign and creative information to eligible physical displays. Displays cache assigned media for resilient playback and report playback and device state through the OORO platform. The public product does not depend on a passenger's personal identity to display an advertisement.
+
+## Advertiser workflow
+
+1. Select a campaign package or begin a campaign brief.
+2. Provide brand, schedule, location and creative information.
+3. Configure an optional campaign offer and call to action.
+4. Deliver the campaign to eligible displays.
+5. Review delivery and QR engagement data where available.
+
+## Campaign lifecycle
+
+A campaign moves from planning and creative preparation to delivery on assigned displays. Campaign status, display delivery and playback records are distinct concepts; an assignment does not by itself prove that a creative played.
+
+## Smart screen
+
+The OORO passenger screen uses a landscape composition with an approximately 75% advertising region and a right-side utility column. The utility column includes a live map/location panel and an offer panel tied to the creative currently playing. The offer panel may include a QR code and short call to action. OORO does not publicly claim turn-by-turn routing in this product description.
+
+## Measurement
+
+Playback events and Proof of Play are used to describe creative delivery on a display. QR scans are engagement events and are kept separate from Proof of Play. Scan rate is calculated from available QR scans and completed plays; unavailable data is not represented as a fabricated metric.
+
+## QR engagement
+
+Where a campaign has a valid call-to-action destination, OORO can present a campaign QR code. The QR uses OORO tracking so engagement can be attributed to the campaign and creative, with display attribution where available, before redirecting to the configured destination.
+
+## Mobility network
+
+OORO is starting with mobility as its initial physical display network. The network connects brands, vehicle and mobility partners, displays and the places those vehicles move through.
+
+## Public campaign information
+
+Public campaign packages and availability are shown on the OORO website and may change as the network develops. Visit the pricing section for current package information.
+
+## Terminology
+
+- Campaign: a configured advertising effort with schedule, targeting and delivery intent.
+- Creative: an image or video asset used by a campaign.
+- Display: a connected physical screen eligible to receive campaign media.
+- Proof of Play: an authoritative record of creative playback delivery.
+- QR scan: an engagement event caused by a campaign QR visit.
+
+## Public links
+
+- https://theooro.com/
+- https://theooro.com/about
+- https://theooro.com/#campaign-pricing
+- https://theooro.com/privacy
+- https://theooro.com/terms

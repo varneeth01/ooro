@@ -10,3 +10,12 @@ export async function webOwnerEmail() {
   if (!session || session.expiresAt <= new Date()) return null;
   return session.ownerEmail;
 }
+
+export async function webContext() {
+  const email = await webOwnerEmail();
+  if (!email) return null;
+  const account = await webPrisma.webAccount.findUnique({ where: { email } });
+  if (!account) return null;
+  const membership = await webPrisma.organizationMember.findFirst({ where: { userId: account.id }, include: { organization: true }, orderBy: { createdAt: "asc" } });
+  return { email, account, organization: membership?.organization ?? null, membership: membership ?? null };
+}
