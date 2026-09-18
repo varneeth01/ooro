@@ -21,6 +21,7 @@ import { sendOrderConfirmation } from './domain/transactional-email.js'
 import { receiptPdf } from './domain/receipt.js'
 import { boundedLocationLimit, shouldRecordDisplayLocation, validDisplayLocation } from './domain/display-location.js'
 import { getDisplayConnectivity } from './domain/display-health.js'
+import { normalizeIndianPhone } from './domain/phone.js'
 import { canonicalProofId, canonicalProofStatus } from './domain/proof-policy.js'
 import { adminRoles, isAdminRole } from './domain/admin-auth.js'
 
@@ -115,7 +116,9 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
 
 app.post('/api/auth/admin/request-otp', async (request, reply) => {
   try {
-    const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
+    const { phone: rawPhone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
+    const phone = normalizeIndianPhone(rawPhone)
+    if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid Indian mobile number', 422)
     const user = await prisma.user.findUnique({ where: { phone } })
     if (!user) throw unauthorized('Admin account not found')
     if (!isAdminRole(user.role)) throw forbidden('Admin account is not permitted')
@@ -128,7 +131,9 @@ app.post('/api/auth/admin/request-otp', async (request, reply) => {
 
 app.post('/api/auth/admin/verify-otp', async (request, reply) => {
   try {
-    const { phone, code } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6) }))
+    const { phone: rawPhone, code } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6) }))
+    const phone = normalizeIndianPhone(rawPhone)
+    if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid Indian mobile number', 422)
     const challenge = await prisma.otpChallenge.findFirst({ where: { phone, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
     const user = await prisma.user.findUnique({ where: { phone } })
     if (!challenge || challenge.codeHash !== hashOtp(phone, code)) throw unauthorized('Invalid or expired admin OTP')

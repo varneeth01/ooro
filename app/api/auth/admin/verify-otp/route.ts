@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { apiUrl } from "@/lib/api-url";
+import { backendApiUrl } from "@/lib/backend-url";
 import { saveBackendSession } from "@/lib/auth/backend-session";
 
 export async function POST(request: Request) {
-  const backendUrl = process.env.OORO_BACKEND_API_URL?.trim().replace(/\/$/, "") || apiUrl || (process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || null : "http://127.0.0.1:8080");
+  const backendUrl = backendApiUrl();
   if (!backendUrl) return NextResponse.json({ error: { code: "ADMIN_BACKEND_UNAVAILABLE", message: "Admin backend is not configured" } }, { status: 502 });
   const response = await fetch(`${backendUrl}/api/auth/admin/verify-otp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(await request.json()), cache: "no-store" }).catch(() => null);
   if (!response) return NextResponse.json({ error: { code: "ADMIN_BACKEND_UNAVAILABLE", message: "Admin backend is unavailable" } }, { status: 502 });

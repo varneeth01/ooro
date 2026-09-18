@@ -3,7 +3,8 @@ import { webPrisma } from "@/lib/web-prisma";
 export async function adBalance(accountId: string) {
   const account = await webPrisma.adBalanceAccount.upsert({ where: { accountId }, update: {}, create: { accountId } });
   const entries = await webPrisma.adBalanceLedgerEntry.findMany({ where: { accountId: account.id }, orderBy: { createdAt: "desc" }, take: 50 });
-  return { account, entries };
+  const recharges = await webPrisma.adBalanceRechargeOrder.findMany({ where: { accountId }, orderBy: { createdAt: "desc" }, take: 20 });
+  return { account, entries, recharges };
 }
 
 export async function debitAdBalance(tx: typeof webPrisma, accountId: string, campaignId: string, budgetRupees: number) {

@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { apiUrl } from "@/lib/api-url";
+import { backendApiUrl } from "@/lib/backend-url";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 
 type TokenSet = { accessToken: string; refreshToken: string };
@@ -46,7 +46,7 @@ export async function clearBackendSession() {
   cookieStore.set(SESSION_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
 }
 
-const configuredBackendUrl = () => process.env.OORO_BACKEND_API_URL?.trim().replace(/\/$/, "") || apiUrl || (process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || null : "http://127.0.0.1:8080");
+const configuredBackendUrl = backendApiUrl;
 const backendUrl = (path: string) => {
   const base = configuredBackendUrl();
   if (!base) throw new AdminAuthError("ADMIN_BACKEND_UNAVAILABLE", 502);
