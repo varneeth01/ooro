@@ -1,0 +1,42 @@
+FROM node:20-bookworm-slim AS build
+
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/api-contracts/package.json packages/api-contracts/package.json
+COPY packages/shared-types/package.json packages/shared-types/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
+RUN pnpm --filter @ooro/api exec prisma generate
+RUN pnpm build
+
+FROM node:20-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+WORKDIR /app
+
+RUN corepack enable
+
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/.next ./.next
+COPY --from=build /app/public ./public
+
+EXPOSE 8080
+CMD ["sh", "-c", "pnpm exec next start --hostname 0.0.0.0 --port \"${PORT:-8080}\""]
