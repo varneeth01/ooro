@@ -1,0 +1,16 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.api
+      - -t
+      - asia-south1-docker.pkg.dev/ooro-509014/ooro/ooro-api:latest
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/ooro-509014/ooro/ooro-api:latest
+
+images:
+  - asia-south1-docker.pkg.dev/ooro-509014/ooro/ooro-api:latest
