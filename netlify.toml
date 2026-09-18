@@ -44,12 +44,10 @@
   status = 200
   force = true
 
-# All other API traffic continues to use the existing backend function.
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/api/:splat"
-  status = 200
-  force = true
+# The Next.js app owns the same-origin `/api/*` routes, including web auth
+# (`/api/auth`) and its direct Prisma store. Backend-only clients should use
+# the Railway API URL directly; forwarding this wildcard to the standalone
+# function bypasses Next route handlers and makes web signup impossible.
 
 # Keep one canonical origin for search engines. Point all four domains at this
 # Netlify site, then the aliases will consolidate their SEO signals here.
