@@ -18,6 +18,7 @@ API_SA="ooro-api-sa@ooro-509014.iam.gserviceaccount.com"
 WEB_SA="ooro-web-sa@ooro-509014.iam.gserviceaccount.com"
 BUCKET="ooro-production-creatives-757291597913"
 CANONICAL_URL="https://theooro.com"
+PNPM_VERSION="9.12.0"
 
 API_URL=""
 WEB_URL=""
@@ -81,8 +82,10 @@ require_command() {
 }
 
 service_enabled() {
-  gcloud services list --enabled --project "$PROJECT" \
-    --filter="config.name=$1" --format='value(config.name)' | grep -Fxq "$1"
+  local service="$1" enabled_services
+  enabled_services="$(gcloud services list --enabled --project "$PROJECT" \
+    --format='value(config.name)')"
+  grep -Fxq -- "$service" <<<"$enabled_services"
 }
 
 check_http() {
@@ -103,37 +106,103 @@ phase "PREFLIGHT"
 require_command gcloud
 require_command curl
 require_command git
-require_command pnpm
 
-gcloud auth list --filter='status:ACTIVE' --format='value(account)' | grep -q . \
+pass "gcloud"
+gcloud auth list --format='value(account,status)' | awk '$2 == "ACTIVE" { found=1 } END { exit !found }' \
   || fail "No active gcloud account is authenticated"
+pass "authentication"
 if [[ "$(gcloud config get-value project 2>/dev/null)" != "$PROJECT" ]]; then
   gcloud config set project "$PROJECT" >/dev/null
 fi
+pass "project $PROJECT"
 gcloud config set run/region "$REGION" >/dev/null
+pass "region $REGION"
 
-for service in run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-  secretmanager.googleapis.com sqladmin.googleapis storage.googleapis.com; do
-  service_enabled "$service" || fail "Required API is not enabled: $service"
+# Builds and migrations run remotely: Cloud Build uses node:20-bookworm-slim,
+# and the migration job invokes pnpm inside the built image. Neither Node,
+# Corepack, nor pnpm is a local deployment dependency.
+if command -v node >/dev/null 2>&1 && NODE_VERSION="$(node --version 2>/dev/null)"; then
+  :
+else
+  NODE_VERSION="node:20-bookworm-slim (Cloud Build)"
+fi
+log "Node version: $NODE_VERSION"
+if command -v corepack >/dev/null 2>&1; then
+  log "Corepack: available locally (not required)"
+else
+  log "Corepack: not installed locally (not required)"
+fi
+if command -v pnpm >/dev/null 2>&1 && LOCAL_PNPM_VERSION="$(pnpm --version 2>/dev/null)"; then
+  log "Local pnpm version: $LOCAL_PNPM_VERSION"
+else
+  log "Local pnpm: not installed (not required)"
+fi
+log "pnpm version: $PNPM_VERSION (Cloud Build/Cloud Run)"
+log "gcloud version: $(gcloud version 2>/dev/null | sed -n '1p')"
+log "active project: $(gcloud config get-value project 2>/dev/null)"
+
+REQUIRED_APIS=(
+  run.googleapis.com
+  cloudbuild.googleapis.com
+  artifactregistry.googleapis.com
+  sqladmin.googleapis.com
+  secretmanager.googleapis.com
+  storage.googleapis.com
+)
+
+missing_apis=()
+for service in "${REQUIRED_APIS[@]}"; do
+  service_enabled "$service" || missing_apis+=("$service")
 done
 
-gcloud sql instances describe "$SQL_INSTANCE" --project "$PROJECT" >/dev/null \
-  || fail "Cloud SQL instance is missing: $SQL_INSTANCE"
+if ((${#missing_apis[@]} > 0)); then
+  log "Enabling missing Google APIs: ${missing_apis[*]}"
+  gcloud services enable "${REQUIRED_APIS[@]}" --project "$PROJECT"
+fi
+
+for service in "${REQUIRED_APIS[@]}"; do
+  service_enabled "$service" || fail "Required API could not be enabled: $service"
+  pass "API $service"
+done
+
+if gcloud sql instances describe "$SQL_INSTANCE" --project "$PROJECT" >/dev/null 2>&1; then
+  pass "Cloud SQL $SQL_INSTANCE"
+else
+  fail "Cloud SQL instance is missing or inaccessible: $SQL_INSTANCE"
+fi
+
+if ! gcloud artifacts repositories describe "$REPOSITORY" --location "$REGION" --project "$PROJECT" >/dev/null 2>&1; then
+  log "Artifact Registry $REPOSITORY is missing; creating it"
+  gcloud artifacts repositories create "$REPOSITORY" \
+    --repository-format=docker \
+    --location="$REGION" \
+    --project "$PROJECT" \
+    --description="OORO production container images"
+fi
 gcloud artifacts repositories describe "$REPOSITORY" --location "$REGION" --project "$PROJECT" >/dev/null \
-  || fail "Artifact Registry repository is missing: $REPOSITORY"
+  || fail "Artifact Registry repository could not be verified: $REPOSITORY"
+pass "Artifact Registry $REPOSITORY"
+
 gcloud storage buckets describe "gs://$BUCKET" --project "$PROJECT" >/dev/null \
-  || fail "GCS bucket is missing: $BUCKET"
+  || fail "GCS bucket is missing or inaccessible: $BUCKET"
+pass "GCS bucket"
+
 for account in "$API_SA" "$WEB_SA"; do
   gcloud iam service-accounts describe "$account" --project "$PROJECT" >/dev/null \
     || fail "Service account is missing: $account"
 done
+pass "API service account"
+pass "Web service account"
+
 for secret in ooro-database-url ooro-jwt-secret ooro-session-secret; do
   gcloud secrets describe "$secret" --project "$PROJECT" >/dev/null \
     || fail "Secret is missing: $secret"
 done
+pass "Secret Manager"
 [[ -f cloudbuild.api.yaml && -f Dockerfile.api && -f cloudbuild.web.yaml && -f Dockerfile.web ]] \
   || fail "Required build configuration is missing"
-pass "GCP project, APIs, production resources, secrets, and build inputs verified"
+pass "build inputs"
+log "PREFLIGHT COMPLETE"
 
 phase "API BUILD"
 gcloud builds submit --project "$PROJECT" --region "$REGION" --config=cloudbuild.api.yaml .
