@@ -6,3 +6,7 @@ export function canonicalProofStatus(completed: boolean, actualDuration: number 
   if (!completed) return 'FAILED'
   return (actualDuration ?? 0) >= Math.floor(expectedDuration * 0.9) ? 'VALID' : 'PARTIAL'
 }
+
+export function proofIdentityBelongsToDisplay(existingDisplayId: string | null | undefined, authenticatedDisplayId: string) {
+  return !existingDisplayId || existingDisplayId === authenticatedDisplayId
+}

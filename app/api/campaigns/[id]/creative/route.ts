@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { webPrisma } from "@/lib/web-prisma";
 import { storeCreative } from "@/lib/creative-storage";
 import { webContext, webOwnerEmail } from "@/lib/web-owner";
+import { selfServeDisplayAssignmentAllowed } from "@/lib/campaign-policy";
 
 const allowed = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]);
 const maxBytes = 100 * 1024 * 1024;
@@ -15,19 +16,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const campaign = await webPrisma.campaign.findUnique({ where: { id: campaignId } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
     if (campaign.userId !== context?.account.id && campaign.ownerEmail !== ownerEmail) return NextResponse.json({ error: { message: "You do not have access to this campaign" } }, { status: 403 });
     const targets = [...new Set(body.displayIds ?? [])];
-    if (context?.account.accountType === "BUSINESS" && targets.length) return NextResponse.json({ error: { code: "SCREEN_SELECTION_NOT_ALLOWED", message: "Business campaigns are allocated by OORO." } }, { status: 403 });
-    const displays = targets.length ? await webPrisma.display.findMany({ where: { id: { in: targets }, deviceTokenHash: { not: null }, state: { not: "DISABLED" } }, select: { id: true } }) : [];
-    if (displays.length !== targets.length) return NextResponse.json({ error: { message: "One or more selected displays are unavailable" } }, { status: 422 });
+    if (!selfServeDisplayAssignmentAllowed(targets.length)) return NextResponse.json({ error: { code: "SCREEN_SELECTION_NOT_ALLOWED", message: "Campaign screens are allocated by OORO." } }, { status: 403 });
     const stored = await storeCreative(bytes, body.fileName, body.mimeType);
     const type = body.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE";
     const result = await webPrisma.$transaction(async tx => {
       const creative = await tx.creative.create({ data: { campaignId, name: body.fileName!, type, durationSeconds: Math.max(1, Math.round(body.durationSeconds ?? 10)) } });
       const asset = await tx.asset.create({ data: { creativeId: creative.id, fileName: body.fileName!, storageKey: stored.storageKey, url: stored.url, checksum: stored.checksum, mimeType: body.mimeType, sizeBytes: BigInt(stored.size), width: body.width, height: body.height, durationSeconds: body.durationSeconds } });
-      // Manifest refresh must survive an offline display. Heartbeat recovery
-      // will deliver this queued command when the device reconnects.
-      for (const display of displays) { await tx.displayCampaignAssignment.upsert({ where: { displayId_campaignId: { displayId: display.id, campaignId } }, update: { active: true }, create: { displayId: display.id, campaignId } }); await tx.displayCommand.create({ data: { displayId: display.id, commandType: "REFRESH_MANIFEST", payload: { campaignId, creativeId: creative.id, assetId: asset.id }, expiresAt: null } }); }
-      return { creative, asset, displayIds: displays.map(display => display.id) };
+      return { creative, asset };
     });
-    return NextResponse.json({ data: { campaignId, assetId: result.asset.id, creativeId: result.creative.id, fileName: result.asset.fileName, mimeType: result.asset.mimeType, size: Number(result.asset.sizeBytes), checksum: result.asset.checksum, url: result.asset.url, displaysTargeted: result.displayIds.length, commandsCreated: result.displayIds.length, manifestVersion: null } }, { status: 201 });
+    return NextResponse.json({ data: { campaignId, assetId: result.asset.id, creativeId: result.creative.id, fileName: result.asset.fileName, mimeType: result.asset.mimeType, size: Number(result.asset.sizeBytes), checksum: result.asset.checksum, url: result.asset.url, displaysTargeted: 0, commandsCreated: 0, manifestVersion: null } }, { status: 201 });
   } catch (error) { const message = error instanceof Error && error.message === "OBJECT_STORAGE_NOT_CONFIGURED" ? "Creative storage is not configured for production" : "Creative could not be persisted"; return NextResponse.json({ error: { message } }, { status: 503 }); }
 }

@@ -12,9 +12,9 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
-    val repairAccessCode = (project.findProperty("repairAccessCode")?.toString()
-        ?: System.getenv("OORO_REPAIR_ACCESS_CODE")
-        ?: "798162").trim()
+    val configuredRepairAccessCode = (project.findProperty("repairAccessCode")?.toString()
+        ?: System.getenv("OORO_REPAIR_ACCESS_CODE"))?.trim().orEmpty()
+    val debugRepairAccessCode = configuredRepairAccessCode.ifBlank { "798162" }
     buildTypes {
         debug {
             val apiBaseUrl = (project.findProperty("deviceApiBaseUrl")?.toString()
@@ -29,7 +29,7 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
             buildConfigField("boolean", "USE_MOCK_BACKEND", useMockBackend.toString())
             buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "true")
-            buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$repairAccessCode\"")
+            buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$debugRepairAccessCode\"")
             buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\"")
             buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15")
             val syncIntervalSeconds = (project.findProperty("syncIntervalSeconds")?.toString()
@@ -37,7 +37,7 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
                 ?: "15").toIntOrNull()?.coerceIn(5, 300) ?: 15
             buildConfigField("int", "SYNC_INTERVAL_SECONDS", syncIntervalSeconds.toString())
         }
-        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"https://theooro.com\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "false"); buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$repairAccessCode\""); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15"); buildConfigField("int", "SYNC_INTERVAL_SECONDS", "90") }
+        release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt")); manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"https://theooro.com\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "false"); buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$configuredRepairAccessCode\""); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15"); buildConfigField("int", "SYNC_INTERVAL_SECONDS", "90") }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
@@ -63,4 +63,5 @@ dependencies {
     implementation("org.maplibre.gl:android-sdk:11.5.1")
     implementation("com.google.zxing:core:3.5.3")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

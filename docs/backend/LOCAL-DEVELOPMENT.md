@@ -10,7 +10,7 @@
    pnpm --filter @ooro/api prisma:seed
    ```
 
-   The seed is idempotent and creates the development `SUPER_ADMIN` at `DEV_ADMIN_PHONE` (default `+910000000001`). It does nothing when `NODE_ENV=production`.
+   The seed is idempotent and creates the development `SUPER_ADMIN` at `DEV_ADMIN_PHONE` (default `+919000000001`). It does nothing when `NODE_ENV=production`.
 5. Open `/admin/login`, enter `DEV_ADMIN_PHONE`, request an OTP, and use `DEV_MOCK_OTP` while `NODE_ENV` is not production and `DEV_MOCK_OTP_ENABLED=true`.
 5. Start the API with `pnpm --filter @ooro/api dev`.
 

@@ -86,24 +86,25 @@ internal fun isRepairAccessCode(value: String): Boolean = value.filter(Char::isD
 
 @Composable private fun Player(vm: ScreenViewModel, manifest: DeviceManifest) {
     var taps by remember { mutableIntStateOf(0) }
-    val scheduledItem = vm.currentItem(manifest)
+    val playbackOffset by vm.playbackOffset.collectAsState()
+    val scheduledItem = vm.currentItem(manifest, playbackOffset)
     val presentationItem by vm.currentCreative.collectAsState()
     val item = presentationItem?.takeIf { it.id == scheduledItem?.id } ?: scheduledItem
-    LaunchedEffect(scheduledItem?.id) { scheduledItem?.let(vm::activatePresentation) }
+    LaunchedEffect(scheduledItem?.id, playbackOffset) { scheduledItem?.let(vm::activatePresentation) }
     Box(Modifier.fillMaxSize().background(Color.Black).clickable { taps++; if (taps >= 7) vm.showAdmin() }) {
         if (manifest.layout == DisplayLayout.AD_NAV_OFFER || manifest.layout == DisplayLayout.FULLSCREEN_AD) Row(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat())) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item) }
+            Box(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat())) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }
             Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat())) { Box(Modifier.weight(manifest.layoutConfig.safeNavigationHeight.toFloat())) { NavigationPanel(vm, Modifier.fillMaxSize()) }; Box(Modifier.weight((100 - manifest.layoutConfig.safeNavigationHeight).toFloat())) { OfferPanel(item, Modifier.fillMaxSize()) } }
-        } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize()) { Box(Modifier.weight(3f)) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item) }; Column(Modifier.weight(1f)) { NavigationPanel(vm, Modifier.weight(1f)); OfferPanel(item, Modifier.weight(1f)) } } else PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item)
+        } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize()) { Box(Modifier.weight(3f)) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }; Column(Modifier.weight(1f)) { NavigationPanel(vm, Modifier.weight(1f)); OfferPanel(item, Modifier.weight(1f)) } } else PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset)
     }
 }
 
-@Composable private fun PrimaryAdRegion(vm: ScreenViewModel, manifest: DeviceManifest, modifier: Modifier, selectedItem: ManifestItem? = vm.currentItem(manifest)) {
-    val item = selectedItem; var path by remember(item?.id) { mutableStateOf<String?>(null) }; LaunchedEffect(item?.id) { path = item?.let { vm.localFile(it) } }
+@Composable private fun PrimaryAdRegion(vm: ScreenViewModel, manifest: DeviceManifest, modifier: Modifier, selectedItem: ManifestItem? = vm.currentItem(manifest), playbackKey: Int = 0) {
+    val item = selectedItem; var path by remember(item?.id, playbackKey) { mutableStateOf<String?>(null) }; LaunchedEffect(item?.id, playbackKey) { path = item?.let { vm.localFile(it) } }
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         if (item == null || path == null) Text("OORO\nOffline — awaiting verified content", color = Color.White, fontSize = 24.sp)
-        else if (item.type == CreativeType.IMAGE) { val bitmap = remember(path) { path?.let(BitmapFactory::decodeFile) }; if (bitmap != null) { LaunchedEffect(item.id) { vm.creativeStarted(item); kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm.creativeFinished(item, item.durationSeconds * 1000L, true) }; Image(bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize(), contentScale = item.fitMode.toContentScale()) } }
-        else { val context = LocalContext.current; val creative = remember(item.id) { Media3CreativePlayer(context, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) }) }; DisposableEffect(path) { creative.play(path!!); onDispose { if (creative.player.isPlaying) vm.creativeFinished(item, creative.player.currentPosition, false, "INTERRUPTED"); creative.close() } }; AndroidView({ PlayerView(it).apply { player = creative.player; useController = false; resizeMode = item.fitMode.toResizeMode() } }, Modifier.fillMaxSize()) }
+        else if (item.type == CreativeType.IMAGE) { val bitmap = remember(path, playbackKey) { path?.let(BitmapFactory::decodeFile) }; if (bitmap != null) { LaunchedEffect(item.id, playbackKey) { vm.creativeStarted(item); kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm.creativeFinished(item, item.durationSeconds * 1000L, true) }; Image(bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize(), contentScale = item.fitMode.toContentScale()) } else LaunchedEffect(item.id, playbackKey) { vm.creativeStarted(item); vm.creativeFinished(item, 0, false, "IMAGE_DECODE_FAILED") } }
+        else { val context = LocalContext.current; val creative = remember(item.id, playbackKey) { Media3CreativePlayer(context, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) }) }; DisposableEffect(path, playbackKey) { creative.play(path!!); onDispose { if (creative.player.isPlaying) vm.creativeFinished(item, creative.player.currentPosition, false, "INTERRUPTED"); creative.close() } }; AndroidView({ PlayerView(it).apply { player = creative.player; useController = false; resizeMode = item.fitMode.toResizeMode() } }, Modifier.fillMaxSize()) }
     }
 }
 private fun FitMode.toContentScale() = when (this) { FitMode.FILL, FitMode.CENTER_CROP -> ContentScale.Crop; FitMode.FIT -> ContentScale.Fit }

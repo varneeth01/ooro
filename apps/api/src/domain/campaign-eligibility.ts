@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { randomBytes } from 'node:crypto'
 import { prisma } from '../prisma.js'
 import { config } from '../config.js'
+import { safeDestination } from './qr-destination.js'
 
 export type ManifestReason = 'NO_ASSIGNMENT' | 'DISPLAY_DISABLED' | 'NO_ACTIVE_CAMPAIGN' | 'OUTSIDE_SCHEDULE' | 'NO_ELIGIBLE_CREATIVE'
 export type DisplayManifest = { manifestId: string; version: number; generatedAt: string; expiresAt: string; layout: string | { type: string; primaryWidthPercent: number; navigationHeightPercent: number }; items: Array<{ id: string; campaignId: string; creativeId: string; assetId: string; type: string; url: string; checksum: string | null; durationSeconds: number; priority: number; playsPerLoop: number; startAt: string | null; endAt: string | null; daysOfWeek: number[]; startTime: string | null; endTime: string | null; fitMode: string; offer: Record<string, unknown> }> }
@@ -9,6 +10,7 @@ export type DisplayManifest = { manifestId: string; version: number; generatedAt
 // Seven hex digits keep the deterministic hash-derived version positive and
 // within the signed 32-bit range while retaining stable change detection.
 export const manifestVersionFromDigest = (digest: string) => Number.parseInt(digest.slice(0, 7), 16)
+export const manifestVersionFor = (value: unknown) => manifestVersionFromDigest(createHash('sha256').update(JSON.stringify(value)).digest('hex'))
 const assetBaseUrl = () => process.env.PUBLIC_ASSET_BASE_URL?.trim().replace(/\/$/, '') || (process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:3000')
 export const deliveryAssetUrl = (url: string) => {
   const configuredBase = assetBaseUrl()
@@ -20,20 +22,11 @@ export const deliveryAssetUrl = (url: string) => {
   return `${configuredBase}${url.startsWith('/') ? url : `/${url}`}`
 }
 
-const safeDestination = (value: unknown) => {
-  if (typeof value !== 'string' || !value.trim()) return null
-  try {
-    const parsed = new URL(value)
-    if (parsed.protocol !== 'https:') return config.nodeEnv === 'development' && ['localhost', '127.0.0.1'].includes(parsed.hostname) ? parsed.toString() : null
-    return parsed.toString()
-  } catch { return null }
-}
-
 const trackingToken = () => randomBytes(24).toString('base64url')
 
 async function trackingUrlFor(displayId: string, campaignId: string, creativeId: string, metadata: Record<string, unknown>) {
   const offer = metadata.offer && typeof metadata.offer === 'object' && !Array.isArray(metadata.offer) ? metadata.offer as Record<string, unknown> : metadata
-  const destinationUrl = safeDestination(offer.ctaUrl ?? metadata.ctaUrl)
+  const destinationUrl = safeDestination(offer.ctaUrl ?? metadata.ctaUrl, config.nodeEnv === 'development')
   if (!destinationUrl) return null
   const ctaType = typeof offer.ctaType === 'string' ? offer.ctaType : 'WEBSITE'
   let link = await prisma.campaignTrackingLink.findFirst({ where: { campaignId, creativeId, displayId, active: true }, orderBy: { createdAt: 'asc' } })
@@ -64,14 +57,14 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
     return { id: creative.id, campaignId: campaign.id, creativeId: creative.id, assetId: creative.asset!.id, type: creative.type.toUpperCase() === 'VIDEO' ? 'VIDEO' : 'IMAGE', url: deliveryAssetUrl(creative.asset!.url), checksum: creative.asset!.checksum, durationSeconds: creative.durationSeconds, priority: campaign.priority, playsPerLoop, startAt: campaign.startsAt?.toISOString() ?? null, endAt: campaign.endsAt?.toISOString() ?? null, daysOfWeek, startTime: typeof schedule.startTime === 'string' ? schedule.startTime : null, endTime: typeof schedule.endTime === 'string' ? schedule.endTime : null, fitMode: typeof metadata.fitMode === 'string' ? metadata.fitMode : 'FIT', offer: { brandName: metadata.brand ?? metadata.brandName, ...offer, ...(trackingUrl ? { qrUrl: trackingUrl, scanCount, scanCountDisplayEnabled: offer.scanCountDisplayEnabled === true } : {}) } }
   })))).sort((a, b) => b.priority - a.priority || a.campaignId.localeCompare(b.campaignId) || a.id.localeCompare(b.id))
   if (!items.length && eligible.length) reasons.push('NO_ELIGIBLE_CREATIVE')
-  const fingerprint = JSON.stringify({ displayId, items: items.map(({ id, campaignId, assetId, checksum, durationSeconds, priority, playsPerLoop, startAt, endAt, daysOfWeek, startTime, endTime }) => ({ id, campaignId, assetId, checksum, durationSeconds, priority, playsPerLoop, startAt, endAt, daysOfWeek, startTime, endTime })) })
-  const digest = createHash('sha256').update(fingerprint).digest('hex')
   // Restore the established passenger layout for legacy campaigns that still
   // carry the old fullscreen default.
   const campaignLayout = eligible[0]?.campaign.layout ?? 'AD_NAV_OFFER'
   const layout = campaignLayout === 'FULLSCREEN_AD' || campaignLayout === 'AD_NAV_OFFER'
     ? { type: 'AD_NAV_OFFER', primaryWidthPercent: 75, navigationHeightPercent: 58 }
     : campaignLayout
+  const versionItems = items.map((item) => ({ ...item, offer: Object.fromEntries(Object.entries(item.offer).filter(([key]) => key !== 'scanCount')) }))
+  const digest = createHash('sha256').update(JSON.stringify({ displayId, layout, items: versionItems })).digest('hex')
   return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(), layout, items }, reasons }
 }
 const emptyManifest = (now: Date): DisplayManifest => ({ manifestId: 'manifest-empty', version: 0, generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(), layout: 'FULLSCREEN_AD', items: [] })

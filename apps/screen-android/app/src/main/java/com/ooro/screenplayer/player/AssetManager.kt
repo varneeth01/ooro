@@ -17,9 +17,10 @@ class AssetManager(private val context: Context) {
         if (item.url.isBlank()) return@withContext null
         val safeId = item.id.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120)
         val target = File(root, safeId); if (target.exists() && target.length() > 0 && (item.checksum == null || sha256(target) == item.checksum)) { Log.i("OoroScreen", "asset ready assetId=${item.id} source=cache checksumMatch=true"); return@withContext target }
-        val temp = File(root, "$safeId.part"); runCatching { temp.delete(); val connection = URL(item.url).openConnection() as HttpURLConnection; connection.connectTimeout = 10_000; connection.readTimeout = 30_000; connection.instanceFollowRedirects = true; val responseCode = connection.responseCode; Log.i("OoroScreen", "asset response assetId=${item.id} httpStatus=$responseCode"); if (responseCode !in 200..299) error("HTTP $responseCode"); var bytes = 0L; connection.inputStream.use { input -> temp.outputStream().use { output -> val buffer = ByteArray(8192); var read = input.read(buffer); while (read >= 0) { if (read > 0) { output.write(buffer, 0, read); bytes += read }; read = input.read(buffer) } } }; val checksumMatch = item.checksum == null || sha256(temp).equals(item.checksum, true); Log.i("OoroScreen", "asset downloaded assetId=${item.id} bytes=$bytes checksumMatch=$checksumMatch"); if (!checksumMatch) error("checksum mismatch"); if (target.exists()) target.delete(); if (!temp.renameTo(target)) error("atomic asset move failed"); target }.onFailure { error -> Log.w("OoroScreen", "asset download failed assetId=${item.id} error=${error.message}") }.getOrNull()
+        val temp = File(root, "$safeId.part"); runCatching { downloadVerifiedAsset(item.url, temp, target, item.checksum) }.onFailure { error -> Log.w("OoroScreen", "asset download failed assetId=${item.id} error=${error.message}") }.getOrNull()
     }
     fun cleanup(keepIds: Set<String>) { val safe = keepIds.map { it.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120) }.toSet(); root.listFiles()?.filter { it.isFile && it.name !in safe && !it.name.endsWith(".part") }?.sortedBy { it.lastModified() }?.forEach { it.delete() } }
+    fun clear() { root.listFiles()?.forEach { it.deleteRecursively() } }
     suspend fun verify(items: List<ManifestItem>): Pair<Int, Int> = withContext(Dispatchers.IO) {
         var valid = 0
         var missing = 0
@@ -30,5 +31,34 @@ class AssetManager(private val context: Context) {
         valid to missing
     }
     fun storageBytes(): Long = root.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-    private fun sha256(file: File): String = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
+}
+
+internal fun sha256(file: File): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+        val buffer = ByteArray(8192)
+        var read = input.read(buffer)
+        while (read >= 0) {
+            if (read > 0) digest.update(buffer, 0, read)
+            read = input.read(buffer)
+        }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
+}
+
+internal fun downloadVerifiedAsset(url: String, temp: File, target: File, expectedChecksum: String?): File {
+    temp.delete()
+    val connection = URL(url).openConnection() as HttpURLConnection
+    connection.connectTimeout = 10_000
+    connection.readTimeout = 30_000
+    connection.instanceFollowRedirects = true
+    try {
+        val responseCode = connection.responseCode
+        if (responseCode !in 200..299) error("HTTP $responseCode")
+        connection.inputStream.use { input -> temp.outputStream().use { output -> input.copyTo(output) } }
+        if (expectedChecksum != null && !sha256(temp).equals(expectedChecksum, true)) error("checksum mismatch")
+        if (target.exists() && !target.delete()) error("existing asset could not be replaced")
+        if (!temp.renameTo(target)) error("atomic asset move failed")
+        return target
+    } finally { connection.disconnect() }
 }

@@ -631,6 +631,7 @@ rideId String? @db.Uuid
 campaignSessionId String? @db.Uuid
 campaignId String?
 creativeId String?
+assetId String?
 eventType String
 occurredAt DateTime
 receivedAt DateTime @default(now())

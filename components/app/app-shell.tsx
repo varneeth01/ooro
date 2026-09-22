@@ -16,7 +16,8 @@ const groups: readonly NavGroup[] = [
   ["MANAGE", [["Brands / Clients", "/brands"], ["Quotes", "/quotes"], ["Team", "/team"], ["Billing", "/billing"], ["Settings", "/settings"]]],
 ] as const;
 const adminGroups: readonly NavGroup[] = [
-  ["CONTROL", [["Overview", "/admin"], ["Campaigns", "/admin/campaigns"], ["Creatives", "/admin/creatives"], ["Orders", "/admin/orders"]]],
+  ["ADVERTISING", [["Schedule Ads", "/admin/campaigns"], ["Upload / Creatives", "/admin/creatives"]]],
+  ["CONTROL", [["Orders", "/admin/orders"]]],
   ["NETWORK", [["Screens", "/admin/screens"], ["Device health", "/admin/device-health"], ["Live map", "/admin/map"], ["Inventory", "/admin/inventory"]]],
   ["GOVERNANCE", [["Verification", "/admin/verifications"], ["Agencies", "/admin/agencies"], ["Operations", "/admin/operations"], ["Forecast settings", "/admin/forecast"]]],
 ] as const;

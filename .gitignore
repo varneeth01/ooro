@@ -5,11 +5,14 @@
 **/.externalNativeBuild/
 **/captures/
 local.properties
+keystore.properties
+google-services.json
 *.jks
 *.keystore
 *.apk
 *.aab
 *.hprof
+*.iml
 
 # Node
 node_modules/
@@ -17,10 +20,19 @@ node_modules/
 out/
 dist/
 coverage/
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+test-results/
+playwright-report/
+blob-report/
 *.tsbuildinfo
 *.log
 *.pid
 .pnpm-debug.log*
+.npmrc.local
 .env*
 public/uploads/
 !.env.example
@@ -32,15 +44,21 @@ public/uploads/
 
 # Local tooling and OS files
 .DS_Store
+Thumbs.db
+Desktop.ini
 .idea/
 .vscode/
 *.swp
+*.swo
+*~
 .vercel/
 .netlify/
 
 # Runtime/generated data
 tmp/
 logs/
+/cache/
+/data/
 *.sqlite
 *.sqlite3
 *.db
@@ -48,3 +66,6 @@ netlify/functions/api.zip
 netlify/functions/manifest.json
 netlify/functions/payments.mjs
 netlify/functions/*.zip
+
+# Generated local automation stack; not part of the OORO application.
+n8n/

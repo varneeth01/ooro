@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { deliveryAssetUrl, manifestVersionFromDigest } from './campaign-eligibility.js'
+import { deliveryAssetUrl, manifestVersionFor, manifestVersionFromDigest } from './campaign-eligibility.js'
+import { safeDestination } from './qr-destination.js'
 
 test('manifest versions fit persisted signed INT4 fields', () => {
   const version = manifestVersionFromDigest('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
@@ -20,4 +21,17 @@ test('configured LAN asset base replaces persisted localhost URLs', () => {
   assert.equal(deliveryAssetUrl('http://localhost:3000/uploads/creative.png'), 'http://172.20.10.5:3000/uploads/creative.png')
   if (previous === undefined) delete process.env.PUBLIC_ASSET_BASE_URL
   else process.env.PUBLIC_ASSET_BASE_URL = previous
+})
+
+test('manifest version changes for creative offer and layout changes but not unchanged content', () => {
+  const base = { displayId: 'screen-1', layout: { type: 'AD_NAV_OFFER' }, items: [{ creativeId: 'creative-a', assetId: 'asset-a', offer: { offerTitle: 'Offer A', qrUrl: 'https://theooro.com/go/token-a' } }] }
+  assert.equal(manifestVersionFor(base), manifestVersionFor(structuredClone(base)))
+  assert.notEqual(manifestVersionFor(base), manifestVersionFor({ ...base, items: [{ ...base.items[0], offer: { offerTitle: 'Offer B', qrUrl: 'https://theooro.com/go/token-b' } }] }))
+  assert.notEqual(manifestVersionFor(base), manifestVersionFor({ ...base, layout: { type: 'SPLIT_50_25_25' } }))
+})
+
+test('QR destinations require HTTPS outside local development', () => {
+  assert.equal(safeDestination('javascript:alert(1)', false), null)
+  assert.equal(safeDestination('http://evil.example/offer', false), null)
+  assert.equal(safeDestination('https://example.com/offer', false), 'https://example.com/offer')
 })
