@@ -24,14 +24,14 @@ import { sendOrderConfirmation } from './domain/transactional-email.js'
 import { receiptPdf } from './domain/receipt.js'
 import { boundedLocationLimit, shouldRecordDisplayLocation, validDisplayLocation } from './domain/display-location.js'
 import { getDisplayConnectivity } from './domain/display-health.js'
-import { normalizeIndianPhone } from './domain/phone.js'
 import { canonicalProofId, canonicalProofStatus, proofIdentityBelongsToDisplay } from './domain/proof-policy.js'
-import { adminRoles, deviceOsWriteRoles, isAdminRole } from './domain/admin-auth.js'
+import { adminRoles, deviceOsWriteRoles } from './domain/admin-auth.js'
 import { asDeviceOsJson } from './domain/deviceos-http.js'
 import { assertSigningCertificateContinuity, decodeApkBase64, inspectApk } from './domain/apk-release.js'
 import { deviceOsStorage, parseDeviceOsRange, sliceDeviceOsContent, verifyLocalDownloadSignature } from './domain/deviceos-storage.js'
 import { campaignHealthGate, createDeviceOsCampaign, deploymentTargetingModes, isWithinMaintenanceWindow, pauseDeviceOsCampaign, resumeDeviceOsCampaign } from './domain/deviceos-deployment.js'
 import { isHealthyInstallationReportValid, retryDelayMs, validateDeviceOsEventTransition } from './domain/deviceos.js'
+import { assertAdminUser, clearAdminLoginRateLimit, consumePasswordToken, enforceAdminLoginRateLimit, findAdminByEmail, issuePasswordReset, markAdminLoginFailure, normalizeAdminEmail, resetAdminLoginFailures, validateAdminPassword, verifyPassword } from './domain/admin-password-auth.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -145,37 +145,46 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role }, driver: { id: driver.id, onboardingStatus: driver.onboardingStatus } }, reply)
 })
 
-app.post('/api/auth/admin/request-otp', async (request, reply) => {
+app.post('/api/auth/admin/login', async (request, reply) => {
   try {
-    const { phone: rawPhone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
-    const phone = normalizeIndianPhone(rawPhone)
-    if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid Indian mobile number', 422)
-    const user = await prisma.user.findUnique({ where: { phone } })
-    if (!user) throw unauthorized('Admin account not found')
-    if (!isAdminRole(user.role)) throw forbidden('Admin account is not permitted')
-    const recent = await prisma.otpChallenge.count({where:{phone,createdAt:{gte:new Date(Date.now()-60000)}}}); if(recent>=3) throw new ApiError('OTP_RATE_LIMIT','Please wait before requesting another code',429)
-  const code = config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
-    const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
-    await deliverOtp(phone, code)
-  await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })
-    return ok(request, { expiresAt, ...(config.nodeEnv !== 'production' && config.devMockOtpEnabled ? { devOtp: code } : {}) }, reply)
+    const { email: rawEmail, password } = bodyOf(request, z.object({ email: z.string().email().max(254), password: z.string().min(1).max(128) }))
+    const email = normalizeAdminEmail(rawEmail)
+    await enforceAdminLoginRateLimit(email, request.ip)
+    const user = await findAdminByEmail(email)
+    const validPassword = await verifyPassword(user?.passwordHash, password)
+    const locked = Boolean(user?.lockedUntil && user.lockedUntil > new Date())
+    if (!user || !validPassword || !assertAdminUser(user) || !user.passwordHash || locked) {
+      if (user && assertAdminUser(user) && !locked && user.passwordHash && !validPassword) await markAdminLoginFailure(user.id, user.failedLoginAttempts)
+      throw unauthorized('Invalid email or password')
+    }
+    await Promise.all([resetAdminLoginFailures(user.id), clearAdminLoginRateLimit(email)])
+    const tokens = await issueTokens(user.id, user.role, undefined, { userAgent: request.headers['user-agent'], ipAddress: request.ip })
+    return ok(request, { ...tokens, user: { id: user.id, email: user.email, role: user.role, name: user.name } }, reply)
   } catch (error) { throw authStoreError(error) }
 })
 
-app.post('/api/auth/admin/verify-otp', async (request, reply) => {
-  try {
-    const { phone: rawPhone, code } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6) }))
-    const phone = normalizeIndianPhone(rawPhone)
-    if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid Indian mobile number', 422)
-    const challenge = await prisma.otpChallenge.findFirst({ where: { phone, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
-    const user = await prisma.user.findUnique({ where: { phone } })
-    if(challenge) await prisma.otpChallenge.update({where:{id:challenge.id},data:{attempts:{increment:1}}})
-  if (!challenge || challenge.attempts >= 5 || challenge.codeHash !== hashOtp(phone, code)) throw unauthorized('Invalid or expired admin OTP')
-    if (!user || !isAdminRole(user.role) || user.accountStatus !== 'ACTIVE') throw forbidden('Admin account is not permitted')
-    const consumed = await prisma.otpChallenge.updateMany({ where: { id: challenge.id, consumedAt:null, attempts:{lte:5} }, data: { consumedAt: new Date() } }); if(consumed.count!==1) throw unauthorized('Code already used or too many attempts')
-    const tokens = await issueTokens(user.id, user.role)
-    return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role, name: user.name } }, reply)
-  } catch (error) { throw authStoreError(error) }
+app.post('/api/auth/admin/request-password-reset', async (request, reply) => {
+  const { email: rawEmail } = bodyOf(request, z.object({ email: z.string().email().max(254) }))
+  const email = normalizeAdminEmail(rawEmail)
+  const user = await findAdminByEmail(email)
+  if (user && assertAdminUser(user) && user.email) {
+    try { await issuePasswordReset(user.id, user.email, user.name) } catch (error) { request.log.error({ err: error }, 'admin password reset email failed') }
+  }
+  return reply.code(202).send(response(request, { message: 'If the account exists, password reset instructions will be sent.' }))
+})
+
+app.post('/api/auth/admin/setup-password', async (request, reply) => {
+  const { token, password } = bodyOf(request, z.object({ token: z.string().min(32).max(128), password: z.string().min(1).max(128) }))
+  validateAdminPassword(password)
+  await consumePasswordToken('setup', token, password)
+  return ok(request, { passwordSet: true }, reply)
+})
+
+app.post('/api/auth/admin/reset-password', async (request, reply) => {
+  const { token, password } = bodyOf(request, z.object({ token: z.string().min(32).max(128), password: z.string().min(1).max(128) }))
+  validateAdminPassword(password)
+  await consumePasswordToken('reset', token, password)
+  return ok(request, { passwordReset: true }, reply)
 })
 
 app.post('/api/auth/refresh', async (request, reply) => {
@@ -275,6 +284,29 @@ app.get('/api/deviceos/state', async (request, reply) => {
     },
   }))
   return ok(request, asDeviceOsJson({ managedDeviceId: device.id, displayId: device.displayId, enrollmentStatus: device.enrollmentStatus, desiredStateVersion: device.desiredStateVersion, targets: deviceTargets }), reply)
+})
+
+app.get('/api/deviceos/commands', async (request, reply) => {
+  const device = await authenticateDeviceOs(request)
+  const now = new Date()
+  await prisma.deviceOsCommand.updateMany({ where: { managedDeviceId: device.id, status: 'QUEUED', expiresAt: { lt: now } }, data: { status: 'FAILED', failedAt: now, errorCode: 'EXPIRED', errorMessage: 'Command expired before delivery' } })
+  const commands = await prisma.deviceOsCommand.findMany({ where: { managedDeviceId: device.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { createdAt: 'asc' }, take: 20 })
+  if (commands.length) await prisma.deviceOsCommand.updateMany({ where: { id: { in: commands.map((command) => command.id) } }, data: { status: 'DELIVERED', deliveredAt: now } })
+  return ok(request, asDeviceOsJson(commands.map((command) => ({ id: command.id, commandType: command.commandType, packageName: command.packageName, payload: command.payload, expiresAt: command.expiresAt }))), reply)
+})
+
+app.post('/api/deviceos/commands/:commandId/ack', async (request, reply) => {
+  const device = await authenticateDeviceOs(request)
+  const { commandId } = request.params as { commandId: string }
+  const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'PENDING_USER_ACTION', 'UNSUPPORTED']), errorCode: z.string().max(120).optional(), errorMessage: z.string().max(1000).optional(), metadata: z.record(z.string(), z.unknown()).optional() }))
+  const command = await prisma.deviceOsCommand.findFirst({ where: { id: commandId, managedDeviceId: device.id } })
+  if (!command) throw notFound('DeviceOS command not found')
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.deviceOsCommand.update({ where: { id: command.id }, data: { status: input.status, acknowledgedAt: new Date(), failedAt: input.status === 'FAILED' ? new Date() : undefined, errorCode: input.errorCode, errorMessage: input.errorMessage, payload: input.metadata ? { ...(command.payload as Record<string, unknown> | null ?? {}), result: input.metadata } as any : undefined } })
+    await tx.deviceOsAuditEvent.create({ data: { managedDeviceId: device.id, action: 'DEVICE_COMMAND_ACKNOWLEDGED', entityType: 'DeviceOsCommand', entityId: command.id, after: { commandType: command.commandType, packageName: command.packageName, status: input.status } as any, requestId: request.id } })
+    return row
+  })
+  return ok(request, asDeviceOsJson(updated), reply)
 })
 
 app.post('/api/deviceos/heartbeat', async (request, reply) => {
@@ -408,6 +440,30 @@ app.post('/api/admin/deviceos/devices/:managedDeviceId/rotate-credential', async
   return ok(request, { managedDeviceId: device.id, credentialId, deviceToken: token, rotatedAt: now }, reply)
 })
 
+app.post('/api/admin/deviceos/devices/:managedDeviceId/commands', async (request, reply) => {
+  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const { managedDeviceId } = request.params as { managedDeviceId: string }
+  const input = bodyOf(request, z.object({ commandType: z.enum(['RESTART_APP', 'UNINSTALL_APP']), packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), payload: z.record(z.string(), z.unknown()).optional() }))
+  const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId }, select: { id: true, enrollmentStatus: true, agentPackageName: true } })
+  if (!device) throw notFound('Managed DeviceOS device not found')
+  if (device.enrollmentStatus !== 'ENROLLED') throw new ApiError('DEVICE_NOT_ENROLLED', 'Commands require an enrolled device', 409)
+  const application = await prisma.managedApplication.findUnique({ where: { packageName: input.packageName }, select: { packageName: true, critical: true, remoteUninstallAllowed: true } })
+  if (!application) throw new ApiError('APPLICATION_NOT_REGISTERED', 'The package is not a registered managed application', 422)
+  if (input.commandType === 'UNINSTALL_APP' && (application.critical || !application.remoteUninstallAllowed || input.packageName === device.agentPackageName || input.packageName === 'com.ooro.screenplayer')) throw new ApiError('UNINSTALL_NOT_ALLOWED', 'Only explicitly allowlisted noncritical applications may be remotely uninstalled', 422)
+  const command = await prisma.$transaction(async (tx) => {
+    const created = await tx.deviceOsCommand.create({ data: { managedDeviceId, commandType: input.commandType, packageName: input.packageName, payload: input.payload as any, expiresAt: new Date(Date.now() + 10 * 60 * 1000) } })
+    await tx.deviceOsAuditEvent.create({ data: { managedDeviceId, actorId: auth.userId, actorRole: auth.role, action: 'DEVICE_COMMAND_QUEUED', entityType: 'DeviceOsCommand', entityId: created.id, after: { commandType: input.commandType, packageName: input.packageName } as any, requestId: request.id } })
+    return created
+  })
+  return ok(request, asDeviceOsJson(command), reply)
+})
+
+app.get('/api/admin/deviceos/devices/:managedDeviceId/commands', async (request, reply) => {
+  await requireRoles(request, adminRoles)
+  const { managedDeviceId } = request.params as { managedDeviceId: string }
+  return ok(request, asDeviceOsJson(await prisma.deviceOsCommand.findMany({ where: { managedDeviceId }, orderBy: { createdAt: 'desc' }, take: 100 })), reply)
+})
+
 app.get('/api/admin/deviceos/applications', async (request, reply) => {
   await requireRoles(request, adminRoles)
   return ok(request, asDeviceOsJson(await prisma.managedApplication.findMany({ include: { _count: { select: { releases: true, inventory: true } } }, orderBy: { updatedAt: 'desc' } })), reply)
@@ -415,7 +471,7 @@ app.get('/api/admin/deviceos/applications', async (request, reply) => {
 
 app.post('/api/admin/deviceos/applications', async (request, reply) => {
   const auth = await requireRoles(request, deviceOsWriteRoles)
-  const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160) }))
+  const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160), critical: z.boolean().optional(), remoteUninstallAllowed: z.boolean().optional() }))
   let application
   try {
     application = await prisma.managedApplication.create({ data: input })

@@ -3,7 +3,7 @@ import { backendApiUrl } from '@/lib/backend-url';
 /** Edge middleware verifies the same AES-GCM session envelope as the server. */
 export async function verifyAdminEnvelope(value: string | undefined): Promise<'allowed'|'anonymous'|'forbidden'|'unavailable'> {
  if(!value)return 'anonymous';
- const secret=process.env.OORO_SESSION_SECRET||process.env.JWT_SECRET||(process.env.NODE_ENV!=='production'?'ooro-local-session-secret':'');
+ const secret=process.env.OORO_SESSION_SECRET||(process.env.NODE_ENV!=='production'?process.env.JWT_SECRET||'ooro-local-session-secret':'');
  if(!secret || (process.env.NODE_ENV==='production'&&secret.length<32))return 'unavailable';
  let accessToken:string;
  try{
@@ -19,6 +19,6 @@ export async function verifyAdminEnvelope(value: string | undefined): Promise<'a
   const base=backendApiUrl();if(!base)return 'unavailable';
   const r=await fetch(`${base}/api/auth/session`,{headers:{authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(10000)});
   if(r.status===401)return 'anonymous';if(r.status===403)return 'forbidden';if(!r.ok)return 'unavailable';
-  const body=await r.json();return ['ADMIN','SUPER_ADMIN','OPERATIONS'].includes(body.data?.role)?'allowed':'forbidden';
+  const body=await r.json();return ['ADMIN','SUPER_ADMIN','OPERATIONS','SUPPORT','FINANCE'].includes(body.data?.role)?'allowed':'forbidden';
  }catch{return 'unavailable';}
 }

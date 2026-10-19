@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import argon2 from 'argon2'
 
 const prisma = new PrismaClient()
 
@@ -8,7 +9,11 @@ async function main() {
     return
   }
   const adminPhone = process.env.DEV_ADMIN_PHONE ?? '+919000000001'
-  const admin = await prisma.user.upsert({ where: { phone: adminPhone }, update: { role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' }, create: { phone: adminPhone, role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' } })
+  const adminEmail = process.env.DEV_ADMIN_EMAIL?.trim().toLowerCase()
+  const adminPassword = process.env.DEV_ADMIN_PASSWORD
+  if (!adminEmail || !adminPassword) throw new Error('DEV_ADMIN_EMAIL and DEV_ADMIN_PASSWORD are required for development seeding')
+  const adminPasswordHash = await argon2.hash(adminPassword, { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 })
+  const admin = await prisma.user.upsert({ where: { phone: adminPhone }, update: { email: adminEmail, passwordHash: adminPasswordHash, role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' }, create: { phone: adminPhone, email: adminEmail, passwordHash: adminPasswordHash, role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', name: 'OORO Development Admin' } })
   const user = await prisma.user.upsert({ where: { phone: '+919000000002' }, update: { name: 'OORO Demo Driver', accountStatus: 'ACTIVE' }, create: { phone: '+919000000002', role: 'DRIVER', accountStatus: 'ACTIVE', name: 'OORO Demo Driver' } })
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: { onboardingStatus: 'COMPLETE', city: 'Bengaluru' }, create: { userId: user.id, onboardingStatus: 'COMPLETE', city: 'Bengaluru' } })
   const vehicle = await prisma.vehicle.upsert({ where: { registrationNumber: 'TS09AB1234' }, update: { driverId: driver.id, status: 'VERIFIED' }, create: { driverId: driver.id, type: 'AUTO', registrationNumber: 'TS09AB1234', manufacturer: 'OORO', model: 'Demo Auto', status: 'VERIFIED' } })

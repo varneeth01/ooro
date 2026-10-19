@@ -194,7 +194,7 @@ done
 pass "API service account"
 pass "Web service account"
 
-for secret in ooro-database-url ooro-jwt-secret ooro-session-secret; do
+for secret in ooro-database-url ooro-jwt-secret ooro-session-secret ooro-email-provider-api-key; do
   gcloud secrets describe "$secret" --project "$PROJECT" >/dev/null \
     || fail "Secret is missing: $secret"
 done
@@ -214,8 +214,8 @@ gcloud run deploy "$API_SERVICE" \
   --project "$PROJECT" --region "$REGION" --image "$API_IMAGE" \
   --service-account "$API_SA" \
   --add-cloudsql-instances "$SQL_CONNECTION" \
-  --update-env-vars "NODE_ENV=production,DEV_MOCK_OTP_ENABLED=false,GCS_BUCKET_NAME=$BUCKET,TRACKING_BASE_URL=$CANONICAL_URL,RAZORPAY_MODE=test" \
-  --update-secrets "DATABASE_URL=ooro-database-url:latest,JWT_SECRET=ooro-jwt-secret:latest"
+  --update-env-vars "NODE_ENV=production,DEV_MOCK_OTP_ENABLED=false,ADMIN_WEB_BASE_URL=$CANONICAL_URL,GCS_BUCKET_NAME=$BUCKET,TRACKING_BASE_URL=$CANONICAL_URL,RAZORPAY_MODE=test" \
+  --update-secrets "DATABASE_URL=ooro-database-url:latest,JWT_SECRET=ooro-jwt-secret:latest,EMAIL_PROVIDER_API_KEY=ooro-email-provider-api-key:latest"
 API_DEPLOY="PASS"
 pass "API service deployed"
 
