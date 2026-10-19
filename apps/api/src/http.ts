@@ -24,16 +24,25 @@ export async function authenticate(request: FastifyRequest): Promise<AuthContext
   const token = request.headers.authorization?.replace(/^Bearer\s+/i, '')
   if (!token) throw unauthorized()
   try {
-    const verified = await jwtVerify(token, secret)
+    const verified = await jwtVerify(token, secret, { algorithms: ['HS256'] })
+    if (!verified.payload.sub) throw unauthorized()
     return { userId: String(verified.payload.sub), role: String(verified.payload.role ?? 'DRIVER'), driverId: verified.payload.driverId ? String(verified.payload.driverId) : undefined }
   } catch { throw unauthorized('Invalid or expired access token') }
 }
 
-export async function requireAuth(request: FastifyRequest) { return authenticate(request) }
+async function verifyCurrentUser(auth: AuthContext) {
+  const user = await prisma.user.findUnique({ where: { id: auth.userId }, select: { role: true, accountStatus: true } })
+  if (!user || user.accountStatus !== 'ACTIVE' || user.role !== auth.role) throw forbidden('Account access has changed')
+  return auth
+}
+export async function requireAuth(request: FastifyRequest) {
+  const auth = await authenticate(request)
+  return ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE'].includes(auth.role) ? verifyCurrentUser(auth) : auth
+}
 export async function requireRoles(request: FastifyRequest, roles: string[]) {
   const auth = await authenticate(request)
   if (!roles.includes(auth.role)) throw forbidden()
-  return auth
+  return verifyCurrentUser(auth)
 }
 
 export async function authenticateDisplay(request: FastifyRequest) {
@@ -42,6 +51,23 @@ export async function authenticateDisplay(request: FastifyRequest) {
   const display = await prisma.display.findFirst({ where: { deviceTokenHash: hashSecret(token) } })
   if (!display) throw unauthorized('Invalid device credentials')
   return display
+}
+
+export async function authenticateDeviceOs(request: FastifyRequest) {
+  const token = request.headers.authorization?.replace(/^Bearer\s+/i, '')
+  if (!token) throw unauthorized('DeviceOS authentication required')
+  const credential = await prisma.deviceCredential.findFirst({
+    where: {
+      tokenHash: hashSecret(token),
+      revokedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      managedDevice: { revokedAt: null, enrollmentStatus: { not: 'REVOKED' } },
+    },
+    include: { managedDevice: { include: { display: true } } },
+  })
+  if (!credential) throw unauthorized('Invalid, expired, or revoked DeviceOS credentials')
+  await prisma.deviceCredential.update({ where: { id: credential.id }, data: { lastUsedAt: new Date() } })
+  return credential.managedDevice
 }
 
 export const response = (request: FastifyRequest, data: unknown) => ({ data, error: null, requestId: request.id })

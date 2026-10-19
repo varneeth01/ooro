@@ -27,6 +27,18 @@ export const config = {
   razorpayMode: process.env.RAZORPAY_MODE?.trim().toLowerCase() ?? '',
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
+  deviceOsMaxApkBytes: Number(process.env.DEVICEOS_MAX_APK_BYTES ?? 134217728),
+  deviceOsAapt2Path: process.env.DEVICEOS_AAPT2_PATH ?? 'aapt2',
+  deviceOsApksignerPath: process.env.DEVICEOS_APKSIGNER_PATH ?? 'apksigner',
+  deviceOsStorageMode: process.env.DEVICEOS_STORAGE_MODE?.trim().toLowerCase() ?? 'local',
+  deviceOsStorageDir: process.env.DEVICEOS_STORAGE_DIR ?? '/var/lib/ooro/deviceos-releases',
+  deviceOsS3Bucket: process.env.DEVICEOS_S3_BUCKET ?? '',
+  deviceOsS3Region: process.env.DEVICEOS_S3_REGION ?? 'auto',
+  deviceOsS3Endpoint: process.env.DEVICEOS_S3_ENDPOINT ?? '',
+  deviceOsS3AccessKeyId: process.env.DEVICEOS_S3_ACCESS_KEY_ID ?? '',
+  deviceOsS3SecretAccessKey: process.env.DEVICEOS_S3_SECRET_ACCESS_KEY ?? '',
+  deviceOsDownloadBaseUrl: (process.env.DEVICEOS_DOWNLOAD_BASE_URL ?? '').replace(/\/$/, ''),
+  deviceOsRequestReceiptRetentionDays: Number.isFinite(Number(process.env.DEVICEOS_REQUEST_RECEIPT_RETENTION_DAYS ?? 7)) ? Math.max(1, Math.floor(Number(process.env.DEVICEOS_REQUEST_RECEIPT_RETENTION_DAYS ?? 7))) : 7,
   corsOrigins: process.env.NODE_ENV === 'production'
     ? [...defaultCorsOrigins, ...list(process.env.CORS_ORIGINS)]
     : [...developmentCorsOrigins, ...list(process.env.CORS_ORIGINS)],
@@ -42,6 +54,7 @@ if (config.nodeEnv === 'production' && (!productionDatabaseUrl || /(?:^|[@:/])(?
 }
 
 if (config.nodeEnv === 'production') {
-  if (config.jwtSecret === 'development-only-change-me') throw new Error('JWT_SECRET must be configured in production')
+  if (config.jwtSecret === 'development-only-change-me' || config.jwtSecret.length < 32) throw new Error('JWT_SECRET must be configured in production')
   if (config.devMockOtpEnabled) throw new Error('DEV_MOCK_OTP_ENABLED must be false in production')
+  if (config.deviceOsStorageMode !== 's3') throw new Error('DEVICEOS_STORAGE_MODE must be s3 in production')
 }

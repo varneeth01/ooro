@@ -1,3 +1,4 @@
+import { writeInventoryAllocation } from "@/apps/api/src/domain/inventory-ledger";
 import { NextResponse } from "next/server";
 import { validateCampaignContinuation } from "@/apps/api/src/domain/campaign-transition";
 import { webPrisma } from "@/lib/web-prisma";
@@ -14,7 +15,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const campaign = await webPrisma.campaign.findFirst({
       where: { id, ownerEmail },
       include: {
-        creatives: { where: { status: "ACTIVE" }, include: { asset: true }, take: 1 },
+        creatives: { where: { status: "APPROVED" }, include: { asset: true }, take: 1 },
         assignments: { where: { active: true }, select: { id: true, displayId: true } },
       },
     });
@@ -58,7 +59,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
               const occupiedSlots = new Set(occupied.map(item => item.slot));
               const slot = slotCandidates(Math.min(config.totalSlots, config.commercialSlots + config.houseSlots + config.blockedSlots), config.premiumSlots, tier).find(candidate => candidate < config.commercialSlots && !occupiedSlots.has(candidate));
               if (slot === undefined) throw new Error("INVENTORY_CAPACITY_EXCEEDED");
-              await tx.inventoryAllocation.create({ data: { campaignId: campaign.id, screenId: assignment.displayId, date: new Date(`${date}T00:00:00.000Z`), slot, rate: campaign.effectiveRate, pricingSource: campaign.pricingSource ?? (tier === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : "STANDARD"), status: "RESERVED" } });
+              await writeInventoryAllocation(tx, { campaignId: campaign.id, screenId: assignment.displayId, date: new Date(`${date}T00:00:00.000Z`), slot, rate: campaign.effectiveRate, pricingSource: campaign.pricingSource ?? (tier === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : "STANDARD"), status: "RESERVED" });
             }
           }
         });

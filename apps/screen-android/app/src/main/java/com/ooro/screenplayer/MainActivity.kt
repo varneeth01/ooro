@@ -31,18 +31,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.media3.ui.PlayerView
+import android.util.Log
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
 import com.ooro.screenplayer.kiosk.OoroDeviceAdminReceiver
 import com.ooro.screenplayer.model.*
 import com.ooro.screenplayer.player.Media3CreativePlayer
-import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.annotations.Marker
+import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.tile.TileOperation
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
@@ -57,7 +67,14 @@ class MainActivity : ComponentActivity() {
 
 private val Yellow = Color(0xFFF5C400)
 private val Panel = Color(0xFF121820)
-internal fun isRepairAccessCode(value: String): Boolean = value.filter(Char::isDigit) == BuildConfig.REPAIR_ACCESS_CODE && BuildConfig.REPAIR_ACCESS_CODE.isNotBlank()
+internal fun backendEnvironment(): String = when {
+    BuildConfig.USE_MOCK_BACKEND -> "LOCAL MOCK"
+    BuildConfig.API_BASE_URL.startsWith("http://127.0.0.1") || BuildConfig.API_BASE_URL.startsWith("http://localhost") -> "LOCAL TEST BACKEND"
+    BuildConfig.API_BASE_URL.contains("staging", ignoreCase = true) -> "STAGING"
+    BuildConfig.API_BASE_URL.startsWith("https://") -> "PRODUCTION"
+    else -> "UNKNOWN"
+}
+internal fun isRepairAccessCode(value: String, configuredCode: String = BuildConfig.REPAIR_ACCESS_CODE): Boolean = value.filter(Char::isDigit) == configuredCode && configuredCode.isNotBlank()
 @Composable private fun OoroTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = darkColorScheme(primary = Yellow, background = Color.Black, surface = Panel), content = content)
 @Composable private fun Root(vm: ScreenViewModel) { val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest); is ScreenState.Admin -> Admin(vm) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
 @Composable private fun Message(text: String) { Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("OORO\n$text", color = Color.White, fontSize = 28.sp) } }
@@ -87,45 +104,237 @@ internal fun isRepairAccessCode(value: String): Boolean = value.filter(Char::isD
 @Composable private fun Player(vm: ScreenViewModel, manifest: DeviceManifest) {
     var taps by remember { mutableIntStateOf(0) }
     val playbackOffset by vm.playbackOffset.collectAsState()
-    val scheduledItem = vm.currentItem(manifest, playbackOffset)
+    val scheduledItem = remember(manifest, playbackOffset) { vm.currentItem(manifest, playbackOffset) }
     val presentationItem by vm.currentCreative.collectAsState()
-    val item = presentationItem?.takeIf { it.id == scheduledItem?.id } ?: scheduledItem
-    LaunchedEffect(scheduledItem?.id, playbackOffset) { scheduledItem?.let(vm::activatePresentation) }
+    val item = scheduledItem
     Box(Modifier.fillMaxSize().background(Color.Black).clickable { taps++; if (taps >= 7) vm.showAdmin() }) {
-        if (manifest.layout == DisplayLayout.AD_NAV_OFFER || manifest.layout == DisplayLayout.FULLSCREEN_AD) Row(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat())) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }
-            Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat())) { Box(Modifier.weight(manifest.layoutConfig.safeNavigationHeight.toFloat())) { NavigationPanel(vm, Modifier.fillMaxSize()) }; Box(Modifier.weight((100 - manifest.layoutConfig.safeNavigationHeight).toFloat())) { OfferPanel(item, Modifier.fillMaxSize()) } }
+        if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize()) {
+            Column(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat())) {
+                Box(Modifier.weight(manifest.layoutConfig.safeAdHeight.toFloat())) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }
+                NewsTicker(manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()))
+            }
+            Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat())) {
+                    Box(Modifier.weight(manifest.layoutConfig.safeQrHeight.toFloat())) { OfferPanel(presentationItem, Modifier.fillMaxSize()) }
+                Box(Modifier.weight((100 - manifest.layoutConfig.safeQrHeight).toFloat())) { NavigationPanel(vm, Modifier.fillMaxSize()) }
+            }
         } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize()) { Box(Modifier.weight(3f)) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }; Column(Modifier.weight(1f)) { NavigationPanel(vm, Modifier.weight(1f)); OfferPanel(item, Modifier.weight(1f)) } } else PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset)
+    }
+}
+
+@Composable private fun NewsTicker(news: NewsConfig, modifier: Modifier) {
+    val announcements = remember(news.announcements) { news.announcements.sortedWith(compareByDescending<NewsAnnouncement> { it.priority }.thenBy { it.id }) }
+    val message = announcements.joinToString("   •   ") { it.text.trim() }.ifBlank { "OORO" }
+    val offset = remember(message) { Animatable(0f) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val estimatedWidth = with(density) { (message.length * 9).dp.toPx() }
+    LaunchedEffect(message, news.scrollSpeed, estimatedWidth) {
+        if (announcements.isEmpty()) { offset.snapTo(0f); return@LaunchedEffect }
+        val segment = estimatedWidth.coerceAtLeast(with(density) { 160.dp.toPx() })
+        val duration = (segment / news.scrollSpeed.coerceIn(10, 120) * 1000).toInt().coerceIn(8_000, 45_000)
+        while (true) {
+            offset.snapTo(0f)
+            offset.animateTo(-segment, tween(duration))
+        }
+    }
+    Box(modifier.background(Color(0xFF1C232A)).padding(horizontal = 18.dp), contentAlignment = Alignment.CenterStart) {
+        if (announcements.isEmpty()) Text("OORO", color = Color.LightGray, fontSize = 14.sp, maxLines = 1)
+        else Row(Modifier.graphicsLayer { translationX = offset.value }) {
+            Text(message, color = Color.White, fontSize = 16.sp, maxLines = 1)
+            Spacer(Modifier.width(with(density) { estimatedWidth.toDp().coerceAtLeast(160.dp) }))
+            Text(message, color = Color.White, fontSize = 16.sp, maxLines = 1)
+        }
     }
 }
 
 @Composable private fun PrimaryAdRegion(vm: ScreenViewModel, manifest: DeviceManifest, modifier: Modifier, selectedItem: ManifestItem? = vm.currentItem(manifest), playbackKey: Int = 0) {
     val item = selectedItem; var path by remember(item?.id, playbackKey) { mutableStateOf<String?>(null) }; LaunchedEffect(item?.id, playbackKey) { path = item?.let { vm.localFile(it) } }
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
-        if (item == null || path == null) Text("OORO\nOffline — awaiting verified content", color = Color.White, fontSize = 24.sp)
+        if (item == null || path == null) Text("OORO\nContent will resume shortly", color = Color.White, fontSize = 24.sp)
         else if (item.type == CreativeType.IMAGE) { val bitmap = remember(path, playbackKey) { path?.let(BitmapFactory::decodeFile) }; if (bitmap != null) { LaunchedEffect(item.id, playbackKey) { vm.creativeStarted(item); kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm.creativeFinished(item, item.durationSeconds * 1000L, true) }; Image(bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize(), contentScale = item.fitMode.toContentScale()) } else LaunchedEffect(item.id, playbackKey) { vm.creativeStarted(item); vm.creativeFinished(item, 0, false, "IMAGE_DECODE_FAILED") } }
-        else { val context = LocalContext.current; val creative = remember(item.id, playbackKey) { Media3CreativePlayer(context, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) }) }; DisposableEffect(path, playbackKey) { creative.play(path!!); onDispose { if (creative.player.isPlaying) vm.creativeFinished(item, creative.player.currentPosition, false, "INTERRUPTED"); creative.close() } }; AndroidView({ PlayerView(it).apply { player = creative.player; useController = false; resizeMode = item.fitMode.toResizeMode() } }, Modifier.fillMaxSize()) }
+        else {
+            val context = LocalContext.current
+            val creative = remember(item.id, playbackKey) {
+                Log.i("OoroScreen", "media player created creativeId=${item.creativeId} itemId=${item.id} key=$playbackKey")
+                Media3CreativePlayer(context, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) })
+            }
+            DisposableEffect(path, playbackKey) {
+                creative.play(path!!)
+                onDispose {
+                    if (creative.player.isPlaying) vm.creativeFinished(item, creative.player.currentPosition, false, "INTERRUPTED")
+                    creative.close()
+                    Log.i("OoroScreen", "media player released creativeId=${item.creativeId} itemId=${item.id} key=$playbackKey")
+                }
+            }
+            AndroidView(
+                factory = { context -> PlayerView(context).apply { useController = false; resizeMode = item.fitMode.toResizeMode(); Log.i("OoroScreen", "video surface created creativeId=${item.creativeId} itemId=${item.id}") } },
+                modifier = Modifier.fillMaxSize(),
+                update = { view ->
+                    if (view.player !== creative.player) Log.i("OoroScreen", "video surface rebound creativeId=${item.creativeId} itemId=${item.id}")
+                    view.player = creative.player
+                    view.resizeMode = item.fitMode.toResizeMode()
+                },
+                onRelease = { view -> view.player = null; Log.i("OoroScreen", "video surface released creativeId=${item.creativeId} itemId=${item.id}") }
+            )
+        }
     }
 }
 private fun FitMode.toContentScale() = when (this) { FitMode.FILL, FitMode.CENTER_CROP -> ContentScale.Crop; FitMode.FIT -> ContentScale.Fit }
 private fun FitMode.toResizeMode() = when (this) { FitMode.FILL, FitMode.CENTER_CROP -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM; FitMode.FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT }
 private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
 
-@Composable private fun NavigationPanel(vm: ScreenViewModel, modifier: Modifier) { val nav by vm.navigation.collectAsState(); Column(modifier.background(Panel).padding(10.dp)) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Column { Text(if (nav.active) (nav.nextManeuver ?: "NEXT TURN") else "CURRENT LOCATION", color = Yellow, fontSize = 13.sp); Text(nav.distanceToNextManeuverMeters?.let { "${it.toInt()} m" } ?: "Live position", color = Color.White, fontSize = 22.sp) }; Text(nav.etaSeconds?.let { "ETA ${it / 60} min" } ?: "", color = Color.White, fontSize = 14.sp) }; Text(nav.nextInstruction ?: nav.destinationName ?: "Navigation route unavailable", color = Color.White, fontSize = 14.sp, maxLines = 2, modifier = Modifier.padding(vertical = 4.dp)); Box(Modifier.fillMaxWidth().weight(1f)) { MapPanel(nav, Modifier.fillMaxSize()); Text("▲", color = Yellow, fontSize = 28.sp, modifier = Modifier.align(Alignment.Center)) }; Text(if (nav.active) "${nav.remainingDistanceMeters?.div(1000.0)?.let { "%.1f km".format(it) } ?: "—"} remaining" else "GPS / map status: ${if (nav.currentLatitude != null) "LIVE" else "UNAVAILABLE"}", color = Color.LightGray, fontSize = 11.sp) } }
-@Composable private fun MapPanel(nav: NavigationState, modifier: Modifier) { val context = LocalContext.current; Box(modifier.background(Color(0xFF263238))) { AndroidView(modifier = Modifier.fillMaxSize(), factory = { MapView(context).also { mapView -> mapView.onCreate(null); mapView.getMapAsync { map -> map.setStyle(Style.Builder().fromJson(OSM_STYLE)); moveMap(map, nav) } } }, update = { it.getMapAsync { map -> moveMap(map, nav) } }); if (nav.currentLatitude == null || nav.currentLongitude == null) Text("Locating…", color = Color.White, fontSize = 18.sp, modifier = Modifier.align(Alignment.Center)) } }
-private fun moveMap(map: MapLibreMap, nav: NavigationState) { val lat = nav.currentLatitude ?: return; val lon = nav.currentLongitude ?: return; map.cameraPosition = CameraPosition.Builder().target(LatLng(lat, lon)).zoom(14.0).build() }
+@Composable private fun NavigationPanel(vm: ScreenViewModel, modifier: Modifier) { val nav by vm.navigation.collectAsState(); Box(modifier.background(Panel).padding(4.dp)) { MapPanel(vm, nav, Modifier.fillMaxSize()); Text("▲", color = Yellow, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center)); if (nav.active && (nav.nextInstruction ?: nav.destinationName) != null) Text(nav.nextInstruction ?: nav.destinationName.orEmpty(), color = Color.White, fontSize = 12.sp, maxLines = 1, modifier = Modifier.align(Alignment.TopStart).background(Color(0xAA121820)).padding(horizontal = 6.dp, vertical = 4.dp)) } }
+@Composable private fun MapPanel(vm: ScreenViewModel, nav: NavigationState, modifier: Modifier) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var map by remember { mutableStateOf<MapLibreMap?>(null) }
+    var mapView by remember { mutableStateOf<MapView?>(null) }
+    var vehicleMarker by remember { mutableStateOf<Marker?>(null) }
+    var mapLoaded by remember { mutableStateOf(false) }
+    var mapError by remember { mutableStateOf<String?>(null) }
+    var lastCameraTarget by remember { mutableStateOf<LatLng?>(null) }
+
+    val currentMapView by rememberUpdatedState(mapView)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> currentMapView?.onStart()
+                Lifecycle.Event.ON_RESUME -> currentMapView?.onResume()
+                Lifecycle.Event.ON_PAUSE -> currentMapView?.onPause()
+                Lifecycle.Event.ON_STOP -> currentMapView?.onStop()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val latitude = nav.currentLatitude
+    val longitude = nav.currentLongitude
+    LaunchedEffect(map) {
+        if (map == null) return@LaunchedEffect
+        vm.reportMapHealth(false, null)
+        kotlinx.coroutines.delay(5_000)
+        if (!mapLoaded) {
+            mapError = mapError ?: "Map tiles unavailable"
+            vm.reportMapHealth(false, mapError)
+        }
+    }
+    LaunchedEffect(map, latitude, longitude) {
+        val readyMap = map ?: return@LaunchedEffect
+        val lat = latitude ?: return@LaunchedEffect
+        val lon = longitude ?: return@LaunchedEffect
+        val target = LatLng(lat, lon)
+        val marker = vehicleMarker
+        if (marker == null) {
+            vehicleMarker = readyMap.addMarker(MarkerOptions().position(target).title("OORO vehicle"))
+        } else {
+            marker.position = target
+            readyMap.updateMarker(marker)
+        }
+        val previous = lastCameraTarget
+        if (previous == null) {
+            readyMap.moveCamera(CameraUpdateFactory.newLatLngZoom(target, 14.0))
+        } else if (kotlin.math.abs(previous.latitude - lat) > 0.0003 || kotlin.math.abs(previous.longitude - lon) > 0.0003) {
+            readyMap.easeCamera(CameraUpdateFactory.newLatLngZoom(target, 14.0), 700)
+        }
+        lastCameraTarget = target
+    }
+
+    Box(modifier.background(Color(0xFF263238))) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { MapView(context).also { createdMapView ->
+                mapView = createdMapView
+                createdMapView.onCreate(null)
+                createdMapView.onStart()
+                createdMapView.onResume()
+                createdMapView.addOnTileActionListener { operation, _, _, _, _, _, reason ->
+                    when (operation) {
+                        TileOperation.LoadFromNetwork, TileOperation.LoadFromCache -> {
+                            mapLoaded = true
+                            mapError = null
+                            vm.reportMapHealth(true, null)
+                            Log.i("OoroScreen", "MAP_TILE_LOADED operation=$operation provider=MapLibre source=OpenStreetMap")
+                        }
+                        TileOperation.Error -> {
+                            mapLoaded = false
+                            mapError = reason.take(160).ifBlank { "Map tiles unavailable" }
+                            vm.reportMapHealth(false, mapError)
+                            Log.w("OoroScreen", "MAP_TILE_ERROR reason=$mapError")
+                        }
+                        else -> Unit
+                    }
+                }
+                createdMapView.addOnDidFailLoadingMapListener { reason ->
+                    mapLoaded = false
+                    mapError = reason.take(160).ifBlank { "Map tiles unavailable" }
+                    vm.reportMapHealth(false, mapError)
+                    Log.w("OoroScreen", "MAP_TILES_UNAVAILABLE reason=$mapError")
+                }
+                createdMapView.getMapAsync { readyMap ->
+                    map = readyMap
+                    readyMap.setStyle(Style.Builder().fromJson(OSM_STYLE)) {
+                        Log.i("OoroScreen", "MAP_STYLE_LOADED provider=MapLibre source=OpenStreetMap")
+                        mapError = null
+                    }
+                }
+            } },
+            update = { },
+            onRelease = { releasedMapView ->
+                releasedMapView.onPause()
+                releasedMapView.onStop()
+                releasedMapView.onDestroy()
+                mapView = null
+                map = null
+                vehicleMarker = null
+            }
+        )
+        if (latitude == null || longitude == null) Text("Locating…", color = Color.White, fontSize = 18.sp, modifier = Modifier.align(Alignment.Center))
+        else if (!mapLoaded && mapError != null) Text("Map tiles unavailable · GPS active", color = Color.LightGray, fontSize = 13.sp, modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA121820)).padding(6.dp))
+    }
+}
 private const val OSM_STYLE = """{"version":8,"sources":{"osm":{"type":"raster","tiles":["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],"tileSize":256,"attribution":"© OpenStreetMap contributors"}},"layers":[{"id":"osm","type":"raster","source":"osm"}]}"""
 
-@Composable private fun OfferPanel(item: ManifestItem?, modifier: Modifier) { val offer = item?.offer ?: OfferMetadata(); val qr = remember(item?.id, offer.validQrUrl) { offer.validQrUrl?.let(::qrBitmap) }; Column(modifier.background(Color(0xFF20252B)).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(offer.brandName ?: "OORO", color = Yellow, fontSize = 17.sp, maxLines = 1); Text(offer.offerValue ?: offer.offerTitle ?: offer.ctaLabel ?: "", color = Color.White, fontSize = 24.sp, maxLines = 2); Text(offer.offerSubtitle ?: if (offer.hasOffer) "Scan to learn more" else "", color = Color.LightGray, fontSize = 12.sp, maxLines = 2, modifier = Modifier.padding(vertical = 4.dp)); if (qr != null) Image(qr.asImageBitmap(), "Offer QR code", Modifier.fillMaxWidth(0.72f).aspectRatio(1f).padding(2.dp), contentScale = ContentScale.Fit) else Spacer(Modifier.weight(1f)); offer.ctaLabel?.let { Text(it, color = Yellow, fontSize = 13.sp, maxLines = 1) } } }
+@Composable private fun OfferPanel(item: ManifestItem?, modifier: Modifier) {
+    val offer = item?.offer ?: OfferMetadata()
+    val qr = remember(item?.id, offer.validQrUrl) { offer.validQrUrl?.let(::qrBitmap) }
+    val promotionalText = offer.promotionalText?.trim().takeIf { !it.isNullOrBlank() }
+    val brandName = offer.brandName?.trim().takeIf { !it.isNullOrBlank() }
+    BoxWithConstraints(modifier.background(Color(0xFF20252B)).padding(horizontal = 10.dp, vertical = 6.dp)) {
+        val panelWidth = maxWidth
+        val panelHeight = maxHeight
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(0.48f).padding(end = 8.dp), verticalArrangement = Arrangement.Center) {
+                if (promotionalText != null) {
+                    Text(promotionalText, color = Yellow, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                    if (brandName != null) Text(brandName, color = Color.White, fontSize = 14.sp, maxLines = 2)
+                } else if (brandName != null) {
+                    Text(brandName, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                } else if (qr == null) {
+                    Text("OORO", color = Yellow, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
+                if (qr != null && !offer.ctaLabel.isNullOrBlank()) Text(offer.ctaLabel!!.trim(), color = Color(0xFFB8C0C8), fontSize = 11.sp, maxLines = 2, modifier = Modifier.padding(top = 5.dp))
+            }
+            Box(Modifier.weight(0.52f).fillMaxHeight(), contentAlignment = Alignment.CenterEnd) {
+                if (qr != null) {
+                    val qrSize = minOf(panelWidth * 0.46f, panelHeight * 0.88f)
+                    Image(qr.asImageBitmap(), "Advertisement QR code", Modifier.size(qrSize), contentScale = ContentScale.Fit)
+                }
+            }
+        }
+    }
+}
 private fun qrBitmap(value: String): Bitmap? = runCatching { val matrix = MultiFormatWriter().encode(value, BarcodeFormat.QR_CODE, 512, 512); Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888).also { bitmap -> for (x in 0 until 512) for (y in 0 until 512) bitmap.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE) } }.getOrNull()
 @Composable private fun Admin(vm: ScreenViewModel) {
     var repairCodeDialog by remember { mutableStateOf(false) }; var repairCode by remember { mutableStateOf("") }; var repairCodeError by remember { mutableStateOf<String?>(null) }
-    val d by vm.diagnostics.collectAsState(); val context = LocalContext.current; val n = networkInfo(context); val l = locationDiagnostics(context); val c = vm.deviceId
+    val d by vm.diagnostics.collectAsState(); val mapTilesRendered by vm.mapTilesRendered.collectAsState(); val mapTileError by vm.mapTileError.collectAsState(); val context = LocalContext.current; val n = networkInfo(context); val l = locationDiagnostics(context); val c = vm.deviceId
     val apiOk = d.probe?.connected == true; val issues = listOf(!apiOk, !l.permission || (!l.gps && !l.network), d.missingAssets > 0, d.proofQueued > 0).count { it }
     LazyColumn(Modifier.fillMaxSize().background(Color(0xFF101010)).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text("TECHNICAL DIAGNOSTICS", color = Yellow, fontSize = 24.sp, fontWeight = FontWeight.Bold); Text("OORO SCREEN  •  $c", color = Color.LightGray); Spacer(Modifier.height(4.dp)); StatusCard("SYSTEM HEALTH", if (issues == 0) "ALL SYSTEMS OPERATIONAL" else "$issues ISSUES DETECTED", if (issues == 0) Color(0xFF63D68A) else Color(0xFFFFB74D)) }
         item { Section("OVERVIEW") { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusText("DEVICE", if (vm.online) "ONLINE" else "OFFLINE", vm.online); StatusText("API", if (apiOk) "CONNECTED" else "UNREACHABLE", apiOk); StatusText("PAIRING", if (vm.isPaired) "PAIRED" else "UNPAIRED", vm.isPaired); StatusText("GPS", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "SEARCHING", l.permission) } } }
-        item { Section("CONNECTION") { Line("API Base URL", BuildConfig.API_BASE_URL); Line("Environment", if (BuildConfig.DEBUG) "DEBUG" else "PRODUCTION"); Line("Mock backend", if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"); Line("API status", if (apiOk) "CONNECTED" else "UNREACHABLE"); Line("Last successful API", relativeTime(d.apiLastSuccessAt)); d.apiLastError?.let { Text("Last API error: $it", color = Color(0xFFFFB74D), modifier = Modifier.padding(top = 4.dp)) }; Text("DNS ${passFail(d.probe?.dns)}   TCP ${passFail(d.probe?.tcp)}   ${d.probe?.httpStatus?.let { "HTTP $it" } ?: "HTTP —"}   ${d.probe?.latencyMs?.let { "${it} ms" } ?: ""}", color = Color.LightGray); d.probe?.failureKind?.let { Text("Diagnostic: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Button({ vm.runDiagnostics() }, enabled = !d.running, modifier = Modifier.padding(top = 6.dp)) { Text(if (d.running) "RUNNING…" else "TEST API CONNECTION") } } }
+        item { Section("CONNECTION") { Line("API Base URL", BuildConfig.API_BASE_URL); Line("Environment", backendEnvironment()); Line("Mock backend", if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"); Line("API status", if (apiOk) "CONNECTED" else "UNREACHABLE"); Line("Database-backed API", if (d.probe?.httpStatus == 200) "HEALTHY" else "UNKNOWN"); Line("Map tiles", if (mapTilesRendered) "RENDERED" else if (mapTileError != null) "UNAVAILABLE" else "CHECKING"); Line("GPS fix", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "UNAVAILABLE"); Line("Last successful API", relativeTime(d.apiLastSuccessAt)); d.apiLastError?.let { Text("Last API error: $it", color = Color(0xFFFFB74D), modifier = Modifier.padding(top = 4.dp)) }; mapTileError?.let { Text("Map error: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Text("DNS ${passFail(d.probe?.dns)}   TCP ${passFail(d.probe?.tcp)}   ${d.probe?.httpStatus?.let { "HTTP $it" } ?: "HTTP —"}   ${d.probe?.latencyMs?.let { "${it} ms" } ?: ""}", color = Color.LightGray); d.probe?.failureKind?.let { Text("Diagnostic: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Button({ vm.runDiagnostics() }, enabled = !d.running, modifier = Modifier.padding(top = 6.dp)) { Text(if (d.running) "RUNNING…" else "TEST API CONNECTION") } } }
         item { Section("NETWORK") { Line("Connection type", n.type); Line("Internet", if (n.internet) "AVAILABLE" else "UNAVAILABLE"); Line("Local network", if (n.localNetwork) "AVAILABLE" else "UNAVAILABLE"); Line("Device IP", n.ip ?: "unavailable"); Line("API host reachable", if (apiOk) "YES" else "NO") } }
         item { Section("GPS") { Line("Location permission", if (l.permission) "GRANTED" else "DENIED"); Line("GPS provider", if (l.gps) "ENABLED" else "DISABLED"); Line("Network provider", if (l.network) "ENABLED" else "DISABLED"); Line("Last location", relativeTime(vm.latestLocation.value?.occurredAt)); Line("Accuracy", vm.latestLocation.value?.accuracyMeters?.let { "%.0f m".format(it) } ?: "unavailable"); Line("Attached to heartbeat", if (vm.latestLocation.value != null) "YES" else "NO") } }
         item { Section("HEARTBEAT") { Line("Last attempted", relativeTime(d.heartbeatLastAttemptAt)); Line("Last successful", relativeTime(d.heartbeatLastSuccessAt)); Line("Last HTTP status", d.heartbeatStatus?.toString() ?: "—"); Line("GPS attached", if (vm.latestLocation.value != null) "YES" else "NO"); Line("Playback attached", if (vm.currentCreative.value != null) "YES" else "NO"); d.heartbeatError?.let { Text(it, color = Color(0xFFFFB74D)) } } }

@@ -16,3 +16,11 @@ test('non-admin role cannot create screen commands', async () => {
   const response = await app.inject({ method: 'POST', url: '/api/admin/displays/00000000-0000-4000-8000-000000000001/commands', headers: { authorization: `Bearer ${token}` }, payload: { commandType: 'REFRESH_MANIFEST' } })
   assert.equal(response.statusCode, 403)
 })
+
+for (const role of ['BUSINESS','BRAND','AGENCY','NETWORK','EXPLORER']) test(`${role} cannot access direct admin APIs`,async()=>{
+ const token=await new SignJWT({role}).setProtectedHeader({alg:'HS256'}).setSubject('customer-test').setExpirationTime('5m').sign(new TextEncoder().encode(config.jwtSecret))
+ for(const url of ['/api/admin/displays','/api/admin/scheduler','/api/admin/proof-of-play','/api/admin/overview']) {
+  const result=await app.inject({method:'GET',url,headers:{authorization:`Bearer ${token}`}})
+  assert.equal(result.statusCode,403,`${role} ${url}`)
+ }
+})

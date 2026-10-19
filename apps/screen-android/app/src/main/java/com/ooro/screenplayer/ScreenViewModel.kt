@@ -12,10 +12,16 @@ import com.ooro.screenplayer.player.ScheduleEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.random.Random
 import com.ooro.screenplayer.repository.ProofOfPlayRepository
 import com.ooro.screenplayer.player.ProofPolicy
 import com.ooro.screenplayer.player.PlaybackStateTracker
 import com.ooro.screenplayer.sync.CommandProcessor
+import com.ooro.screenplayer.sync.ProofSyncScheduler
 import android.util.Log
 import com.ooro.screenplayer.location.LocationReporter
 import com.ooro.screenplayer.location.LocationSnapshot
@@ -47,16 +53,25 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     val latestLocation: StateFlow<LocationSnapshot?> = _location
     private val _navigation = MutableStateFlow(NavigationState())
     val navigation: StateFlow<NavigationState> = _navigation
+    private val _mapTilesRendered = MutableStateFlow(false)
+    val mapTilesRendered: StateFlow<Boolean> = _mapTilesRendered
+    private val _mapTileError = MutableStateFlow<String?>(null)
+    val mapTileError: StateFlow<String?> = _mapTileError
     private val _currentCreative = MutableStateFlow<ManifestItem?>(null)
     val currentCreative: StateFlow<ManifestItem?> = _currentCreative
     private val _playbackOffset = MutableStateFlow(0)
     val playbackOffset: StateFlow<Int> = _playbackOffset
-    init { location.start(); viewModelScope.launch { while (true) { val fix = location.current(); _location.value = fix; _navigation.value = _navigation.value.copy(currentLatitude = fix?.latitude, currentLongitude = fix?.longitude, updatedAt = fix?.occurredAt?.let(Instant::ofEpochMilli)); val credentials = store.credentials(); if (credentials != null) { val current = session; runCatching { api.heartbeat(credentials, if (current != null) PlayerStatus.PLAYING else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(fix, current?.campaignId, current?.creativeId, current?.assetId, current?.let { "PLAYING" } ?: "IDLE", current?.startedAt, if (current != null) playbackPositionMs else null, current?.expectedDurationMs)) }.onFailure { error -> if (error is DeviceApiException) showRecovery(error) }; runCatching { CommandProcessor(context, api, store).poll() }; kotlinx.coroutines.delay(BuildConfig.SYNC_INTERVAL_SECONDS * 1_000L) } else kotlinx.coroutines.delay(90_000) } }; viewModelScope.launch { active = db.manifestDao().active()?.let { ManifestCodec.parse(it.json) }; if (store.credentials() != null) sync(); ManifestRefreshBus.events.collect { sync() } } }
-    fun pair(rawCode: String) { if (_pairing.value) return; val code = rawCode.trim().uppercase(); if (code.isBlank()) { _state.value = ScreenState.Setup("Enter a pairing code", true); return }; _pairing.value = true; viewModelScope.launch { try { runCatching { api.health(); val result = api.pair(PairRequest(code,deviceId,android.os.Build.MANUFACTURER,android.os.Build.MODEL,android.os.Build.VERSION.RELEASE,BuildConfig.VERSION_NAME)); store.save(result.credentials); Log.i("OoroScreen", "pairing succeeded displayId=${result.credentials.screenId} tokenPresent=${result.credentials.token.isNotBlank()} paired=true"); sync() }.onFailure { error -> Log.e("OoroScreen", "pairing failed displayId=$deviceId", error); val message = if (error is DeviceApiException) recoveryMessage(error.kind) else "Pairing failed. Check the code and network connection."; _state.value = ScreenState.Setup(message, true) } } finally { _pairing.value = false } } }
+    private var reconnectJob: Job? = null
+    private var reconnectAttempt = 0
+    @Volatile private var repairMode = false
+    private val syncMutex = Mutex()
+    init { location.start(); viewModelScope.launch { while (true) { val fix = location.current(); _location.value = fix; _navigation.value = _navigation.value.copy(currentLatitude = fix?.latitude, currentLongitude = fix?.longitude, updatedAt = fix?.occurredAt?.let(Instant::ofEpochMilli)); if (repairMode) { delay(1_000); continue }; val credentials = store.credentials(); if (credentials != null) { val current = session; runCatching { api.heartbeat(credentials, if (current != null) PlayerStatus.PLAYING else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(fix, current?.campaignId, current?.creativeId, current?.assetId, current?.let { "PLAYING" } ?: "IDLE", current?.startedAt, if (current != null) playbackPositionMs else null, current?.expectedDurationMs)) }.onSuccess { reconnectAttempt = 0; reconnectJob?.cancel(); reconnectJob = null; ProofSyncScheduler.enqueue(context, "heartbeat-success") }.onFailure { error -> if (error is DeviceApiException && error.kind.requiresRepair()) showRecovery(error) else { keepCachedPlayback(); scheduleReconnect() } }; runCatching { CommandProcessor(context, api, store).poll() }; delay(BuildConfig.SYNC_INTERVAL_SECONDS * 1_000L) } else delay(90_000) } }; viewModelScope.launch { active = db.manifestDao().active()?.let { ManifestCodec.parse(it.json) }; if (store.credentials() != null) sync(); ManifestRefreshBus.events.collect { sync() } } }
+    fun pair(rawCode: String) { if (_pairing.value) return; val code = rawCode.trim().uppercase(); if (code.isBlank()) { _state.value = ScreenState.Setup("Enter a pairing code", true); return }; _pairing.value = true; viewModelScope.launch { try { runCatching { api.health(); val result = api.pair(PairRequest(code,deviceId,android.os.Build.MANUFACTURER,android.os.Build.MODEL,android.os.Build.VERSION.RELEASE,BuildConfig.VERSION_NAME)); store.save(result.credentials); repairMode = false; Log.i("OoroScreen", "pairing succeeded displayId=${result.credentials.screenId} tokenPresent=${result.credentials.token.isNotBlank()} paired=true"); sync() }.onFailure { error -> Log.e("OoroScreen", "pairing failed displayId=$deviceId", error); val message = if (error is DeviceApiException) recoveryMessage(error.kind) else "Pairing failed. Check the code and network connection."; _state.value = ScreenState.Setup(message, true) } } finally { _pairing.value = false } } }
     fun reconnect() { if (_reconnecting.value) return; _reconnecting.value = true; val current = (_state.value as? ScreenState.AuthRecovery); if (current != null) _state.value = current.copy(reconnecting = true); viewModelScope.launch { try { sync() } finally { _reconnecting.value = false } } }
-    fun beginRepair() { _state.value = ScreenState.Setup("Enter a new pairing code. This keeps the existing screen identity and history.", true) }
-    fun sync() { viewModelScope.launch {
-        val c = store.credentials() ?: run { Log.w("OoroScreen", "sync skipped tokenPresent=false paired=false"); return@launch }
+    fun beginRepair() { repairMode = true; _state.value = ScreenState.Setup("Enter a new pairing code. This keeps the existing screen identity and history.", true) }
+    fun sync() { viewModelScope.launch { syncMutex.withLock { syncInternal() } } }
+    private suspend fun syncInternal() {
+        val c = store.credentials() ?: run { Log.w("OoroScreen", "sync skipped tokenPresent=false paired=false"); return }
         Log.w("OoroScreen", "sync started displayId=${c.screenId} tokenPresent=true paired=true")
         if (active == null) _state.value = ScreenState.Preparing
 
@@ -65,9 +80,11 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             val error = health.exceptionOrNull()
             online = false
             if (error is DeviceApiException && error.kind.requiresRepair()) showRecovery(error)
-            else { _diagnostic.value = "Unable to reach OORO · cached content remains active"; _state.value = ScreenState.Player(active ?: fallback(c)) }
-            return@launch
+            else { keepCachedPlayback(c); scheduleReconnect() }
+            return
         }
+        reconnectAttempt = 0
+        reconnectJob?.cancel(); reconnectJob = null
 
         // Report liveness before any manifest or asset network work. A slow or
         // unavailable creative must not make a paired display look offline.
@@ -75,6 +92,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             Log.w("OoroScreen", "heartbeat sending displayId=${c.screenId} tokenPresent=true paired=true")
             api.heartbeat(c, PlayerStatus.DEGRADED, active?.version ?: db.manifestDao().active()?.version ?: 0)
             Log.w("OoroScreen", "heartbeat accepted displayId=${c.screenId} tokenPresent=true paired=true")
+            ProofSyncScheduler.enqueue(context, "sync-heartbeat-success")
             _diagnostic.value = "Heartbeat accepted · display ${c.screenId}"
         }.onFailure { error ->
             if (error is DeviceApiException && error.kind.requiresRepair()) { showRecovery(error); return@onFailure }
@@ -94,7 +112,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             Log.w("OoroScreen", "manifest accepted displayId=${c.screenId} version=${incoming.version} items=${incoming.items.size}")
         }.onFailure { error ->
             online=false
-            if (error is DeviceApiException && error.kind.requiresRepair()) showRecovery(error) else _diagnostic.value = "Manifest failed · cached content remains active"
+            if (error is DeviceApiException && error.kind.requiresRepair()) showRecovery(error) else { keepCachedPlayback(c); scheduleReconnect() }
             Log.w("OoroScreen", "manifest unavailable; using LKG/fallback displayId=${c.screenId}", error)
         }
         if (_state.value !is ScreenState.AuthRecovery) _state.value = ScreenState.Player(active ?: fallback(c))
@@ -110,7 +128,20 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
         }
         runCatching { CommandProcessor(context, api, store).poll() }
             .onFailure { error -> Log.w("OoroScreen", "command poll failed displayId=${c.screenId}", error) }
-    } }
+    }
+    private fun keepCachedPlayback(credentials: DeviceCredentials? = store.credentials()) {
+        _diagnostic.value = "Cached playback active · reconnecting"
+        if (_state.value !is ScreenState.AuthRecovery && credentials != null) _state.value = ScreenState.Player(active ?: fallback(credentials))
+    }
+    private fun scheduleReconnect() {
+        if (reconnectJob?.isActive == true || store.credentials() == null) return
+        reconnectJob = viewModelScope.launch {
+            reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(8)
+            val base = (1L shl reconnectAttempt).coerceAtMost(300L) * 1_000L
+            delay(base + Random.nextLong(0, 1_000))
+            if (store.credentials() != null) sync()
+        }
+    }
     private fun showRecovery(error: DeviceApiException) { _diagnostic.value = recoveryMessage(error.kind); _state.value = ScreenState.AuthRecovery(error.kind, recoveryMessage(error.kind), cachedManifest = active) }
     private fun recoveryMessage(kind: DeviceFailureKind): String = when (kind) {
         DeviceFailureKind.DNS_ERROR, DeviceFailureKind.CONNECTION_REFUSED, DeviceFailureKind.TIMEOUT, DeviceFailureKind.TLS_ERROR, DeviceFailureKind.NETWORK_UNAVAILABLE -> "Unable to reach OORO. Check the network connection and try again."
@@ -121,13 +152,19 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
         DeviceFailureKind.SERVER_UNAVAILABLE -> "OORO is temporarily unavailable. Please try again."
         DeviceFailureKind.REQUEST_FAILED -> "We couldn't connect this screen to OORO. Please try again."
     }
-    fun currentItem(manifest: DeviceManifest, offset: Int = _playbackOffset.value): ManifestItem? = scheduler.next(manifest, offset = offset)
+    fun currentItem(manifest: DeviceManifest, offset: Int = _playbackOffset.value): ManifestItem? {
+        val now = Instant.now()
+        val current = manifest.items.find { it.id == session?.itemId && it.isActive(now, java.time.ZoneId.of(manifest.timezone)) }
+        val emergency = manifest.items.any { it.priority >= 1000 && it.isActive(now, java.time.ZoneId.of(manifest.timezone)) }
+        return current?.takeIf { !emergency || it.priority >= 1000 } ?: scheduler.next(manifest, now, offset)
+    }
     /** The renderer and offer panel use the same manifest item for every frame. */
     fun activatePresentation(item: ManifestItem) { if (_currentCreative.value?.id != item.id) _currentCreative.value = item }
-    fun creativeStarted(item: ManifestItem) { if (!playback.start(PlaybackSession(java.util.UUID.randomUUID().toString(), item.id, item.campaignId, item.creativeId, item.assetId, Instant.now(), item.durationSeconds * 1000L))) return; _currentCreative.value = item; playbackPositionMs = 0; reportPlayback(item, "PLAYING") }
+    fun creativeStarted(item: ManifestItem) { if (!playback.start(PlaybackSession(java.util.UUID.randomUUID().toString(), item.id, item.campaignId, item.creativeId, item.assetId, Instant.now(), item.durationSeconds * 1000L))) return; scheduler.recordStarted(item); _currentCreative.value = item; playbackPositionMs = 0; reportPlayback(item, "PLAYING") }
     fun creativePosition(item: ManifestItem, positionMs: Long) { if (session?.itemId == item.id) playbackPositionMs = positionMs.coerceAtLeast(0) }
-    fun creativeFinished(item: ManifestItem, actualMs: Long, success: Boolean, reason: String? = null) { val s = playback.finish(item.id) ?: return; val accepted = success && (item.type != CreativeType.VIDEO || ProofPolicy().videoSuccess(s.expectedDurationMs, actualMs)); reportPlayback(item, if (accepted) "IDLE" else "FAILED", actualMs); playbackPositionMs = null; _playbackOffset.value = _playbackOffset.value + 1; viewModelScope.launch { proof.record(ProofOfPlay(eventId = s.eventId, screenId = store.credentials()?.screenId ?: "", deviceId = deviceId, campaignId = s.campaignId, creativeId = s.creativeId, scheduleItemId = s.itemId, startedAt = s.startedAt, endedAt = Instant.now(), expectedDurationMs = s.expectedDurationMs, actualPlayedMs = actualMs, success = accepted, failureReason = reason ?: if (!accepted) "PLAYBACK_BELOW_COMPLETION_POLICY" else null, appVersion = BuildConfig.VERSION_NAME, assetId = s.assetId)) } }
+    fun creativeFinished(item: ManifestItem, actualMs: Long, success: Boolean, reason: String? = null) { val s = playback.finish(item.id) ?: return; val accepted = success && (item.type != CreativeType.VIDEO || ProofPolicy().videoSuccess(s.expectedDurationMs, actualMs)); reportPlayback(item, if (accepted) "IDLE" else "FAILED", actualMs); playbackPositionMs = null; if (_currentCreative.value?.id == item.id) _currentCreative.value = null; _playbackOffset.value = _playbackOffset.value + 1; viewModelScope.launch { proof.record(ProofOfPlay(eventId = s.eventId, screenId = store.credentials()?.screenId ?: "", deviceId = deviceId, campaignId = s.campaignId, creativeId = s.creativeId, scheduleItemId = s.itemId, startedAt = s.startedAt, endedAt = Instant.now(), expectedDurationMs = s.expectedDurationMs, actualPlayedMs = actualMs, success = accepted, failureReason = reason ?: if (!accepted) "PLAYBACK_BELOW_COMPLETION_POLICY" else null, appVersion = BuildConfig.VERSION_NAME, assetId = s.assetId)) } }
     fun setNavigationState(state: NavigationState) { _navigation.value = state.copy(currentLatitude = _location.value?.latitude, currentLongitude = _location.value?.longitude) }
+    fun reportMapHealth(rendered: Boolean, error: String? = null) { _mapTilesRendered.value = rendered; _mapTileError.value = error }
     private fun reportPlayback(item: ManifestItem, state: String, positionMs: Long? = null) { viewModelScope.launch { store.credentials()?.let { credentials -> runCatching { api.heartbeat(credentials, if (state == "PLAYING") PlayerStatus.PLAYING else if (state == "FAILED") PlayerStatus.ERROR else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(location.current(), item.campaignId, item.creativeId, item.assetId, state, session?.startedAt, positionMs, item.durationSeconds * 1000L)) } } } }
     suspend fun localFile(item: ManifestItem): String? = assets.ensure(item)?.absolutePath
     fun showAdmin() { _state.value = ScreenState.Admin(active); runDiagnostics() }
@@ -139,7 +176,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             else -> ScreenState.Setup()
         }
     }
-    fun unpair() { viewModelScope.launch { store.credentials()?.let { runCatching { api.unpair(it) } }; store.clear(); active=null; _state.value=ScreenState.Setup("Screen unpaired") } }
+    fun unpair() { repairMode = false; viewModelScope.launch { store.credentials()?.let { runCatching { api.unpair(it) } }; store.clear(); active=null; _state.value=ScreenState.Setup("Screen unpaired") } }
     fun runDiagnostics() { viewModelScope.launch {
         _diagnostics.value = _diagnostics.value.copy(running = true, message = "Running network and device checks…")
         val probe = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { probeApi(BuildConfig.API_BASE_URL) }
@@ -173,9 +210,9 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
         else -> "No blocking issue detected"
     }
     fun diagnosticReport(): String { val d = _diagnostics.value; val n = networkInfo(context); val l = locationDiagnostics(context); val c = store.credentials(); return buildString {
-        appendLine("OORO DIAGNOSTIC"); appendLine("Screen ID       ${c?.screenId ?: "UNPAIRED"}"); appendLine("Device ID       $deviceId"); appendLine("App version     ${BuildConfig.VERSION_NAME}"); appendLine("Android         ${android.os.Build.VERSION.RELEASE}"); appendLine("Device model    ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"); appendLine("API host        ${BuildConfig.API_BASE_URL}"); appendLine("Environment     ${if (BuildConfig.DEBUG) "DEBUG" else "PRODUCTION"}"); appendLine("Mock backend    ${if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"}"); appendLine("Network         ${n.type}"); appendLine("Device IP       ${n.ip ?: "unavailable"}"); appendLine("API             ${if (d.probe?.connected == true) "CONNECTED" else "UNREACHABLE"}"); appendLine("Pairing         ${if (c != null) "PAIRED" else "UNPAIRED"}"); appendLine("GPS             ${if (l.permission && (l.gps || l.network)) "AVAILABLE" else "UNAVAILABLE"}"); appendLine("Manifest        ${if (d.manifestLastSyncAt != null) "CACHED" else "UNKNOWN"}"); appendLine("Assets          ${d.verifiedAssets} verified, ${d.missingAssets} missing"); appendLine("Proof queue     ${d.proofQueued} waiting"); appendLine("Primary issue   ${d.lastDiagnosis ?: "Not run"}")
+        appendLine("OORO DIAGNOSTIC"); appendLine("Screen ID       ${c?.screenId ?: "UNPAIRED"}"); appendLine("Device ID       $deviceId"); appendLine("App version     ${BuildConfig.VERSION_NAME}"); appendLine("Android         ${android.os.Build.VERSION.RELEASE}"); appendLine("Device model    ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"); appendLine("API host        ${BuildConfig.API_BASE_URL}"); appendLine("Environment     ${backendEnvironment()}"); appendLine("Mock backend    ${if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"}"); appendLine("Network         ${n.type}"); appendLine("Device IP       ${n.ip ?: "unavailable"}"); appendLine("API             ${if (d.probe?.connected == true) "CONNECTED" else "UNREACHABLE"}"); appendLine("Pairing         ${if (c != null) "PAIRED" else "UNPAIRED"}"); appendLine("GPS             ${if (l.permission && (l.gps || l.network)) "AVAILABLE" else "UNAVAILABLE"}"); appendLine("Manifest        ${if (d.manifestLastSyncAt != null) "CACHED" else "UNKNOWN"}"); appendLine("Assets          ${d.verifiedAssets} verified, ${d.missingAssets} missing"); appendLine("Proof queue     ${d.proofQueued} waiting"); appendLine("Primary issue   ${d.lastDiagnosis ?: "Not run"}")
     } }
-    fun retryQueue() { val request = androidx.work.OneTimeWorkRequestBuilder<com.ooro.screenplayer.sync.SyncWorker>().build(); androidx.work.WorkManager.getInstance(context).enqueueUniqueWork("ooro-diagnostic-retry", androidx.work.ExistingWorkPolicy.REPLACE, request) }
+    fun retryQueue() { ProofSyncScheduler.enqueue(context, "diagnostic-retry") }
     private fun fallback(c: DeviceCredentials) = DeviceManifest(0,c.screenId,BuildConfig.DEFAULT_TIMEZONE,emptyList(),null)
     override fun onCleared() { location.stop(); super.onCleared() }
     companion object { fun factory(context: Context) = object: ViewModelProvider.Factory { override fun <T:ViewModel> create(type:Class<T>):T = ScreenViewModel(context,DeviceStore(context),ApiProvider(DeviceStore(context)).api,OoroDatabase.get(context),AssetManager(context)) as T } }

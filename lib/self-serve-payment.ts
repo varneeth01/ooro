@@ -1,3 +1,4 @@
+import { writeInventoryAllocation } from "@/apps/api/src/domain/inventory-ledger";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { webPrisma } from "@/lib/web-prisma";
@@ -14,7 +15,7 @@ async function reallocateAfterHoldExpiry(tx: Prisma.TransactionClient, campaignI
       const occupied = await tx.inventoryAllocation.findMany({ where: { screenId: assignment.displayId, date: new Date(`${date}T00:00:00.000Z`), status: { in: ["HELD", "RESERVED", "ACTIVE", "BLOCKED"] } }, select: { slot: true } });
       const slot = slotCandidates(Math.min(config.totalSlots, config.commercialSlots + config.houseSlots + config.blockedSlots), config.premiumSlots, tier).find(candidate => candidate < config.commercialSlots && !occupied.some(item => item.slot === candidate));
       if (slot === undefined) throw new Error("ALLOCATION_CAPACITY_EXCEEDED");
-      await tx.inventoryAllocation.create({ data: { campaignId, screenId: assignment.displayId, date: new Date(`${date}T00:00:00.000Z`), slot, holdId, expiresAt, status: "HELD", rate: campaign.effectiveRate, pricingSource: campaign.pricingSource ?? tier } });
+      await writeInventoryAllocation(tx, { campaignId, screenId: assignment.displayId, date: new Date(`${date}T00:00:00.000Z`), slot, holdId, expiresAt, status: "HELD", rate: campaign.effectiveRate, pricingSource: campaign.pricingSource ?? tier });
       created += 1;
     }
   }

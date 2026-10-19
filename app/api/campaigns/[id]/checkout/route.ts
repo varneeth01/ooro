@@ -11,7 +11,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!context) return NextResponse.json({ error: { code: "AUTH_REQUIRED", message: "Sign in before launching" } }, { status: 401 });
   if (context.account.accountType !== "BUSINESS") return NextResponse.json({ error: { code: "BUSINESS_ACCOUNT_REQUIRED", message: "Self-serve launch is available to Business accounts." } }, { status: 403 });
   const { id } = await params;
-  const campaign = await webPrisma.campaign.findFirst({ where: { id, userId: context.account.id }, include: { creatives: { where: { status: "ACTIVE" }, include: { asset: true }, take: 1 } } });
+  const campaign = await webPrisma.campaign.findFirst({ where: { id, userId: context.account.id }, include: { creatives: { where: { status: "APPROVED" }, include: { asset: true }, take: 1 } } });
   if (!campaign) return NextResponse.json({ error: { code: "CAMPAIGN_NOT_FOUND", message: "Campaign not found" } }, { status: 404 });
   const metadata = campaign.metadata && typeof campaign.metadata === "object" && !Array.isArray(campaign.metadata) ? campaign.metadata as Record<string, unknown> : {};
   const budget = Math.round(Number(metadata.budget));

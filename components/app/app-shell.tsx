@@ -16,16 +16,17 @@ const groups: readonly NavGroup[] = [
   ["MANAGE", [["Brands / Clients", "/brands"], ["Quotes", "/quotes"], ["Team", "/team"], ["Billing", "/billing"], ["Settings", "/settings"]]],
 ] as const;
 const adminGroups: readonly NavGroup[] = [
-  ["ADVERTISING", [["Schedule Ads", "/admin/campaigns"], ["Upload / Creatives", "/admin/creatives"]]],
+  ["CONTROL", [["Overview", "/admin"], ["Campaigns", "/admin/campaigns"], ["Creatives", "/admin/creatives"]]],
+  ["AD OPERATIONS", [["Scheduler", "/admin/operations/scheduler"], ["Proof of play", "/admin/proof-of-play"], ["Audit log", "/admin/logs"]]],
   ["CONTROL", [["Orders", "/admin/orders"]]],
-  ["NETWORK", [["Screens", "/admin/screens"], ["Device health", "/admin/device-health"], ["Live map", "/admin/map"], ["Inventory", "/admin/inventory"]]],
+  ["NETWORK", [["Screens", "/admin/screens"], ["Screen groups", "/admin/screen-groups"], ["Vehicles / routes / depots", "/admin/network"], ["Device health", "/admin/device-health"], ["DeviceOS", "/admin/deviceos"], ["Live map", "/admin/map"], ["Inventory", "/admin/inventory"]]],
   ["GOVERNANCE", [["Verification", "/admin/verifications"], ["Agencies", "/admin/agencies"], ["Operations", "/admin/operations"], ["Forecast settings", "/admin/forecast"]]],
 ] as const;
 
 function Sidebar({ onNavigate, variant }: { onNavigate: () => void; variant: "customer" | "admin" }) {
   const pathname = usePathname();
   const visibleGroups = variant === "admin" ? adminGroups : groups;
-  return <aside className="flex h-full w-[238px] shrink-0 flex-col border-r border-neutral-200 bg-[#111111] text-white"><div className="flex h-16 items-center border-b border-white/10 px-5"><Brand dark/></div><div className="flex-1 overflow-y-auto px-3 py-5">{visibleGroups.map(([heading, items]) => <div key={heading} className="mb-6"><div className="px-3 pb-2 font-mono text-[9px] tracking-[.16em] text-neutral-500">{heading}</div><div className="space-y-0.5">{items.map(([label, href]) => { const selected = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`)); return <Link key={href} href={href} onClick={onNavigate} className={`group relative flex items-center rounded-[7px] px-3 py-2.5 text-[13px] transition-colors ${selected ? "bg-white/10 text-white" : "text-neutral-400 hover:bg-white/5 hover:text-white"}`}>{selected && <span className="absolute left-0 h-4 w-0.5 rounded-r bg-[var(--brand-yellow)]"/>}{label}</Link>; })}</div></div>)}</div><div className="border-t border-white/10 p-4 text-[11px] text-neutral-500"><div className="flex items-center gap-2"><CircleHelp size={14}/> Help center <span className="ml-auto">⌘/</span></div></div></aside>;
+  return <aside className="flex h-full w-[238px] shrink-0 flex-col border-r border-neutral-200 bg-[#111111] text-white"><div className="flex h-16 items-center border-b border-white/10 px-5"><Brand dark/></div><div className="flex-1 overflow-y-auto px-3 py-5">{visibleGroups.map(([heading, items]) => <div key={heading} className="mb-6"><div className="px-3 pb-2 font-mono text-[9px] tracking-[.16em] text-neutral-500">{heading}</div><div className="space-y-0.5">{items.map(([label, href]) => { const selected = pathname === href || (href !== "/admin" && href !== "/dashboard" && pathname.startsWith(`${href}/`)); return <Link key={href} href={href} onClick={onNavigate} className={`group relative flex items-center rounded-[7px] px-3 py-2.5 text-[13px] transition-colors ${selected ? "bg-white/10 text-white" : "text-neutral-400 hover:bg-white/5 hover:text-white"}`}>{selected && <span className="absolute left-0 h-4 w-0.5 rounded-r bg-[var(--brand-yellow)]"/>}{label}</Link>; })}</div></div>)}</div><div className="border-t border-white/10 p-4 text-[11px] text-neutral-500"><div className="flex items-center gap-2"><CircleHelp size={14}/> Help center <span className="ml-auto">⌘/</span></div></div></aside>;
 }
 
 function Topbar({ onMenu, variant }: { onMenu: () => void; variant: "customer" | "admin" }) {

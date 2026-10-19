@@ -9,11 +9,12 @@ import java.util.UUID
 enum class PlayerStatus { UNPAIRED, SYNCING, READY, PLAYING, OFFLINE, DEGRADED, ERROR }
 enum class CreativeType { IMAGE, VIDEO }
 enum class FitMode { FIT, FILL, CENTER_CROP }
-enum class DisplayLayout { FULLSCREEN_AD, AD_NAV_OFFER, SPLIT_50_25_25, FULLSCREEN_SERVICE, SPECIAL_CAMPAIGN }
+enum class DisplayLayout { FULLSCREEN_AD, FOUR_ZONE, AD_NAV_OFFER, SPLIT_50_25_25, FULLSCREEN_SERVICE, SPECIAL_CAMPAIGN }
 enum class CtaType { WEBSITE, MENU, COUPON, WHATSAPP, CALL, DIRECTIONS, APP_DOWNLOAD, LEAD_FORM }
 
 data class OfferMetadata(
     val brandName: String? = null,
+    val promotionalText: String? = null,
     val offerTitle: String? = null,
     val offerSubtitle: String? = null,
     val offerValue: String? = null,
@@ -36,25 +37,30 @@ data class OfferMetadata(
 data class DeviceCredentials(val deviceId: String, val screenId: String, val workspaceId: String, val token: String, val name: String)
 data class PairRequest(val pairingCode: String, val deviceId: String, val manufacturer: String, val model: String, val androidVersion: String, val appVersion: String)
 data class PairResponse(val credentials: DeviceCredentials)
-data class ManifestItem(val id: String, val campaignId: String, val creativeId: String, val type: CreativeType, val url: String, val checksum: String?, val durationSeconds: Int, val priority: Int, val startAt: Instant?, val endAt: Instant?, val daysOfWeek: Set<DayOfWeek>, val startTime: LocalTime?, val endTime: LocalTime?, val assetId: String? = null, val fitMode: FitMode = FitMode.FIT, val offer: OfferMetadata = OfferMetadata(), val playsPerLoop: Int = 1) {
+data class ManifestItem(val id: String, val campaignId: String, val creativeId: String, val type: CreativeType, val url: String, val checksum: String?, val durationSeconds: Int, val priority: Int, val startAt: Instant?, val endAt: Instant?, val daysOfWeek: Set<DayOfWeek>, val startTime: LocalTime?, val endTime: LocalTime?, val assetId: String? = null, val fitMode: FitMode = FitMode.FIT, val offer: OfferMetadata = OfferMetadata(), val playsPerLoop: Int = 1, val exclusive: Boolean = false, val sequence: Int = 0, val intervalSeconds: Double = 0.0, val scheduleId: String? = null) {
+    val qrEnabled: Boolean get() = offer.validQrUrl != null
     fun isActive(now: Instant, zone: ZoneId): Boolean {
         val local = now.atZone(zone)
         if (startAt != null && now.isBefore(startAt)) return false
-        if (endAt != null && now.isAfter(endAt)) return false
+        if (endAt != null && !now.isBefore(endAt)) return false
         if (daysOfWeek.isNotEmpty() && local.dayOfWeek !in daysOfWeek) return false
         val time = local.toLocalTime()
         return when {
             startTime == null || endTime == null -> true
-            startTime <= endTime -> time >= startTime && time <= endTime
-            else -> time >= startTime || time <= endTime
+            startTime <= endTime -> time >= startTime && time < endTime
+            else -> time >= startTime || time < endTime
         }
     }
 }
-data class LayoutConfig(val primaryWidthPercent: Int = 75, val navigationHeightPercent: Int = 58) {
-    val safePrimaryWidth: Int get() = primaryWidthPercent.coerceIn(60, 90)
-    val safeNavigationHeight: Int get() = navigationHeightPercent.coerceIn(40, 75)
+data class LayoutConfig(val primaryWidthPercent: Int = 67, val adHeightPercent: Int = 89, val qrHeightPercent: Int = 32, val newsScrollSpeed: Int = 42) {
+    val safePrimaryWidth: Int get() = primaryWidthPercent.coerceIn(55, 80)
+    val safeAdHeight: Int get() = adHeightPercent.coerceIn(88, 92)
+    val safeQrHeight: Int get() = qrHeightPercent.coerceIn(30, 35)
+    val safeNewsScrollSpeed: Int get() = newsScrollSpeed.coerceIn(10, 120)
 }
-data class DeviceManifest(val version: Long, val screenId: String, val timezone: String, val items: List<ManifestItem>, val validUntil: Instant?, val layout: DisplayLayout = DisplayLayout.FULLSCREEN_AD, val layoutConfig: LayoutConfig = LayoutConfig())
+data class NewsAnnouncement(val id: String, val text: String, val priority: Int = 0)
+data class NewsConfig(val scrollSpeed: Int = 42, val announcements: List<NewsAnnouncement> = emptyList())
+data class DeviceManifest(val version: Long, val screenId: String, val timezone: String, val items: List<ManifestItem>, val validUntil: Instant?, val layout: DisplayLayout = DisplayLayout.FULLSCREEN_AD, val layoutConfig: LayoutConfig = LayoutConfig(), val news: NewsConfig = NewsConfig())
 data class ProofOfPlay(val eventId: String = UUID.randomUUID().toString(), val screenId: String, val deviceId: String, val campaignId: String, val creativeId: String, val scheduleItemId: String, val startedAt: Instant, val endedAt: Instant, val expectedDurationMs: Long = 0, val actualPlayedMs: Long = 0, val success: Boolean = true, val failureReason: String? = null, val appVersion: String, val assetId: String? = null)
 
 data class PlaybackSession(val eventId: String, val itemId: String, val campaignId: String, val creativeId: String, val assetId: String?, val startedAt: Instant, val expectedDurationMs: Long)

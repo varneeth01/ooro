@@ -43,7 +43,7 @@ class MockScreenRepository implements ScreenRepository {
   async createScreen(input: CreateScreenInput) { const screen: Screen = { ...input, screenId: `screen-${String(mockScreens.length + 14).padStart(3, "0")}`, deviceId: `pending-${Date.now()}`, createdAt: new Date().toISOString(), pairingStatus: "PAIRING_CODE_ACTIVE" }; mockScreens.push(screen); return screen; }
 }
 class LiveScreenRepository implements ScreenRepository {
-  async listScreens() { const response = await fetch("/api/admin/screens", { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load screens"); const payload = await response.json(); return (payload.data ?? []) as Screen[]; }
+  async listScreens() { const response = await fetch("/api/admin/screens", { cache: "no-store" }); const payload = await response.json(); if (!response.ok) throw new Error(`${payload.error?.message ?? "Unable to load screens"}${payload.requestId ? ` Request ID: ${payload.requestId}` : ""}`); if (!Array.isArray(payload.data)) throw new Error("Invalid screen fleet response"); return payload.data as Screen[]; }
   async getScreen(id: string) { const screens = await this.listScreens(); return screens.find(screen => screen.screenId === id) ?? null; }
   async createScreen(input: CreateScreenInput): Promise<Screen> { void input; throw new Error("Use the admin screen creation route"); }
 }

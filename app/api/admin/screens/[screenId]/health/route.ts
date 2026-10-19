@@ -6,9 +6,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ scr
   try {
     const { screenId } = await params;
     const response = await proxyAdminRequest(`/api/admin/displays/${screenId}/live-state`);
-    const payload = await response.json().catch(() => ({ data: null }));
+    const payload = await response.json();
     if (!response.ok) return NextResponse.json(payload, { status: response.status });
     const display = payload.data;
+    if (!display || !display.id) throw new Error("Invalid device health response");
     const heartbeat = display?.lastHeartbeat ? {
       id: display.lastHeartbeat.id, screenId, deviceId: display.deviceId,
       timestamp: display.lastHeartbeat.receivedAt ?? display.lastHeartbeat.occurredAt, appVersion: display.lastHeartbeat.appVersion ?? "—",

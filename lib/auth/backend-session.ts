@@ -10,7 +10,11 @@ export class AdminAuthError extends Error {
   constructor(public readonly code: "ADMIN_AUTH_REQUIRED" | "ADMIN_ACCESS_DENIED" | "SESSION_EXPIRED" | "ADMIN_BACKEND_UNAVAILABLE", public readonly status: 401 | 403 | 502) { super(code); }
 }
 
-const sessionKey = () => createHash("sha256").update(process.env.OORO_SESSION_SECRET || process.env.JWT_SECRET || "ooro-local-session-secret").digest();
+const sessionKey = () => {
+  const secret = process.env.OORO_SESSION_SECRET || process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production" && (!secret || secret.length < 32)) throw new AdminAuthError("ADMIN_BACKEND_UNAVAILABLE", 502);
+  return createHash("sha256").update(secret || "ooro-local-session-secret").digest();
+};
 const encode = (value: Buffer) => value.toString("base64url");
 const decode = (value: string) => Buffer.from(value, "base64url");
 
@@ -55,7 +59,7 @@ const backendUrl = (path: string) => {
 
 async function backendAuth(path: string, token: string) {
   const response = await fetch(backendUrl(path), { headers: { authorization: `Bearer ${token}` }, cache: "no-store" });
-  if (!response.ok) throw new Error(String(response.status));
+  if (!response.ok) throw new AdminAuthError(response.status === 403 ? "ADMIN_ACCESS_DENIED" : response.status === 401 ? "SESSION_EXPIRED" : "ADMIN_BACKEND_UNAVAILABLE", response.status === 403 ? 403 : response.status === 401 ? 401 : 502);
   const payload = await response.json() as { data?: BackendAuth };
   return payload.data ?? payload as unknown as BackendAuth;
 }
@@ -69,23 +73,21 @@ async function refresh(tokens: TokenSet) {
   await saveBackendSession(next); return next;
 }
 
-export async function getAuthenticatedAdmin() {
+export async function getAuthenticatedAdmin({ refreshSession = true } = {}) {
   const value = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!value) {
-    const fallback = process.env.ALLOW_ADMIN_TOKEN_FALLBACK === "true" ? process.env.OORO_ADMIN_API_TOKEN?.trim() : "";
-    if (fallback) {
-      try { const auth = await backendAuth("/api/auth/session", fallback); if (["ADMIN", "SUPER_ADMIN", "OPERATIONS"].includes(auth.role)) return { accessToken: fallback, role: auth.role }; } catch { /* fall through to the normal auth error */ }
-    }
-    throw new AdminAuthError("ADMIN_AUTH_REQUIRED", 401);
-  }
+  if (!value) throw new AdminAuthError("ADMIN_AUTH_REQUIRED", 401);
   const tokens = unseal(value);
   if (!tokens) throw new AdminAuthError("SESSION_EXPIRED", 401);
   let current = tokens;
   let auth: BackendAuth;
   try { auth = await backendAuth("/api/auth/session", current.accessToken); }
-  catch { try { current = await refresh(current); auth = await backendAuth("/api/auth/session", current.accessToken); } catch (error) { await clearBackendSession(); if (error instanceof AdminAuthError) throw error; throw new AdminAuthError("SESSION_EXPIRED", 401); } }
+  catch (error) {
+    if (!(error instanceof AdminAuthError)) throw new AdminAuthError("ADMIN_BACKEND_UNAVAILABLE", 502);
+    if (error.status !== 401 || !refreshSession) throw error;
+    current = await refresh(current); auth = await backendAuth("/api/auth/session", current.accessToken);
+  }
   if (!["ADMIN", "SUPER_ADMIN", "OPERATIONS"].includes(auth.role)) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
-  return { accessToken: current.accessToken, role: auth.role };
+  return { accessToken: current.accessToken, role: auth.role, userId: auth.userId };
 }
 
 export async function proxyAdminRequest(path: string, init: RequestInit = {}) {

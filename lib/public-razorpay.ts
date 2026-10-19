@@ -8,9 +8,9 @@ export function publicRazorpayConfig(): RazorpayConfig {
   if (mode !== "test" && mode !== "live") throw new Error("RAZORPAY_MODE_NOT_CONFIGURED");
   const keyId = process.env.RAZORPAY_KEY_ID?.trim() ?? "";
   const keySecret = process.env.RAZORPAY_KEY_SECRET ?? "";
-  if (process.env.NODE_ENV !== "production" && mode === "live") throw new Error("LIVE_RAZORPAY_DISABLED_IN_DEVELOPMENT");
   if (!keyId || !keySecret) throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
   if ((mode === "live" && !keyId.startsWith("rzp_live_")) || (mode === "test" && !keyId.startsWith("rzp_test_"))) throw new Error("RAZORPAY_KEY_MODE_MISMATCH");
+  if (process.env.NODE_ENV !== "production" && mode === "live") throw new Error("LIVE_RAZORPAY_DISABLED_IN_DEVELOPMENT");
   return { mode, keyId, keySecret };
 }
 

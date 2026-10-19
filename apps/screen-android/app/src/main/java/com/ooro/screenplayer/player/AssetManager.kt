@@ -8,6 +8,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import android.util.Log
 
@@ -17,7 +20,7 @@ class AssetManager(private val context: Context) {
         if (item.url.isBlank()) return@withContext null
         val safeId = item.id.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120)
         val target = File(root, safeId); if (target.exists() && target.length() > 0 && (item.checksum == null || sha256(target) == item.checksum)) { Log.i("OoroScreen", "asset ready assetId=${item.id} source=cache checksumMatch=true"); return@withContext target }
-        val temp = File(root, "$safeId.part"); runCatching { downloadVerifiedAsset(item.url, temp, target, item.checksum) }.onFailure { error -> Log.w("OoroScreen", "asset download failed assetId=${item.id} error=${error.message}") }.getOrNull()
+        val temp = File(root, "$safeId.part"); runCatching { downloadVerifiedAsset(item.url, temp, target, item.checksum) }.onFailure { error -> Log.e("OoroScreen", "asset download failed assetId=${item.id} tempExists=${temp.exists()} tempBytes=${temp.length()} targetExists=${target.exists()} error=${error.message}", error) }.getOrNull()
     }
     fun cleanup(keepIds: Set<String>) { val safe = keepIds.map { it.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120) }.toSet(); root.listFiles()?.filter { it.isFile && it.name !in safe && !it.name.endsWith(".part") }?.sortedBy { it.lastModified() }?.forEach { it.delete() } }
     fun clear() { root.listFiles()?.forEach { it.deleteRecursively() } }
@@ -46,6 +49,7 @@ internal fun sha256(file: File): String {
     return digest.digest().joinToString("") { "%02x".format(it) }
 }
 
+@Synchronized
 internal fun downloadVerifiedAsset(url: String, temp: File, target: File, expectedChecksum: String?): File {
     temp.delete()
     val connection = URL(url).openConnection() as HttpURLConnection
@@ -57,8 +61,11 @@ internal fun downloadVerifiedAsset(url: String, temp: File, target: File, expect
         if (responseCode !in 200..299) error("HTTP $responseCode")
         connection.inputStream.use { input -> temp.outputStream().use { output -> input.copyTo(output) } }
         if (expectedChecksum != null && !sha256(temp).equals(expectedChecksum, true)) error("checksum mismatch")
-        if (target.exists() && !target.delete()) error("existing asset could not be replaced")
-        if (!temp.renameTo(target)) error("atomic asset move failed")
+        try {
+            Files.move(temp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
         return target
     } finally { connection.disconnect() }
 }

@@ -14,17 +14,19 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
     composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
     val configuredRepairAccessCode = (project.findProperty("repairAccessCode")?.toString()
         ?: System.getenv("OORO_REPAIR_ACCESS_CODE"))?.trim().orEmpty()
-    val debugRepairAccessCode = configuredRepairAccessCode.ifBlank { "798162" }
+    val debugRepairAccessCode = configuredRepairAccessCode
+    val releaseApiUrl = (project.findProperty("deviceApiBaseUrl")?.toString() ?: System.getenv("OORO_DEVICE_API_URL"))?.trim()?.trimEnd('/').orEmpty()
+    if (gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }) {
+        require(releaseApiUrl.startsWith("https://")) { "Release requires deviceApiBaseUrl/OORO_DEVICE_API_URL pointing to the HTTPS device API" }
+    }
     buildTypes {
         debug {
-            val apiBaseUrl = (project.findProperty("deviceApiBaseUrl")?.toString()
-                ?: System.getenv("OORO_DEVICE_API_URL")
-                ?: "http://10.0.2.2:8080").trim().trimEnd('/')
             val useMockBackend = (project.findProperty("useMockBackend")?.toString()
                 ?: System.getenv("OORO_USE_MOCK_BACKEND"))?.toBoolean() ?: false
-            require(apiBaseUrl.startsWith("http://") || apiBaseUrl.startsWith("https://")) {
-                "deviceApiBaseUrl must be an http(s) URL"
-            }
+            val configuredApiUrl = (project.findProperty("deviceApiBaseUrl")?.toString() ?: System.getenv("OORO_DEVICE_API_URL"))?.trim()?.trimEnd().orEmpty()
+            require(useMockBackend || configuredApiUrl.isNotBlank()) { "Real debug builds require -PdeviceApiBaseUrl or OORO_DEVICE_API_URL; useMockBackend must be explicitly enabled for mock mode" }
+            val apiBaseUrl = if (useMockBackend) "mock://local" else configuredApiUrl
+            require(apiBaseUrl.startsWith("http://") || apiBaseUrl.startsWith("https://") || (useMockBackend && apiBaseUrl.startsWith("mock://"))) { "deviceApiBaseUrl must be an http(s) URL" }
             manifestPlaceholders["allowCleartext"] = true
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
             buildConfigField("boolean", "USE_MOCK_BACKEND", useMockBackend.toString())
@@ -37,7 +39,7 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
                 ?: "15").toIntOrNull()?.coerceIn(5, 300) ?: 15
             buildConfigField("int", "SYNC_INTERVAL_SECONDS", syncIntervalSeconds.toString())
         }
-        release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt")); manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"https://theooro.com\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "false"); buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$configuredRepairAccessCode\""); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15"); buildConfigField("int", "SYNC_INTERVAL_SECONDS", "90") }
+        release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt")); manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"$releaseApiUrl\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "false"); buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$configuredRepairAccessCode\""); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15"); buildConfigField("int", "SYNC_INTERVAL_SECONDS", "90") }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }

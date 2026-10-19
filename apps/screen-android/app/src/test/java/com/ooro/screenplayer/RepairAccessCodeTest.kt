@@ -6,12 +6,12 @@ import org.junit.Test
 
 class RepairAccessCodeTest {
     @Test fun configuredTechnicianCodeIsAccepted() {
-        assertTrue(isRepairAccessCode("798162"))
-        assertTrue(isRepairAccessCode("798162u"))
+        assertTrue(isRepairAccessCode("123456", "123456"))
+        assertTrue(isRepairAccessCode("123456u", "123456"))
     }
 
     @Test fun otherCodesAreRejected() {
-        assertFalse(isRepairAccessCode("798163"))
+        assertFalse(isRepairAccessCode("123457", "123456"))
         assertFalse(isRepairAccessCode(""))
     }
 }

@@ -22,6 +22,7 @@ export function AdminSubnav({ children }: { children?: ReactNode }) {
   const links = [
     ["Schedule Ads", "/admin/campaigns"],
     ["Upload Ads", "/admin/creatives"],
+    ["Content & Zones", "/admin/content"],
     ["Screens", "/admin/screens"],
     ["Live map", "/admin/map"],
     ["Device Health", "/admin/device-health"],

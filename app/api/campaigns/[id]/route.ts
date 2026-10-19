@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const context = await webContext(); const email = context?.email ?? await identity(); if (!email) return NextResponse.json({ error: { message: "Sign in to view campaigns" } }, { status: 401 });
   const { id } = await params;
   try {
-    const campaign = await webPrisma.campaign.findUnique({ where: { id }, include: { creatives: { where: { status: "ACTIVE" }, orderBy: { displayOrder: "asc" }, include: { asset: true } } } });
+    const campaign = await webPrisma.campaign.findUnique({ where: { id }, include: { creatives: { where: { status: "APPROVED" }, orderBy: { displayOrder: "asc" }, include: { asset: true } } } });
     if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
     if (campaign.userId !== context?.account.id && campaign.ownerEmail !== email) return NextResponse.json({ error: { message: "You do not have access to this campaign" } }, { status: 403 });
     const serializable = JSON.parse(JSON.stringify({ ...campaign, pricingSnapshot: campaign.pricingSnapshot ? { customerType: (campaign.pricingSnapshot as Record<string, unknown>).customerType, plan: (campaign.pricingSnapshot as Record<string, unknown>).plan, budget: (campaign.pricingSnapshot as Record<string, unknown>).budget } : null }, (_key, value) => typeof value === "bigint" ? Number(value) : value));
