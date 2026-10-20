@@ -31,20 +31,6 @@ class DeviceOsApi {
         }
     }
     fun heartbeat(credentials: DeviceCredentials, inventory: JSONArray, capabilities: JSONObject) { request("/api/deviceos/heartbeat", "POST", credentials.token, JSONObject().put("requestId", java.util.UUID.randomUUID().toString()).put("agentVersionName", BuildConfig.VERSION_NAME).put("agentVersionCode", BuildConfig.VERSION_CODE).put("androidVersion", Build.VERSION.RELEASE).put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL).put("capabilities", capabilities).put("inventory", inventory)) }
-    fun commands(credentials: DeviceCredentials): List<DeviceOsCommand> {
-        val commands = request("/api/deviceos/commands", "GET", credentials.token, null).getJSONObject("data").optJSONArray("items") ?: JSONArray()
-        return (0 until commands.length()).map { index ->
-            val item = commands.getJSONObject(index)
-            DeviceOsCommand(item.getString("id"), item.getString("commandType"), item.getString("packageName"), item.optJSONObject("payload"), item.optString("expiresAt").takeIf { it.isNotBlank() })
-        }
-    }
-    fun acknowledgeCommand(credentials: DeviceCredentials, commandId: String, status: String, errorCode: String? = null, errorMessage: String? = null, metadata: JSONObject? = null) {
-        val body = JSONObject().put("status", status)
-        if (errorCode != null) body.put("errorCode", errorCode)
-        if (errorMessage != null) body.put("errorMessage", errorMessage)
-        if (metadata != null) body.put("metadata", metadata)
-        request("/api/deviceos/commands/$commandId/ack", "POST", credentials.token, body)
-    }
     fun report(credentials: DeviceCredentials, targetId: String, state: String, idempotencyKey: String, fields: JSONObject = JSONObject()) { request("/api/deviceos/targets/$targetId/events", "POST", credentials.token, fields.put("state", state).put("idempotencyKey", idempotencyKey)) }
     fun download(credentials: DeviceCredentials, releaseId: String, destination: File, expectedBytes: Long): Long {
         var existing = if (destination.exists()) destination.length() else 0L

@@ -286,29 +286,6 @@ app.get('/api/deviceos/state', async (request, reply) => {
   return ok(request, asDeviceOsJson({ managedDeviceId: device.id, displayId: device.displayId, enrollmentStatus: device.enrollmentStatus, desiredStateVersion: device.desiredStateVersion, targets: deviceTargets }), reply)
 })
 
-app.get('/api/deviceos/commands', async (request, reply) => {
-  const device = await authenticateDeviceOs(request)
-  const now = new Date()
-  await prisma.deviceOsCommand.updateMany({ where: { managedDeviceId: device.id, status: 'QUEUED', expiresAt: { lt: now } }, data: { status: 'FAILED', failedAt: now, errorCode: 'EXPIRED', errorMessage: 'Command expired before delivery' } })
-  const commands = await prisma.deviceOsCommand.findMany({ where: { managedDeviceId: device.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { createdAt: 'asc' }, take: 20 })
-  if (commands.length) await prisma.deviceOsCommand.updateMany({ where: { id: { in: commands.map((command) => command.id) } }, data: { status: 'DELIVERED', deliveredAt: now } })
-  return ok(request, asDeviceOsJson(commands.map((command) => ({ id: command.id, commandType: command.commandType, packageName: command.packageName, payload: command.payload, expiresAt: command.expiresAt }))), reply)
-})
-
-app.post('/api/deviceos/commands/:commandId/ack', async (request, reply) => {
-  const device = await authenticateDeviceOs(request)
-  const { commandId } = request.params as { commandId: string }
-  const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'PENDING_USER_ACTION', 'UNSUPPORTED']), errorCode: z.string().max(120).optional(), errorMessage: z.string().max(1000).optional(), metadata: z.record(z.string(), z.unknown()).optional() }))
-  const command = await prisma.deviceOsCommand.findFirst({ where: { id: commandId, managedDeviceId: device.id } })
-  if (!command) throw notFound('DeviceOS command not found')
-  const updated = await prisma.$transaction(async (tx) => {
-    const row = await tx.deviceOsCommand.update({ where: { id: command.id }, data: { status: input.status, acknowledgedAt: new Date(), failedAt: input.status === 'FAILED' ? new Date() : undefined, errorCode: input.errorCode, errorMessage: input.errorMessage, payload: input.metadata ? { ...(command.payload as Record<string, unknown> | null ?? {}), result: input.metadata } as any : undefined } })
-    await tx.deviceOsAuditEvent.create({ data: { managedDeviceId: device.id, action: 'DEVICE_COMMAND_ACKNOWLEDGED', entityType: 'DeviceOsCommand', entityId: command.id, after: { commandType: command.commandType, packageName: command.packageName, status: input.status } as any, requestId: request.id } })
-    return row
-  })
-  return ok(request, asDeviceOsJson(updated), reply)
-})
-
 app.post('/api/deviceos/heartbeat', async (request, reply) => {
   const device = await authenticateDeviceOs(request)
   const input = bodyOf(request, z.object({
@@ -440,30 +417,6 @@ app.post('/api/admin/deviceos/devices/:managedDeviceId/rotate-credential', async
   return ok(request, { managedDeviceId: device.id, credentialId, deviceToken: token, rotatedAt: now }, reply)
 })
 
-app.post('/api/admin/deviceos/devices/:managedDeviceId/commands', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
-  const { managedDeviceId } = request.params as { managedDeviceId: string }
-  const input = bodyOf(request, z.object({ commandType: z.enum(['RESTART_APP', 'UNINSTALL_APP']), packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), payload: z.record(z.string(), z.unknown()).optional() }))
-  const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId }, select: { id: true, enrollmentStatus: true, agentPackageName: true } })
-  if (!device) throw notFound('Managed DeviceOS device not found')
-  if (device.enrollmentStatus !== 'ENROLLED') throw new ApiError('DEVICE_NOT_ENROLLED', 'Commands require an enrolled device', 409)
-  const application = await prisma.managedApplication.findUnique({ where: { packageName: input.packageName }, select: { packageName: true, critical: true, remoteUninstallAllowed: true } })
-  if (!application) throw new ApiError('APPLICATION_NOT_REGISTERED', 'The package is not a registered managed application', 422)
-  if (input.commandType === 'UNINSTALL_APP' && (application.critical || !application.remoteUninstallAllowed || input.packageName === device.agentPackageName || input.packageName === 'com.ooro.screenplayer')) throw new ApiError('UNINSTALL_NOT_ALLOWED', 'Only explicitly allowlisted noncritical applications may be remotely uninstalled', 422)
-  const command = await prisma.$transaction(async (tx) => {
-    const created = await tx.deviceOsCommand.create({ data: { managedDeviceId, commandType: input.commandType, packageName: input.packageName, payload: input.payload as any, expiresAt: new Date(Date.now() + 10 * 60 * 1000) } })
-    await tx.deviceOsAuditEvent.create({ data: { managedDeviceId, actorId: auth.userId, actorRole: auth.role, action: 'DEVICE_COMMAND_QUEUED', entityType: 'DeviceOsCommand', entityId: created.id, after: { commandType: input.commandType, packageName: input.packageName } as any, requestId: request.id } })
-    return created
-  })
-  return ok(request, asDeviceOsJson(command), reply)
-})
-
-app.get('/api/admin/deviceos/devices/:managedDeviceId/commands', async (request, reply) => {
-  await requireRoles(request, adminRoles)
-  const { managedDeviceId } = request.params as { managedDeviceId: string }
-  return ok(request, asDeviceOsJson(await prisma.deviceOsCommand.findMany({ where: { managedDeviceId }, orderBy: { createdAt: 'desc' }, take: 100 })), reply)
-})
-
 app.get('/api/admin/deviceos/applications', async (request, reply) => {
   await requireRoles(request, adminRoles)
   return ok(request, asDeviceOsJson(await prisma.managedApplication.findMany({ include: { _count: { select: { releases: true, inventory: true } } }, orderBy: { updatedAt: 'desc' } })), reply)
@@ -471,7 +424,7 @@ app.get('/api/admin/deviceos/applications', async (request, reply) => {
 
 app.post('/api/admin/deviceos/applications', async (request, reply) => {
   const auth = await requireRoles(request, deviceOsWriteRoles)
-  const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160), critical: z.boolean().optional(), remoteUninstallAllowed: z.boolean().optional() }))
+  const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160) }))
   let application
   try {
     application = await prisma.managedApplication.create({ data: input })

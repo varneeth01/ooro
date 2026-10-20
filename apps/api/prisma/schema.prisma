@@ -1017,7 +1017,6 @@ model ManagedDevice {
   credentials         DeviceCredential[]
   requestReceipts     DeviceRequestReceipt[]
   deploymentTargets   DeploymentTarget[]
-  commands            DeviceOsCommand[]
   inventory           DeviceApplicationInventory[]
   attempts            DeploymentAttempt[]
   installationResults InstallationResult[]
@@ -1055,38 +1054,17 @@ model DeviceRequestReceipt {
 }
 
 model ManagedApplication {
-  id                     String                       @id @default(uuid()) @db.Uuid
-  packageName            String                       @unique
-  displayName            String
-  allowed                Boolean                      @default(true)
-  critical               Boolean                      @default(true)
-  remoteUninstallAllowed Boolean                      @default(false)
-  createdAt              DateTime                     @default(now())
-  updatedAt              DateTime                     @updatedAt
-  releases               ApplicationRelease[]
-  deploymentCampaigns    DeploymentCampaign[]
-  inventory              DeviceApplicationInventory[]
+  id                  String                       @id @default(uuid()) @db.Uuid
+  packageName         String                       @unique
+  displayName         String
+  allowed             Boolean                      @default(true)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  releases            ApplicationRelease[]
+  deploymentCampaigns DeploymentCampaign[]
+  inventory           DeviceApplicationInventory[]
 
   @@index([allowed, updatedAt])
-}
-
-model DeviceOsCommand {
-  id              String        @id @default(uuid())
-  managedDeviceId String        @db.Uuid
-  commandType     String
-  packageName     String
-  payload         Json?
-  status          String        @default("QUEUED")
-  createdAt       DateTime      @default(now())
-  deliveredAt     DateTime?
-  acknowledgedAt  DateTime?
-  failedAt        DateTime?
-  expiresAt       DateTime?
-  errorCode       String?
-  errorMessage    String?
-  managedDevice   ManagedDevice @relation(fields: [managedDeviceId], references: [id], onDelete: Cascade)
-
-  @@index([managedDeviceId, status, createdAt])
 }
 
 model ApplicationRelease {
@@ -1123,7 +1101,7 @@ model DeploymentCampaign {
   targetingMode          String               @default("DEVICES")
   city                   String?
   targetPercentage       Int?
-  targetingSpec          Json?
+  targetingSpec         Json?
   cohortSeed             String
   maintenanceWindowStart DateTime?
   maintenanceWindowEnd   DateTime?
@@ -1211,7 +1189,7 @@ model InstallationResult {
 model DeviceApplicationInventory {
   id                String              @id @default(uuid()) @db.Uuid
   managedDeviceId   String              @db.Uuid
-  applicationId     String?             @db.Uuid
+  applicationId     String?              @db.Uuid
   packageName       String
   versionCode       BigInt
   versionName       String?

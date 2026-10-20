@@ -1,8 +1,6 @@
 package com.ooro.deviceagent.sync
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.app.ActivityManager
 import android.content.pm.PackageInfo
 import android.net.ConnectivityManager
@@ -34,7 +32,6 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             val targets = api.state(credentials)
             val inventory = inventoryJson(applicationContext)
             api.heartbeat(credentials, inventory, capabilities(applicationContext))
-            for (command in api.commands(credentials)) processCommand(credentials, command)
             for (target in targets) process(credentials, target)
             Result.success()
         }.getOrElse { error ->
@@ -42,29 +39,6 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 store.clear()
                 Result.success()
             } else if (runAttemptCount < 5) Result.retry() else Result.failure()
-        }
-    }
-    private fun processCommand(credentials: DeviceCredentials, command: com.ooro.deviceagent.model.DeviceOsCommand) {
-        runCatching {
-            when (command.commandType) {
-                "RESTART_APP" -> {
-                    val launch = applicationContext.packageManager.getLaunchIntentForPackage(command.packageName)
-                        ?: error("PACKAGE_NOT_LAUNCHABLE")
-                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    applicationContext.startActivity(launch)
-                    api.acknowledgeCommand(credentials, command.id, "SUCCEEDED", metadata = JSONObject().put("action", "LAUNCH_MAIN_ACTIVITY").put("packageName", command.packageName))
-                }
-                "UNINSTALL_APP" -> {
-                    val uninstall = Intent(Intent.ACTION_DELETE, Uri.parse("package:${command.packageName}"))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    applicationContext.startActivity(uninstall)
-                    api.acknowledgeCommand(credentials, command.id, "PENDING_USER_ACTION", errorCode = "USER_CONFIRMATION_REQUIRED", errorMessage = "Android opened the system uninstall confirmation UI")
-                }
-                else -> api.acknowledgeCommand(credentials, command.id, "UNSUPPORTED", errorCode = "COMMAND_NOT_SUPPORTED")
-            }
-        }.onFailure { error ->
-            if (isCredentialTerminal(error)) store.clear()
-            else runCatching { api.acknowledgeCommand(credentials, command.id, "FAILED", errorCode = error.message?.take(120) ?: "COMMAND_FAILED", errorMessage = error.message ?: "Command failed") }
         }
     }
     private suspend fun process(credentials: DeviceCredentials, target: com.ooro.deviceagent.model.DeploymentTarget) {
