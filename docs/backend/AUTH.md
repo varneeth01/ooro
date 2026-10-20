@@ -1,3 +1,3 @@
 # Authentication
 
-Driver/admin accounts use short-lived JWT access tokens and rotating server-side refresh sessions. Screen Players use device tokens bound to a display. Device tokens are never returned by admin endpoints or placed in browser storage. Production requires a non-default JWT secret and disables mock OTP.
+Driver accounts retain phone OTP, short-lived JWT access tokens, and rotating server-side refresh sessions. Admin accounts use email/password with Argon2id, the same short-lived JWT plus rotating database session architecture, one-time setup/reset links, login throttling, and same-origin protections on browser mutations. Screen Players use device tokens bound to a display. Device tokens are never returned by admin endpoints or placed in browser storage. Production requires non-default JWT and web session secrets, HTTPS admin URLs, a configured email provider, and disables mock OTP.

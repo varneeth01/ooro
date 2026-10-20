@@ -11,12 +11,12 @@ export type AuthContext = { userId: string; role: string; driverId?: string; dis
 export const hashSecret = (value: string) => createHash('sha256').update(value).digest('hex')
 export const randomSecret = (bytes = 32) => randomBytes(bytes).toString('hex')
 
-export async function issueTokens(userId: string, role: string, driverId?: string) {
+export async function issueTokens(userId: string, role: string, driverId?: string, sessionMeta?: { userAgent?: string; ipAddress?: string }) {
   const accessToken = await new SignJWT({ role, ...(driverId ? { driverId } : {}) })
     .setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt()
     .setExpirationTime(`${config.accessTtlSeconds}s`).sign(secret)
   const refreshToken = randomSecret()
-  await prisma.session.create({ data: { userId, refreshTokenHash: hashSecret(refreshToken), expiresAt: new Date(Date.now() + config.refreshTtlSeconds * 1000) } })
+  await prisma.session.create({ data: { userId, refreshTokenHash: hashSecret(refreshToken), expiresAt: new Date(Date.now() + config.refreshTtlSeconds * 1000), userAgent: sessionMeta?.userAgent?.slice(0, 512), ipAddress: sessionMeta?.ipAddress?.slice(0, 64) } })
   return { accessToken, refreshToken }
 }
 

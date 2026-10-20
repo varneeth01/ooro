@@ -27,6 +27,12 @@ export const config = {
   razorpayMode: process.env.RAZORPAY_MODE?.trim().toLowerCase() ?? '',
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
+  adminWebBaseUrl: (process.env.ADMIN_WEB_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
+  adminPasswordResetTtlSeconds: Number(process.env.ADMIN_PASSWORD_RESET_TTL_SECONDS ?? 3600),
+  adminPasswordSetupTtlSeconds: Number(process.env.ADMIN_PASSWORD_SETUP_TTL_SECONDS ?? 86400),
+  adminLoginWindowSeconds: Number(process.env.ADMIN_LOGIN_WINDOW_SECONDS ?? 900),
+  adminLoginMaxAttempts: Number(process.env.ADMIN_LOGIN_MAX_ATTEMPTS ?? 10),
+  adminLoginLockSeconds: Number(process.env.ADMIN_LOGIN_LOCK_SECONDS ?? 900),
   deviceOsMaxApkBytes: Number(process.env.DEVICEOS_MAX_APK_BYTES ?? 134217728),
   deviceOsAapt2Path: process.env.DEVICEOS_AAPT2_PATH ?? 'aapt2',
   deviceOsApksignerPath: process.env.DEVICEOS_APKSIGNER_PATH ?? 'apksigner',
@@ -56,5 +62,7 @@ if (config.nodeEnv === 'production' && (!productionDatabaseUrl || /(?:^|[@:/])(?
 if (config.nodeEnv === 'production') {
   if (config.jwtSecret === 'development-only-change-me' || config.jwtSecret.length < 32) throw new Error('JWT_SECRET must be configured in production')
   if (config.devMockOtpEnabled) throw new Error('DEV_MOCK_OTP_ENABLED must be false in production')
+  if (!config.emailProviderApiKey) throw new Error('EMAIL_PROVIDER_API_KEY must be configured in production')
+  if (!config.adminWebBaseUrl.startsWith('https://')) throw new Error('ADMIN_WEB_BASE_URL must use HTTPS in production')
   if (config.deviceOsStorageMode !== 's3') throw new Error('DEVICEOS_STORAGE_MODE must be s3 in production')
 }

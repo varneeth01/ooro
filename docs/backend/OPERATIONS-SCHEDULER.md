@@ -10,7 +10,7 @@ Schedule dates are UTC instants. The scheduler accepts `Asia/Kolkata` only and c
 
 - API: `DATABASE_URL`, `JWT_SECRET` (at least 32 characters), `DEV_MOCK_OTP_ENABLED=false`, production CORS origins, MongoDB/payment settings for their existing features.
 - Web: `OORO_SESSION_SECRET` (at least 32 characters), `OORO_BACKEND_API_URL` pointed at the deployed API origin, HTTPS site and asset base URLs, `GCS_BUCKET_NAME`, and Cloud Run service identity permissions for the bucket/database.
-- Admin login: `OORO_OTP_DELIVERY_URL` (HTTPS) and `OORO_OTP_DELIVERY_TOKEN` for the operator's SMS gateway. The gateway accepts `{ phone, code, expiresInSeconds }`. OTP codes are never returned in production.
+- Admin login: `ADMIN_WEB_BASE_URL` must be the HTTPS web origin, with `EMAIL_PROVIDER_API_KEY` and a verified `EMAIL_FROM` for one-time password setup and reset links. Admin credentials are never stored in deployment configuration.
 - Android release: `OORO_DEVICE_API_URL` or Gradle property `deviceApiBaseUrl`, set to the HTTPS device API origin. Release builds fail when it is missing.
 - Web container: `ffprobe` is installed from Debian packages and is required to derive creative media dimensions and video duration from uploaded bytes.
 

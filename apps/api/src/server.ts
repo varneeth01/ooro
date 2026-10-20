@@ -24,14 +24,14 @@ import { sendOrderConfirmation } from './domain/transactional-email.js'
 import { receiptPdf } from './domain/receipt.js'
 import { boundedLocationLimit, shouldRecordDisplayLocation, validDisplayLocation } from './domain/display-location.js'
 import { getDisplayConnectivity } from './domain/display-health.js'
-import { normalizeIndianPhone } from './domain/phone.js'
 import { canonicalProofId, canonicalProofStatus, proofIdentityBelongsToDisplay } from './domain/proof-policy.js'
-import { adminRoles, deviceOsWriteRoles, isAdminRole } from './domain/admin-auth.js'
+import { adminRoles, deviceOsWriteRoles } from './domain/admin-auth.js'
 import { asDeviceOsJson } from './domain/deviceos-http.js'
 import { assertSigningCertificateContinuity, decodeApkBase64, inspectApk } from './domain/apk-release.js'
 import { deviceOsStorage, parseDeviceOsRange, sliceDeviceOsContent, verifyLocalDownloadSignature } from './domain/deviceos-storage.js'
 import { campaignHealthGate, createDeviceOsCampaign, deploymentTargetingModes, isWithinMaintenanceWindow, pauseDeviceOsCampaign, resumeDeviceOsCampaign } from './domain/deviceos-deployment.js'
 import { isHealthyInstallationReportValid, retryDelayMs, validateDeviceOsEventTransition } from './domain/deviceos.js'
+import { assertAdminUser, clearAdminLoginRateLimit, consumePasswordToken, enforceAdminLoginRateLimit, findAdminByEmail, issuePasswordReset, markAdminLoginFailure, normalizeAdminEmail, resetAdminLoginFailures, validateAdminPassword, verifyPassword } from './domain/admin-password-auth.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -145,37 +145,46 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role }, driver: { id: driver.id, onboardingStatus: driver.onboardingStatus } }, reply)
 })
 
-app.post('/api/auth/admin/request-otp', async (request, reply) => {
+app.post('/api/auth/admin/login', async (request, reply) => {
   try {
-    const { phone: rawPhone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
-    const phone = normalizeIndianPhone(rawPhone)
-    if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid Indian mobile number', 422)
-    const user = await prisma.user.findUnique({ where: { phone } })
-    if (!user) throw unauthorized('Admin account not found')
-    if (!isAdminRole(user.role)) throw forbidden('Admin account is not permitted')
-    const recent = await prisma.otpChallenge.count({where:{phone,createdAt:{gte:new Date(Date.now()-60000)}}}); if(recent>=3) throw new ApiError('OTP_RATE_LIMIT','Please wait before requesting another code',429)
-  const code = config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
-    const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
-    await deliverOtp(phone, code)
-  await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })
-    return ok(request, { expiresAt, ...(config.nodeEnv !== 'production' && config.devMockOtpEnabled ? { devOtp: code } : {}) }, reply)
+    const { email: rawEmail, password } = bodyOf(request, z.object({ email: z.string().email().max(254), password: z.string().min(1).max(128) }))
+    const email = normalizeAdminEmail(rawEmail)
+    await enforceAdminLoginRateLimit(email, request.ip)
+    const user = await findAdminByEmail(email)
+    const validPassword = await verifyPassword(user?.passwordHash, password)
+    const locked = Boolean(user?.lockedUntil && user.lockedUntil > new Date())
+    if (!user || !validPassword || !assertAdminUser(user) || !user.passwordHash || locked) {
+      if (user && assertAdminUser(user) && !locked && user.passwordHash && !validPassword) await markAdminLoginFailure(user.id, user.failedLoginAttempts)
+      throw unauthorized('Invalid email or password')
+    }
+    await Promise.all([resetAdminLoginFailures(user.id), clearAdminLoginRateLimit(email)])
+    const tokens = await issueTokens(user.id, user.role, undefined, { userAgent: request.headers['user-agent'], ipAddress: request.ip })
+    return ok(request, { ...tokens, user: { id: user.id, email: user.email, role: user.role, name: user.name } }, reply)
   } catch (error) { throw authStoreError(error) }
 })
 
-app.post('/api/auth/admin/verify-otp', async (request, reply) => {
-  try {
-    const { phone: rawPhone, code } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6) }))
-    const phone = normalizeIndianPhone(rawPhone)
-    if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid Indian mobile number', 422)
-    const challenge = await prisma.otpChallenge.findFirst({ where: { phone, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
-    const user = await prisma.user.findUnique({ where: { phone } })
-    if(challenge) await prisma.otpChallenge.update({where:{id:challenge.id},data:{attempts:{increment:1}}})
-  if (!challenge || challenge.attempts >= 5 || challenge.codeHash !== hashOtp(phone, code)) throw unauthorized('Invalid or expired admin OTP')
-    if (!user || !isAdminRole(user.role) || user.accountStatus !== 'ACTIVE') throw forbidden('Admin account is not permitted')
-    const consumed = await prisma.otpChallenge.updateMany({ where: { id: challenge.id, consumedAt:null, attempts:{lte:5} }, data: { consumedAt: new Date() } }); if(consumed.count!==1) throw unauthorized('Code already used or too many attempts')
-    const tokens = await issueTokens(user.id, user.role)
-    return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role, name: user.name } }, reply)
-  } catch (error) { throw authStoreError(error) }
+app.post('/api/auth/admin/request-password-reset', async (request, reply) => {
+  const { email: rawEmail } = bodyOf(request, z.object({ email: z.string().email().max(254) }))
+  const email = normalizeAdminEmail(rawEmail)
+  const user = await findAdminByEmail(email)
+  if (user && assertAdminUser(user) && user.email) {
+    try { await issuePasswordReset(user.id, user.email, user.name) } catch (error) { request.log.error({ err: error }, 'admin password reset email failed') }
+  }
+  return reply.code(202).send(response(request, { message: 'If the account exists, password reset instructions will be sent.' }))
+})
+
+app.post('/api/auth/admin/setup-password', async (request, reply) => {
+  const { token, password } = bodyOf(request, z.object({ token: z.string().min(32).max(128), password: z.string().min(1).max(128) }))
+  validateAdminPassword(password)
+  await consumePasswordToken('setup', token, password)
+  return ok(request, { passwordSet: true }, reply)
+})
+
+app.post('/api/auth/admin/reset-password', async (request, reply) => {
+  const { token, password } = bodyOf(request, z.object({ token: z.string().min(32).max(128), password: z.string().min(1).max(128) }))
+  validateAdminPassword(password)
+  await consumePasswordToken('reset', token, password)
+  return ok(request, { passwordReset: true }, reply)
 })
 
 app.post('/api/auth/refresh', async (request, reply) => {

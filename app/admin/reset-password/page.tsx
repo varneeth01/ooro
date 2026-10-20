@@ -1,0 +1,3 @@
+import { AdminPasswordResetRequest } from "@/components/auth/admin-password-form";
+
+export default function AdminResetPasswordPage() { return <main className="flex min-h-screen items-center justify-center bg-[#f7f7f5] px-6 py-12"><div className="w-full max-w-md"><p className="eyebrow text-neutral-500">OORO / Admin</p><h1 className="display mt-4 text-5xl font-medium">Reset password.</h1><p className="mt-5 text-sm leading-6 text-neutral-500">Enter your admin email and we’ll send a one-time reset link.</p><div className="mt-10 border border-neutral-200 bg-white p-6 sm:p-8"><AdminPasswordResetRequest/></div></div></main>; }

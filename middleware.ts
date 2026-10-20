@@ -4,7 +4,15 @@ import { protectedRoutePrefixes, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/li
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  if (pathname === "/admin/login") return NextResponse.next();
+  const adminApi = pathname.startsWith("/api/admin/") || pathname.startsWith("/api/auth/admin/");
+  if (adminApi && !["GET", "HEAD", "OPTIONS"].includes(request.method) && process.env.NODE_ENV === "production") {
+    const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
+    let sameOrigin = origin === request.nextUrl.origin;
+    if (!sameOrigin && referer) { try { sameOrigin = new URL(referer).origin === request.nextUrl.origin; } catch { sameOrigin = false; } }
+    if (!sameOrigin) return NextResponse.json({ error: { code: "CSRF_REJECTED", message: "Request origin was not accepted" } }, { status: 403 });
+  }
+  if (pathname === "/admin/login" || pathname === "/admin/reset-password" || pathname === "/admin/setup-password") return NextResponse.next();
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     const access = await verifyAdminEnvelope(request.cookies.get(SESSION_COOKIE)?.value);
     if (access === "allowed") return NextResponse.next();
@@ -21,4 +29,4 @@ export async function middleware(request: NextRequest) {
   return NextResponse.redirect(login);
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)", "/api/admin/:path*", "/api/auth/admin/:path*"] };

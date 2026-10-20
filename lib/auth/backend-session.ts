@@ -11,7 +11,7 @@ export class AdminAuthError extends Error {
 }
 
 const sessionKey = () => {
-  const secret = process.env.OORO_SESSION_SECRET || process.env.JWT_SECRET;
+  const secret = process.env.OORO_SESSION_SECRET || (process.env.NODE_ENV !== "production" ? process.env.JWT_SECRET : undefined);
   if (process.env.NODE_ENV === "production" && (!secret || secret.length < 32)) throw new AdminAuthError("ADMIN_BACKEND_UNAVAILABLE", 502);
   return createHash("sha256").update(secret || "ooro-local-session-secret").digest();
 };
@@ -86,7 +86,7 @@ export async function getAuthenticatedAdmin({ refreshSession = true } = {}) {
     if (error.status !== 401 || !refreshSession) throw error;
     current = await refresh(current); auth = await backendAuth("/api/auth/session", current.accessToken);
   }
-  if (!["ADMIN", "SUPER_ADMIN", "OPERATIONS"].includes(auth.role)) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
+  if (!["ADMIN", "SUPER_ADMIN", "OPERATIONS", "SUPPORT", "FINANCE"].includes(auth.role)) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
   return { accessToken: current.accessToken, role: auth.role, userId: auth.userId };
 }
 
