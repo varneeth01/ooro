@@ -1,3 +1,4 @@
+import { canAdmin } from "@/apps/api/src/domain/admin-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -48,7 +49,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await getAuthenticatedAdmin(); const { id } = await params; const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: { message: "Invalid campaign update." } }, { status: 422 }); const input = parsed.data; const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
+    const admin = await getAuthenticatedAdmin(); if (!canAdmin(admin.role, "campaign:update")) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403); const { id } = await params; const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: { message: "Invalid campaign update." } }, { status: 422 }); const input = parsed.data; if (input.status === "APPROVED" && !canAdmin(admin.role, "campaign:approve")) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403); const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
     if (input.status === "ACTIVE" || input.status === "SCHEDULED") return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Publish through Admin → Scheduler to validate and reserve inventory."}},{status:409});
     const existingSchedule = await webPrisma.adSchedule.findUnique({where:{campaignId:id}});
     if (existingSchedule && (input.screenIds || input.startDate || input.endDate || input.startTime || input.endTime || input.days || input.playsPerLoop || input.autoSelectRadius)) return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Edit delivery dates, targeting and playback rules in Admin → Scheduler."}},{status:409});
