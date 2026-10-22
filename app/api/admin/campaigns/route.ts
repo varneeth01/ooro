@@ -12,7 +12,7 @@ function errorResponse(error: unknown) { const status = error instanceof AdminAu
 const campaignDate = (value: string | undefined, timezone: string, end = false) => { if (!value) return undefined; const suffix = timezone === "Asia/Kolkata" ? "+05:30" : "Z"; return new Date(`${value}T${end ? "23:59:59.999" : "00:00:00.000"}${suffix}`); };
 
 export async function GET() {
-  try { await getAuthenticatedAdmin(); const campaigns = await webPrisma.campaign.findMany({ orderBy: { updatedAt: "desc" }, include: { creatives: { where: { status: "APPROVED" }, include: { asset: true }, orderBy: { displayOrder: "asc" }, take: 1 }, assignments: { where: { active: true }, select: { displayId: true } } } }); return NextResponse.json({ data: safe(campaigns.map(campaign => ({ ...campaign, selectedScreens: campaign.assignments.length, creative: campaign.creatives[0] ?? null }))) }); } catch (error) { return errorResponse(error); }
+  try { const admin = await getAuthenticatedAdmin(); if (!canAdmin(admin.role, "campaign:read")) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403); const campaigns = await webPrisma.campaign.findMany({ orderBy: { updatedAt: "desc" }, include: { creatives: { where: { status: "APPROVED" }, include: { asset: true }, orderBy: { displayOrder: "asc" }, take: 1 }, assignments: { where: { active: true }, select: { displayId: true } } } }); return NextResponse.json({ data: safe(campaigns.map(campaign => ({ ...campaign, selectedScreens: campaign.assignments.length, creative: campaign.creatives[0] ?? null }))) }); } catch (error) { return errorResponse(error); }
 }
 
 export async function POST(request: Request) {
