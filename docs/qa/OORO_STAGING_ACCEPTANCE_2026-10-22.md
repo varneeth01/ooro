@@ -158,3 +158,36 @@ The four skipped API tests are database/DeviceOS integration tests requiring a d
 **PRODUCTION READY: NO**
 
 Primary blocker: the staging website is still on an older deployment. Secondary blockers are unverified migration state and unavailable authorized credentials for authenticated acceptance.
+
+## Post-frontend-deployment recheck — 2026-10-23
+
+The requested post-frontend-deployment verification was rerun against both staging targets. The frontend deployment could not be confirmed; public behavior is unchanged from the previous report.
+
+| Test | Result | Evidence |
+|---|---|---|
+| Website home | PASS | `GET https://staging.theooro.com/` → HTTP 200 |
+| Website admin login is email/password | FAIL | HTML contains “Authenticate with your OORO admin phone and one-time password”, “Admin phone”, and “Send admin OTP” |
+| Website submits to updated admin API | BLOCKED | The deployed page is the legacy phone/OTP implementation |
+| API admin login route | PASS | Empty `POST /api/auth/admin/login` → HTTP 422 validation response |
+| API password reset route | PASS | Empty `POST /api/auth/admin/request-password-reset` → HTTP 422 validation response |
+| API unauthenticated session | PASS | `GET /api/auth/session` → HTTP 401 |
+| API payment creation | PASS | `POST /api/public/campaign-orders` → HTTP 410 `PAYMENT_PROCESSING_RETIRED` |
+| API payment verification | PASS | `POST /api/public/campaign-orders/verify` → HTTP 410 |
+| API payment webhook | PASS | `POST /api/webhooks/razorpay` → HTTP 410 |
+| Website payment creation | FAIL | `POST /api/public/campaign-orders` → HTTP 422 legacy validation response |
+| Website payment verification | FAIL | `POST /api/public/campaign-orders/verify` → HTTP 400 `INVALID_PAYMENT_SIGNATURE` |
+| Website checkout/recharge | FAIL | Checkout and recharge routes → HTTP 401 legacy auth/payment messages |
+| API health | PASS | `/health`, `/api/health`, `/api/health/db` each → HTTP 200 |
+| Browser console/network inspection | NOT TESTED | Browser-control surface was unavailable; curl evidence above was collected instead |
+| Exact deployed API commit | BLOCKED | No public commit/build identifier; Coolify access unavailable |
+| Prisma migrations | BLOCKED | No authorized read-only staging database connection was available; no migration command was run |
+| Authenticated admin workflow | BLOCKED | No approved staging credentials/mailbox supplied |
+| Campaign workflow | NOT TESTED | No authorized disposable staging records or credentials supplied |
+
+Current decision remains:
+
+**STAGING READY: NO**
+
+**PRODUCTION READY: NO**
+
+Remaining launch blockers are: deploy the website from approved release `5c232b9a176abea4adf50e3bf550e5330dd2d074`; independently verify the deployed API and website commit identities; verify all 34 Prisma migrations are applied with zero pending using authorized read-only access; and run credentialed admin/RBAC/campaign acceptance with approved disposable test data.
