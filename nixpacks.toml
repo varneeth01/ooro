@@ -1,0 +1,13 @@
+# Native dependencies required when argon2 falls back to node-gyp on Node 22.
+# Secrets must be provided by the deployment environment, never at build time.
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+PYTHON = "python3"
+NPM_CONFIG_PYTHON = "python3"
+
+[phases.setup]
+nixPkgs = ["python3", "gcc", "gnumake", "pkg-config"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile --prod=false"]
