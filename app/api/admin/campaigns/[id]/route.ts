@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { AdminAuthError, getAuthenticatedAdmin } from "@/lib/auth/backend-session";
+import { AdminAuthError, getAuthenticatedAdmin, requireAdminPermission } from "@/lib/auth/backend-session";
 import { webPrisma } from "@/lib/web-prisma";
 import { safeDestination } from "@/apps/api/src/domain/qr-destination";
 import { getDisplayConnectivity } from "@/apps/api/src/domain/display-health";
@@ -48,6 +48,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAdminPermission("CAMPAIGN_EDIT");
     const admin = await getAuthenticatedAdmin(); const { id } = await params; const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: { message: "Invalid campaign update." } }, { status: 422 }); const input = parsed.data; const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
     if (input.status === "ACTIVE" || input.status === "SCHEDULED") return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Publish through Admin → Scheduler to validate and reserve inventory."}},{status:409});
     const existingSchedule = await webPrisma.adSchedule.findUnique({where:{campaignId:id}});

@@ -81,13 +81,18 @@ export async function consumePasswordToken(kind: 'setup' | 'reset', token: strin
   const hash = passwordTokenHash(token)
   const field = kind === 'setup' ? 'passwordSetupTokenHash' : 'passwordResetTokenHash'
   const expiresField = kind === 'setup' ? 'passwordSetupTokenExpiresAt' : 'passwordResetTokenExpiresAt'
-  const user = await prisma.user.findFirst({ where: { [field]: hash, [expiresField]: { gt: new Date() }, role: { in: adminRoles }, accountStatus: 'ACTIVE' } })
+  const now = new Date()
+  const user = await prisma.user.findFirst({ where: { [field]: hash, [expiresField]: { gt: now }, role: { in: adminRoles }, accountStatus: 'ACTIVE' } })
   if (!user) throw new ApiError('INVALID_PASSWORD_TOKEN', 'This password link is invalid or expired', 400)
   const passwordHash = await hashPassword(password)
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash, passwordChangedAt: new Date(), passwordSetupTokenHash: null, passwordSetupTokenExpiresAt: null, passwordResetTokenHash: null, passwordResetTokenExpiresAt: null, failedLoginAttempts: 0, lockedUntil: null } }),
-    prisma.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
-  ])
+  await prisma.$transaction(async (tx) => {
+    const consumed = await tx.user.updateMany({
+      where: { id: user.id, [field]: hash, [expiresField]: { gt: new Date() }, role: { in: adminRoles }, accountStatus: 'ACTIVE' },
+      data: { passwordHash, passwordChangedAt: new Date(), passwordSetupTokenHash: null, passwordSetupTokenExpiresAt: null, passwordResetTokenHash: null, passwordResetTokenExpiresAt: null, failedLoginAttempts: 0, lockedUntil: null },
+    })
+    if (consumed.count !== 1) throw new ApiError('INVALID_PASSWORD_TOKEN', 'This password link is invalid or expired', 400)
+    await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } })
+  })
   return user
 }
 

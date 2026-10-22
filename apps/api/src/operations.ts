@@ -5,8 +5,9 @@ import { requireRoles, response } from './http.js'
 import { ApiError } from './errors.js'
 import { saveSchedule } from './domain/schedule-service.js'
 import { scheduleInput } from './domain/scheduling.js'
+import { campaignSchedulingRoles } from './domain/admin-auth.js'
 
-const roles = ['ADMIN','SUPER_ADMIN','OPERATIONS']
+const roles = campaignSchedulingRoles
 const safe = (data: unknown) => JSON.parse(JSON.stringify(data,(_,v)=>typeof v==='bigint'?v.toString():v))
 export function registerOperations(app: FastifyInstance) {
  app.get('/api/admin/scheduler', async (request,reply) => {
