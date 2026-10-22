@@ -22,7 +22,7 @@ The checked-in `Dockerfile.api` is an equivalent Node 22 fallback for a Docker-b
 
 Set these in Coolify's runtime environment/secrets, not in the build environment:
 
-`NODE_ENV=production`, `PORT`, `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `ADMIN_WEB_BASE_URL`, `EMAIL_FROM`, `EMAIL_PROVIDER_API_KEY`, `DEVICEOS_STORAGE_MODE=s3`, `DEVICEOS_S3_BUCKET`, `DEVICEOS_S3_REGION`, `DEVICEOS_S3_ENDPOINT`, `DEVICEOS_S3_ACCESS_KEY_ID`, `DEVICEOS_S3_SECRET_ACCESS_KEY`, `DEVICEOS_DOWNLOAD_BASE_URL`, `RAZORPAY_MODE`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, and the documented TTL/rate-limit settings.
+`NODE_ENV=production`, `PORT`, `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `ADMIN_WEB_BASE_URL`, `EMAIL_FROM`, `EMAIL_PROVIDER_API_KEY`, `DEVICEOS_STORAGE_MODE=s3`, `DEVICEOS_S3_BUCKET`, `DEVICEOS_S3_REGION`, `DEVICEOS_S3_ENDPOINT`, `DEVICEOS_S3_ACCESS_KEY_ID`, `DEVICEOS_S3_SECRET_ACCESS_KEY`, `DEVICEOS_DOWNLOAD_BASE_URL`, and the documented TTL/rate-limit settings. No payment-provider credentials are required; historical MongoDB storage is optional.
 
 Use the exact names in `apps/api/.env.example`. Do not copy its development values into staging or production. `DEV_MOCK_OTP_ENABLED` must be explicitly `false` in production. Do not run bootstrap or password-setup commands until the migration and operator approval are complete.
 

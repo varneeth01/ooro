@@ -214,7 +214,7 @@ gcloud run deploy "$API_SERVICE" \
   --project "$PROJECT" --region "$REGION" --image "$API_IMAGE" \
   --service-account "$API_SA" \
   --add-cloudsql-instances "$SQL_CONNECTION" \
-  --update-env-vars "NODE_ENV=production,DEV_MOCK_OTP_ENABLED=false,ADMIN_WEB_BASE_URL=$CANONICAL_URL,GCS_BUCKET_NAME=$BUCKET,TRACKING_BASE_URL=$CANONICAL_URL,RAZORPAY_MODE=test" \
+  --update-env-vars "NODE_ENV=production,DEV_MOCK_OTP_ENABLED=false,ADMIN_WEB_BASE_URL=$CANONICAL_URL,GCS_BUCKET_NAME=$BUCKET,TRACKING_BASE_URL=$CANONICAL_URL" \
   --update-secrets "DATABASE_URL=ooro-database-url:latest,JWT_SECRET=ooro-jwt-secret:latest,EMAIL_PROVIDER_API_KEY=ooro-email-provider-api-key:latest"
 API_DEPLOY="PASS"
 pass "API service deployed"
@@ -260,7 +260,7 @@ gcloud run deploy "$WEB_SERVICE" \
   --project "$PROJECT" --region "$REGION" --image "$WEB_IMAGE" \
   --service-account "$WEB_SA" \
   --add-cloudsql-instances "$SQL_CONNECTION" \
-  --update-env-vars "NODE_ENV=production,OORO_BACKEND_API_URL=$API_URL,GCS_BUCKET_NAME=$BUCKET,RAZORPAY_MODE=test" \
+  --update-env-vars "NODE_ENV=production,OORO_BACKEND_API_URL=$API_URL,GCS_BUCKET_NAME=$BUCKET" \
   --update-secrets "DATABASE_URL=ooro-database-url:latest,OORO_SESSION_SECRET=ooro-session-secret:latest"
 WEB_DEPLOY="PASS"
 pass "Web service deployed"

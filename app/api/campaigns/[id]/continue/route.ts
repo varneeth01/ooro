@@ -20,12 +20,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       },
     });
     if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
-    if (campaign.pricingSource === "PUBLIC_SELF_SERVE") {
-      const paidOrder = await webPrisma.guestCampaignOrder.findFirst({ where: { campaignId: campaign.id, ownerEmail, status: { in: ["PAID", "PAYMENT_VERIFIED", "CAMPAIGN_PENDING_REVIEW"] } }, orderBy: { createdAt: "desc" } });
-      if (!paidOrder) return NextResponse.json({ error: { code: "PAYMENT_REQUIRED", message: "Complete verified payment before reserving self-serve inventory." } }, { status: 402 });
-      const reserved = await webPrisma.inventoryAllocation.count({ where: { campaignId: campaign.id, status: { in: ["RESERVED", "ACTIVE"] } } });
-      return NextResponse.json({ data: { id: campaign.id, status: campaign.status, name: campaign.name, startsAt: campaign.startsAt, endsAt: campaign.endsAt, transition: "PAYMENT_CONFIRMED", deliveryQueued: reserved > 0 } });
-    }
+    if (campaign.pricingSource === "PUBLIC_SELF_SERVE") return NextResponse.json({ error: { code: "OPERATIONAL_APPROVAL_REQUIRED", message: "This campaign requires OORO operations approval before inventory can be reserved." } }, { status: 409 });
     if (campaign.campaignCenterLat !== null && campaign.campaignCenterLng !== null && campaign.radiusKm !== null && !isForecastFresh(campaign.forecastGeneratedAt, new Date(), (await webPrisma.forecastSetting.findUnique({ where: { key: "DEFAULT" } }))?.forecastTtlMinutes ?? 15)) {
       console.warn("FORECAST_REVALIDATION_FAILED", campaign.id);
       return NextResponse.json({ error: { code: "FORECAST_EXPIRED", message: "Campaign availability has changed since your estimate was created. Refresh the forecast before continuing." } }, { status: 409 });
