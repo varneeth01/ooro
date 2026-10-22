@@ -32,7 +32,19 @@ Use the exact names in `apps/api/.env.example`. Do not copy its development valu
 2. Configure Coolify runtime secrets and HTTPS domains for API and web.
 3. Deploy the reviewed API commit with health checks on `/health` and `/api/health/db`.
 4. Run `prisma migrate deploy` only against the intended staging `DATABASE_URL` from a controlled release job.
-5. Complete admin setup/reset, role-boundary, driver, display, DeviceOS, payment-signature and email smoke tests.
+5. Complete admin setup/reset, role-boundary, driver, display, DeviceOS and email smoke tests. Payment processing is retired and is not a launch dependency.
 6. Verify logs contain request IDs but no passwords, tokens, authorization headers or secret URLs.
 7. Promote the same immutable image/commit only after the staging checklist passes.
+
+## Automated smoke test
+
+From a checked-out reviewed commit, run the credential-free checks:
+
+```bash
+BASE_URL=https://staging.theooro.com \
+API_URL=https://api-staging.theooro.com \
+scripts/release/staging-smoke.sh
+```
+
+For the approved operator workflow, provide `ADMIN_EMAIL` and `ADMIN_PASSWORD` only through the protected shell environment. Add `SMOKE_REQUIRE_ADMIN=true` so missing credentials fail the run. The script never prints credentials or bearer tokens. Password-reset token consumption and email delivery still require a controlled mailbox test because issuing a reset email alone cannot prove token use or expiry.
 
