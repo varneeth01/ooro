@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { config } from './config.js'
 import { prisma } from './prisma.js'
 import { forbidden, unauthorized } from './errors.js'
+import { hasAdminPermission, type AdminPermission } from './domain/admin-auth.js'
 
 const secret = new TextEncoder().encode(config.jwtSecret)
 export type AuthContext = { userId: string; role: string; driverId?: string; displayId?: string }
@@ -42,6 +43,11 @@ export async function requireAuth(request: FastifyRequest) {
 export async function requireRoles(request: FastifyRequest, roles: string[]) {
   const auth = await authenticate(request)
   if (!roles.includes(auth.role)) throw forbidden()
+  return verifyCurrentUser(auth)
+}
+export async function requirePermission(request: FastifyRequest, permission: AdminPermission) {
+  const auth = await authenticate(request)
+  if (!hasAdminPermission(auth.role, permission)) throw forbidden()
   return verifyCurrentUser(auth)
 }
 

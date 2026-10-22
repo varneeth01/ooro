@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import { cookies } from "next/headers";
 import { backendApiUrl } from "@/lib/backend-url";
 import { SESSION_COOKIE } from "@/lib/auth/session";
+import { hasAdminPermission, type AdminPermission } from "@/apps/api/src/domain/admin-auth";
 
 type TokenSet = { accessToken: string; refreshToken: string };
 type BackendAuth = { userId: string; role: string; driverId?: string };
@@ -88,6 +89,12 @@ export async function getAuthenticatedAdmin({ refreshSession = true } = {}) {
   }
   if (!["ADMIN", "SUPER_ADMIN", "OPERATIONS", "SUPPORT", "FINANCE"].includes(auth.role)) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
   return { accessToken: current.accessToken, role: auth.role, userId: auth.userId };
+}
+
+export async function requireAdminPermission(permission: AdminPermission, options?: { refreshSession?: boolean }) {
+  const admin = await getAuthenticatedAdmin(options);
+  if (!hasAdminPermission(admin.role, permission)) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
+  return admin;
 }
 
 export async function proxyAdminRequest(path: string, init: RequestInit = {}) {

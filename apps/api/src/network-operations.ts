@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from './prisma.js'
 import { requireRoles,response } from './http.js'
-const roles=['ADMIN','SUPER_ADMIN','OPERATIONS']
+import { deviceOsWriteRoles } from './domain/admin-auth.js'
+const roles=deviceOsWriteRoles
 export function registerNetworkOperations(app:FastifyInstance){
  app.get('/api/admin/network',async(request,reply)=>{
   await requireRoles(request,roles)
