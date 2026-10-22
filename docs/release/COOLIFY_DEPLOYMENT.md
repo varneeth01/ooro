@@ -36,3 +36,15 @@ Use the exact names in `apps/api/.env.example`. Do not copy its development valu
 6. Verify logs contain request IDs but no passwords, tokens, authorization headers or secret URLs.
 7. Promote the same immutable image/commit only after the staging checklist passes.
 
+## Automated smoke test
+
+From a checked-out reviewed commit, run the credential-free checks:
+
+```bash
+BASE_URL=https://staging.theooro.com \
+API_URL=https://api-staging.theooro.com \
+scripts/release/staging-smoke.sh
+```
+
+For the approved operator workflow, provide `ADMIN_EMAIL` and `ADMIN_PASSWORD` only through the protected shell environment. Add `SMOKE_REQUIRE_ADMIN=true` so missing credentials fail the run. The script never prints credentials or bearer tokens. Password-reset token consumption and email delivery still require a controlled mailbox test because issuing a reset email alone cannot prove token use or expiry.
+

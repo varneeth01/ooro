@@ -22,6 +22,7 @@ Statuses are based on the 2026-10-22 repository audit. `PASS` means locally evid
 - [NOT TESTED] Staging campaign, creative upload/serving, scheduling, proof-of-play and reconciliation workflow.
 - [NOT TESTED] Razorpay test-mode checkout, webhook signatures, duplicate events and failure/refund handling.
 - [NOT TESTED] HTTPS, CORS allowlist, backup restore, alerting and rollback in Coolify.
+- [BLOCKED] `scripts/release/staging-smoke.sh` currently reports missing admin routes and a payment webhook dependency failure on the deployed staging revision.
 
 ## Required before Android fleet launch
 
