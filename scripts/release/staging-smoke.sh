@@ -43,7 +43,7 @@ check_status "generic password reset request" 202 POST "$API_URL/api/auth/admin/
 check_status "invalid payment webhook rejected" 400 POST "$API_URL/api/webhooks/razorpay" '{"event":"smoke.invalid"}'
 
 if [[ -n "${ADMIN_EMAIL:-}" && -n "${ADMIN_PASSWORD:-}" ]]; then
-  login_status="$(curl -sS --max-time 20 -H 'content-type: application/json' --data "$(jq -cn --arg email "$ADMIN_EMAIL" --arg password "$ADMIN_PASSWORD" '{email:$email,password:$password}')" -o "$TMP_DIR/login" -w '%{http_code}' "$API_URL/api/auth/admin/login")" || login_status="000"
+  login_status="$(jq -cn '{email:env.ADMIN_EMAIL,password:env.ADMIN_PASSWORD}' | curl -sS --max-time 20 -H 'content-type: application/json' --data-binary @- -o "$TMP_DIR/login" -w '%{http_code}' "$API_URL/api/auth/admin/login")" || login_status="000"
   if [[ "$login_status" != "200" ]]; then
     printf 'FAIL %-32s expected=200 actual=%s\n' "admin login" "$login_status"
     fail=$((fail + 1))
@@ -53,14 +53,15 @@ if [[ -n "${ADMIN_EMAIL:-}" && -n "${ADMIN_PASSWORD:-}" ]]; then
     access_token="$(jq -er '.data.accessToken' "$TMP_DIR/login")"
     refresh_token="$(jq -er '.data.refreshToken' "$TMP_DIR/login")"
     session_status="$(curl -sS --max-time 20 -H "authorization: Bearer $access_token" -o "$TMP_DIR/session" -w '%{http_code}' "$API_URL/api/auth/session")" || session_status="000"
-    [[ "$session_status" == "200" ]] || { printf 'FAIL %-32s expected=200 actual=%s\n' "authenticated session" "$session_status"; fail=$((fail + 1)); }
     if [[ "$session_status" == "200" ]]; then
-      pass=$((pass + 1))
+      pass=$((pass + 1)); printf 'PASS %-32s %s\n' "authenticated session" "$session_status"
+    else
+      printf 'FAIL %-32s expected=200 actual=%s\n' "authenticated session" "$session_status"; fail=$((fail + 1))
     fi
-    logout_status="$(curl -sS --max-time 20 -H 'content-type: application/json' --data "$(jq -cn --arg token "$refresh_token" '{refreshToken:$token}')" -o "$TMP_DIR/logout" -w '%{http_code}' "$API_URL/api/auth/logout")" || logout_status="000"
+    logout_status="$(REFRESH_TOKEN="$refresh_token" jq -cn '{refreshToken:env.REFRESH_TOKEN}' | curl -sS --max-time 20 -H 'content-type: application/json' --data-binary @- -o "$TMP_DIR/logout" -w '%{http_code}' "$API_URL/api/auth/logout")" || logout_status="000"
     [[ "$logout_status" == "200" ]] || { printf 'FAIL %-32s expected=200 actual=%s\n' "logout" "$logout_status"; fail=$((fail + 1)); }
     if [[ "$logout_status" == "200" ]]; then pass=$((pass + 1)); printf 'PASS %-32s %s\n' "logout" "$logout_status"; fi
-    refresh_status="$(curl -sS --max-time 20 -H 'content-type: application/json' --data "$(jq -cn --arg token "$refresh_token" '{refreshToken:$token}')" -o "$TMP_DIR/refresh" -w '%{http_code}' "$API_URL/api/auth/refresh")" || refresh_status="000"
+    refresh_status="$(REFRESH_TOKEN="$refresh_token" jq -cn '{refreshToken:env.REFRESH_TOKEN}' | curl -sS --max-time 20 -H 'content-type: application/json' --data-binary @- -o "$TMP_DIR/refresh" -w '%{http_code}' "$API_URL/api/auth/refresh")" || refresh_status="000"
     [[ "$refresh_status" == "401" ]] || { printf 'FAIL %-32s expected=401 actual=%s\n' "revoked refresh" "$refresh_status"; fail=$((fail + 1)); }
     if [[ "$refresh_status" == "401" ]]; then pass=$((pass + 1)); printf 'PASS %-32s %s\n' "revoked refresh" "$refresh_status"; fi
   fi
