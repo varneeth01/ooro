@@ -40,7 +40,6 @@ check_status "API database readiness" 200 GET "$API_URL/api/health/db"
 check_status "unauthenticated session" 401 GET "$API_URL/api/auth/session"
 check_status "admin login route exists" 422 POST "$API_URL/api/auth/admin/login" '{}'
 check_status "generic password reset request" 202 POST "$API_URL/api/auth/admin/request-password-reset" '{"email":"ooro-smoke-invalid@example.invalid"}'
-check_status "invalid payment webhook rejected" 400 POST "$API_URL/api/webhooks/razorpay" '{"event":"smoke.invalid"}'
 
 if [[ -n "${ADMIN_EMAIL:-}" && -n "${ADMIN_PASSWORD:-}" ]]; then
   login_status="$(jq -cn '{email:env.ADMIN_EMAIL,password:env.ADMIN_PASSWORD}' | curl -sS --max-time 20 -H 'content-type: application/json' --data-binary @- -o "$TMP_DIR/login" -w '%{http_code}' "$API_URL/api/auth/admin/login")" || login_status="000"

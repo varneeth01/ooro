@@ -9,7 +9,7 @@ Statuses are based on the 2026-10-22 repository audit. `PASS` means locally evid
 - [PASS] Disposable PostgreSQL 16 database accepted all 34 checked-in migrations.
 - [PASS] PostgreSQL-backed API test run: 91 total, 88 passed, 0 failed, 3 skipped.
 - [BLOCKED] Coolify staging deployment and smoke tests have not been run.
-- [BLOCKED] Production email, database, R2, payment, HTTPS, backup and monitoring configuration is not verified.
+- [BLOCKED] Production email, database, R2, HTTPS, backup and monitoring configuration is not verified.
 - [BLOCKED] DeviceOS service separation is not present on `main`.
 - [BLOCKED] Android SDK/signing keys/physical devices were unavailable; no production APK/AAB was produced.
 
@@ -20,9 +20,10 @@ Statuses are based on the 2026-10-22 repository audit. `PASS` means locally evid
 - [PASS] Local admin login, generic failures, logout revocation, reset and single-use reset passed.
 - [NOT TESTED] Staging admin setup email delivery, reset expiry and lockout timing.
 - [NOT TESTED] Staging campaign, creative upload/serving, scheduling, proof-of-play and reconciliation workflow.
-- [NOT TESTED] Razorpay test-mode checkout, webhook signatures, duplicate events and failure/refund handling.
+- [PASS] Online payment processing is intentionally retired from the launch scope; historical financial data remains preserved.
+- [NOT TESTED] Deprecated payment endpoints reject transaction creation/callback processing; covered by the payment-retirement change set.
 - [NOT TESTED] HTTPS, CORS allowlist, backup restore, alerting and rollback in Coolify.
-- [BLOCKED] `scripts/release/staging-smoke.sh` currently reports missing admin routes and a payment webhook dependency failure on the deployed staging revision.
+- [BLOCKED] `scripts/release/staging-smoke.sh` currently reports missing admin routes on the deployed staging revision.
 
 ## Required before Android fleet launch
 

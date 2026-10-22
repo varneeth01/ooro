@@ -32,7 +32,7 @@ Use the exact names in `apps/api/.env.example`. Do not copy its development valu
 2. Configure Coolify runtime secrets and HTTPS domains for API and web.
 3. Deploy the reviewed API commit with health checks on `/health` and `/api/health/db`.
 4. Run `prisma migrate deploy` only against the intended staging `DATABASE_URL` from a controlled release job.
-5. Complete admin setup/reset, role-boundary, driver, display, DeviceOS, payment-signature and email smoke tests.
+5. Complete admin setup/reset, role-boundary, driver, display, DeviceOS and email smoke tests. Payment processing is retired and is not a launch dependency.
 6. Verify logs contain request IDs but no passwords, tokens, authorization headers or secret URLs.
 7. Promote the same immutable image/commit only after the staging checklist passes.
 
