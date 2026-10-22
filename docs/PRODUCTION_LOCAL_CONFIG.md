@@ -5,7 +5,7 @@
 - `DATABASE_URL`: managed PostgreSQL; never localhost in production.
 - `PUBLIC_ASSET_BASE_URL=https://theooro.com` (or the canonical CDN/object-storage HTTPS origin).
 - `OBJECT_STORAGE_DIR`: persistent mounted object-storage adapter for the current file-backed implementation, or replace `storeCreative` with the deployment's S3-compatible adapter. Assets must not be an ephemeral serverless filesystem.
-- `RAZORPAY_MODE`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
+- No payment-provider credentials are required; online payment processing is retired.
 - `JWT_SECRET`, `DEV_MOCK_OTP_ENABLED=false`, and production CORS origins.
 
 The release APK uses `https://theooro.com` only. Device traffic is outbound HTTPS with bearer device authentication; NAT or a shared LAN is not required. Manifests are fetched after heartbeat/version comparison, and queued `SYNC_MANIFEST`/`REFRESH_MANIFEST` commands are delivered on the next poll.
