@@ -16,7 +16,8 @@ const campaignDate = (value: string | undefined, timezone: string, end = false) 
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await getAuthenticatedAdmin();
+    const admin = await getAuthenticatedAdmin();
+    if (!canAdmin(admin.role, "campaign:read")) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
     const { id } = await params;
     const campaign = await webPrisma.campaign.findUnique({
       where: { id },
