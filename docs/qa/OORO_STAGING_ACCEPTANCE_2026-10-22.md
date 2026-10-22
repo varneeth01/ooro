@@ -191,3 +191,61 @@ Current decision remains:
 **PRODUCTION READY: NO**
 
 Remaining launch blockers are: deploy the website from approved release `5c232b9a176abea4adf50e3bf550e5330dd2d074`; independently verify the deployed API and website commit identities; verify all 34 Prisma migrations are applied with zero pending using authorized read-only access; and run credentialed admin/RBAC/campaign acceptance with approved disposable test data.
+
+## Version mismatch investigation — 2026-10-23
+
+### Approved source evidence
+
+The approved commit contains `app/admin/login/page.tsx` with the text “Sign in with your OORO admin email and password.” It renders `components/auth/admin-auth-form.tsx`, which has an email input, a password input, and submits JSON to `/api/auth/admin/login`. The approved source contains no phone/OTP implementation under the admin login route.
+
+### Live website evidence
+
+`GET https://staging.theooro.com/admin/login` returned HTTP 200 but rendered:
+
+- “Authenticate with your OORO admin phone and one-time password.”
+- “Admin phone”
+- “Send admin OTP”
+
+The page references `_next/static/chunks/app/admin/login/page-434ac1906457d4ff.js`. That JavaScript asset also contains `phone` and `OTP` markers. The live login HTML SHA-256 was:
+
+```text
+891bb89019e9dd8ab8cf5bbdda272014bb94516cb5063f510b69ba2bd6865738
+```
+
+The login asset SHA-256 was:
+
+```text
+7049e949c14ca908604a286ae722dba2678574c09a011a018d804ea9716a7a52
+```
+
+Adding `?cachebust=20261023` and `?__nextDefaultLocale=en` produced the same HTML hash and legacy markers. This makes a browser-local cache unlikely.
+
+### staging.theooro.com versus deploy.theooro.com
+
+Both hosts returned identical `/` and `/admin/login` body hashes, identical legacy login markers, identical Next.js asset paths and identical asset hashes. Both used `x-nextjs-cache: HIT`, `cache-control: s-maxage=31536000` for the HTML, `x-powered-by: Next.js`, and Cloudflare. DNS resolution returned the same Cloudflare address set. This is consistent with both hostnames routing to the same old website deployment/origin; it is not evidence of two independently deployed releases.
+
+### API comparison
+
+The API shows the newer release behavior:
+
+- Empty `POST /api/auth/admin/login` → HTTP 422 validation response.
+- `GET /api/auth/session` → HTTP 401.
+- `POST /api/public/campaign-orders` → HTTP 410 `PAYMENT_PROCESSING_RETIRED`.
+- `POST /api/public/campaign-orders/verify` → HTTP 410.
+- `POST /api/webhooks/razorpay` → HTTP 410.
+
+No public API response exposes a commit SHA or image digest, so the exact API commit remains independently unverified.
+
+### Server Reference ID / malformed request result
+
+The API’s normal invalid JSON request (`POST /api/auth/admin/login` with body `{`) returned HTTP 500 with a generic `INTERNAL_ERROR` and a request ID. The same endpoint with valid empty JSON returned HTTP 422 with a validation error. Therefore a “Server Reference ID” shown for this case is a correlation identifier attached to a malformed-request server error, not proof of a version mismatch. The malformed JSON → 500 behavior is reproducible and should be hardened separately so parse failures return a controlled 400/422 response.
+
+### Exact Coolify actions
+
+1. In Coolify, open the website application and confirm the source repository, branch `main`, and commit/build revision are `5c232b9a176abea4adf50e3bf550e5330dd2d074`.
+2. Trigger a new build/deploy for the website application; do not rely on restart-only or an API-only deployment.
+3. Confirm the build log contains the approved commit and the Next.js build completes successfully.
+4. Confirm the website domain `staging.theooro.com` is attached to this newly deployed application, not an older Netlify/Coolify service or preview deployment.
+5. If Coolify uses an external CDN/proxy, purge only the website deployment’s cached HTML/static assets after the new deployment is healthy. Do not purge unrelated sites or databases.
+6. Verify `/admin/login` contains `Admin email`, `Password`, and `Sign in`, and that its loaded asset hashes differ from the legacy `page-434ac1906457d4ff.js` asset.
+7. Repeat the payment-route checks and the authenticated staging acceptance suite before production consideration.
