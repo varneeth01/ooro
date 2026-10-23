@@ -138,7 +138,11 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   if(challenge) await prisma.otpChallenge.update({where:{id:challenge.id},data:{attempts:{increment:1}}})
   if (!challenge || challenge.attempts >= 5 || challenge.codeHash !== hashOtp(phone, code)) throw new ApiError('INVALID_OTP', 'Invalid or expired OTP', 401)
   const consumed = await prisma.otpChallenge.updateMany({ where: { id: challenge.id, consumedAt:null, attempts:{lte:5} }, data: { consumedAt: new Date() } }); if(consumed.count!==1) throw unauthorized('Code already used or too many attempts')
+  // Driver SMS OTP must never authenticate administrator or other non-driver accounts.
+  const existingUser = await prisma.user.findUnique({ where: { phone }, select: { role: true } })
+  if (existingUser && existingUser.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
   const user = await prisma.user.upsert({ where: { phone }, update: name ? { name } : {}, create: { phone, name, role: 'DRIVER', accountStatus: 'PENDING' } })
+  if (user.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
   const tokens = await issueTokens(user.id, user.role, driver.id)
   return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role }, driver: { id: driver.id, onboardingStatus: driver.onboardingStatus } }, reply)
