@@ -20,6 +20,10 @@ test('real PostgreSQL: auth → schedule → inventory → manifest → heartbea
  const call=(method:'GET'|'POST',url:string,payload?:unknown)=>app.inject({method,url,headers,...(payload?{payload:payload as object}:{})})
  try {
   assert.equal((await app.inject({method:'GET',url:'/api/admin/scheduler'})).statusCode,401)
+  await prisma.campaign.update({where:{id:campaign.id},data:{status:'DRAFT'}})
+  const unapprovedCheck=await call('POST','/api/admin/scheduler/check',input);assert.equal(unapprovedCheck.statusCode,200);assert.equal(unapprovedCheck.json().data.canPublish,false)
+  assert.equal((await call('POST','/api/admin/scheduler/publish',input)).statusCode,409)
+  await prisma.campaign.update({where:{id:campaign.id},data:{status:'APPROVED'}})
   const preview=await call('POST','/api/admin/scheduler/check',input);assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().data.canPublish,true)
   const saved=await call('POST','/api/admin/scheduler/publish',input);assert.equal(saved.statusCode,200,saved.body)
   assert.ok(await prisma.inventoryAllocation.count({where:{campaignId:campaign.id,status:'RESERVED'}})>0)

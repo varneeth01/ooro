@@ -84,10 +84,16 @@ export async function consumePasswordToken(kind: 'setup' | 'reset', token: strin
   const user = await prisma.user.findFirst({ where: { [field]: hash, [expiresField]: { gt: new Date() }, role: { in: adminRoles }, accountStatus: 'ACTIVE' } })
   if (!user) throw new ApiError('INVALID_PASSWORD_TOKEN', 'This password link is invalid or expired', 400)
   const passwordHash = await hashPassword(password)
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash, passwordChangedAt: new Date(), passwordSetupTokenHash: null, passwordSetupTokenExpiresAt: null, passwordResetTokenHash: null, passwordResetTokenExpiresAt: null, failedLoginAttempts: 0, lockedUntil: null } }),
-    prisma.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
-  ])
+  await prisma.$transaction(async (tx) => {
+    const now = new Date()
+    // Conditional update is the single-use gate: concurrent requests cannot both win.
+    const claimed = await tx.user.updateMany({
+      where: { id: user.id, [field]: hash, [expiresField]: { gt: now }, accountStatus: 'ACTIVE', role: { in: adminRoles } },
+      data: { passwordHash, passwordChangedAt: now, passwordSetupTokenHash: null, passwordSetupTokenExpiresAt: null, passwordResetTokenHash: null, passwordResetTokenExpiresAt: null, failedLoginAttempts: 0, lockedUntil: null },
+    })
+    if (claimed.count !== 1) throw new ApiError('INVALID_PASSWORD_TOKEN', 'This password link is invalid or expired', 400)
+    await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } })
+  })
   return user
 }
 

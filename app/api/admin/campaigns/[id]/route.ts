@@ -1,7 +1,8 @@
+import { canAdmin } from "@/apps/api/src/domain/admin-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { AdminAuthError, getAuthenticatedAdmin } from "@/lib/auth/backend-session";
+import { AdminAuthError, getAuthenticatedAdmin, requireAdminPermission } from "@/lib/auth/backend-session";
 import { webPrisma } from "@/lib/web-prisma";
 import { safeDestination } from "@/apps/api/src/domain/qr-destination";
 import { getDisplayConnectivity } from "@/apps/api/src/domain/display-health";
@@ -15,7 +16,8 @@ const campaignDate = (value: string | undefined, timezone: string, end = false) 
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await getAuthenticatedAdmin();
+    const admin = await getAuthenticatedAdmin();
+    if (!canAdmin(admin.role, "campaign:read")) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
     const { id } = await params;
     const campaign = await webPrisma.campaign.findUnique({
       where: { id },
@@ -48,7 +50,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await getAuthenticatedAdmin(); const { id } = await params; const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: { message: "Invalid campaign update." } }, { status: 422 }); const input = parsed.data; const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
+    const admin = await requireAdminPermission("campaign:update"); const { id } = await params; const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: { message: "Invalid campaign update." } }, { status: 422 }); const input = parsed.data;
+    if (input.status === "APPROVED") await requireAdminPermission("campaign:approve");
+    if (input.status === "SCHEDULED" || input.status === "ACTIVE") await requireAdminPermission("campaign:schedule");
+    const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
     if (input.status === "ACTIVE" || input.status === "SCHEDULED") return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Publish through Admin → Scheduler to validate and reserve inventory."}},{status:409});
     const existingSchedule = await webPrisma.adSchedule.findUnique({where:{campaignId:id}});
     if (existingSchedule && (input.screenIds || input.startDate || input.endDate || input.startTime || input.endTime || input.days || input.playsPerLoop || input.autoSelectRadius)) return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Edit delivery dates, targeting and playback rules in Admin → Scheduler."}},{status:409});

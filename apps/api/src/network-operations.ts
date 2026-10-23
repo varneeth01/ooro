@@ -1,16 +1,15 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from './prisma.js'
-import { requireRoles,response } from './http.js'
-const roles=['ADMIN','SUPER_ADMIN','OPERATIONS']
+import { requirePermission, response } from './http.js'
 export function registerNetworkOperations(app:FastifyInstance){
  app.get('/api/admin/network',async(request,reply)=>{
-  await requireRoles(request,roles)
+  await requirePermission(request,'operations:write')
   const [depots,routes,vehicles,drivers,screens]=await Promise.all([prisma.depot.findMany(),prisma.route.findMany(),prisma.vehicle.findMany({select:{id:true,registrationNumber:true,type:true,city:true,area:true,depotId:true,routeId:true,driverId:true,status:true}}),prisma.driver.findMany({select:{id:true,user:{select:{name:true}}}}),prisma.display.findMany({select:{id:true,name:true,vehicleId:true,state:true,tags:true}})])
   return reply.send(response(request,{depots,routes,vehicles,drivers,screens}))
  })
  app.post('/api/admin/network',async(request,reply)=>{
-  const actor=await requireRoles(request,roles)
+  const actor=await requirePermission(request,'operations:write')
   const input=z.discriminatedUnion('kind',[
    z.object({kind:z.literal('depot'),id:z.string().uuid().optional(),name:z.string().trim().min(1).max(120),city:z.string().trim().min(1).max(120)}),
    z.object({kind:z.literal('route'),id:z.string().uuid().optional(),name:z.string().trim().min(1).max(120),city:z.string().trim().min(1).max(120),depotId:z.string().uuid().nullable().optional()}),
