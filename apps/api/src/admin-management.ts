@@ -24,11 +24,11 @@ async function audit(tx: Prisma.TransactionClient, actor: {userId:string;role:st
 }
 
 // Serializes last-Super-Admin changes across all API instances and concurrent requests.
-async function preserveLastSuperAdmin(tx: Prisma.TransactionClient, targetId: string) {
+async function preserveLastSuperAdmin(tx: Prisma.TransactionClient, targetId: string, nextRole?: string, nextStatus?: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(847293051)`
   const target = await tx.user.findUnique({where:{id:targetId},select:{id:true,role:true,accountStatus:true}})
   if (!target || !adminRoles.includes(target.role)) throw new ApiError('ADMIN_USER_NOT_FOUND','Administrator not found',404)
-  if (target.role === 'SUPER_ADMIN' && target.accountStatus === 'ACTIVE') {
+  if (target.role === 'SUPER_ADMIN' && target.accountStatus === 'ACTIVE' && (nextRole && nextRole !== 'SUPER_ADMIN' || nextStatus && nextStatus !== 'ACTIVE')) {
     const remaining = await tx.user.count({where:{role:'SUPER_ADMIN',accountStatus:'ACTIVE'}})
     if (remaining <= 1) throw conflict('Cannot disable or demote the last active Super Admin')
   }
@@ -117,7 +117,7 @@ export function registerAdminManagement(app: FastifyInstance) {
     const input=z.object({role:roleSchema.optional(),accountStatus:z.enum(['ACTIVE','SUSPENDED']).optional()}).strict().refine(v=>v.role!==undefined||v.accountStatus!==undefined).parse(request.body)
     const user=await prisma.$transaction(async tx=>{
       // Lock also protects against concurrent disable/demotion of two Super Admins.
-      const current=await preserveLastSuperAdmin(tx,id)
+      const current=await preserveLastSuperAdmin(tx,id,input.role,input.accountStatus)
       if(id===actor.userId && (input.accountStatus==='SUSPENDED'||(input.role&&input.role!=='SUPER_ADMIN'))) throw forbiddenAdmin()
       const effectiveRole=input.role ?? current.role
       const effectiveStatus=input.accountStatus ?? current.accountStatus
