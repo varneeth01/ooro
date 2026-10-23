@@ -10,3 +10,12 @@ export async function sendOrderConfirmation(order: GuestCampaignOrder) { const m
 export async function sendAdminPasswordSetupEmail(to: string, name: string | null, url: string) { const greeting = name ? `Hi ${escapeHtml(name)},` : 'Hi,'; return emailProvider.send({ to, subject: 'OORO — Set your admin password', text: `${name ? `Hi ${name},` : 'Hi,'}\n\nSet your OORO admin password using this one-time link:\n${url}\n\nThe link expires soon and can only be used once. If you did not expect this email, contact your OORO security administrator.`, html: `<p>${greeting}</p><p>Set your OORO admin password using this one-time link:</p><p><a href="${escapeHtml(url)}">Set admin password</a></p><p>The link expires soon and can only be used once. If you did not expect this email, contact your OORO security administrator.</p>` }) }
 export async function sendAdminPasswordResetEmail(to: string, name: string | null, url: string) { const greeting = name ? `Hi ${escapeHtml(name)},` : 'Hi,'; return emailProvider.send({ to, subject: 'OORO — Reset your admin password', text: `${name ? `Hi ${name},` : 'Hi,'}\n\nReset your OORO admin password using this one-time link:\n${url}\n\nThe link expires soon and can only be used once. If you did not request this, you can ignore this email.`, html: `<p>${greeting}</p><p>Reset your OORO admin password using this one-time link:</p><p><a href="${escapeHtml(url)}">Reset admin password</a></p><p>The link expires soon and can only be used once. If you did not request this, you can ignore this email.</p>` }) }
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character] ?? character))
+
+export async function sendAdminInvitationEmail(to: string, name: string, url: string) {
+  return emailProvider.send({
+    to,
+    subject: 'OORO — Administrator invitation',
+    text: `Hi ${name},\n\nYou have been invited to administer OORO. Accept your invitation here:\n${url}\n\nThis link expires in 48 hours, is single-use, and requires your own password. If unexpected, ignore this email.`,
+    html: `<p>Hi ${escapeHtml(name)},</p><p>You have been invited to administer OORO.</p><p><a href="${escapeHtml(url)}">Accept invitation</a></p><p>Expires in 48 hours and can only be used once.</p>`,
+  })
+}
