@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import { app } from './server.js'
 import { prisma } from './prisma.js'
 import { issueTokens } from './http.js'
@@ -18,6 +18,17 @@ test('Phase 2: Super Admin directory, invitation, lifecycle and immediately revo
   const secondary = await make('SUPER_ADMIN')
   const finance = await make('FINANCE')
   const support = await make('SUPPORT')
+  // OTP for an administrator's phone must not return an administrator access token.
+  const otpCode = '123456'
+  await prisma.otpChallenge.create({ data: {
+    phone: primary.phone,
+    codeHash: createHash('sha256').update(`${primary.phone}:${otpCode}`).digest('hex'),
+    expiresAt: new Date(Date.now() + 120000),
+  } })
+  const otpAttempt = await app.inject({ method: 'POST', url: '/api/auth/verify-otp', payload: { phone: primary.phone, code: otpCode } })
+  assert.equal(otpAttempt.statusCode, 401, otpAttempt.body)
+  assert.equal(await prisma.driver.count({ where: { userId: primary.id } }), 0)
+
   const adminToken = (await issueTokens(primary.id, primary.role)).accessToken
   const secondaryToken = (await issueTokens(secondary.id, secondary.role)).accessToken
   const financeToken = (await issueTokens(finance.id, finance.role)).accessToken
