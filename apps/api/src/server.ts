@@ -105,7 +105,7 @@ app.get('/go/:token', async (request, reply) => {
   return reply.code(302).header('Location', destination.toString()).send()
 })
 app.get('/api/admin/campaigns/:campaignId/qr-analytics', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'campaign:read')
   const { campaignId } = request.params as { campaignId: string }
   const [completedPlays, qrScans] = await Promise.all([
     prisma.proofOfPlay.count({ where: { campaignId, playbackCompleted: true } }),
@@ -355,13 +355,13 @@ app.get('/api/deviceos/storage', async (request, reply) => {
 })
 
 app.get('/api/admin/deviceos/devices', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const devices = await prisma.managedDevice.findMany({ include: { display: { select: { id: true, name: true, deviceId: true, state: true, vehicle: { select: { registrationNumber: true, city: true } } } }, _count: { select: { inventory: true, deploymentTargets: true } } }, orderBy: { updatedAt: 'desc' } })
   return ok(request, asDeviceOsJson(devices), reply)
 })
 
 app.get('/api/admin/deviceos/devices/:managedDeviceId/inventory', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const { managedDeviceId } = request.params as { managedDeviceId: string }
   const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId }, select: { id: true } })
   if (!device) throw notFound('Managed DeviceOS device not found')
@@ -370,13 +370,13 @@ app.get('/api/admin/deviceos/devices/:managedDeviceId/inventory', async (request
 })
 
 app.get('/api/admin/deviceos/telemetry', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const devices = await prisma.managedDevice.findMany({ select: { id: true, displayId: true, enrollmentStatus: true, lastSeenAt: true, capabilities: true, display: { select: { name: true, deviceId: true } } }, orderBy: { lastSeenAt: 'desc' } })
   return ok(request, asDeviceOsJson(devices.map((device) => ({ ...device, telemetry: (device.capabilities as Record<string, unknown> | null)?.telemetry ?? {} }))), reply)
 })
 
 app.get('/api/admin/deviceos/audit-logs', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const query = request.query as { limit?: string }
   const limit = Math.min(Math.max(Number(query.limit ?? 200) || 200, 1), 500)
   const events = await prisma.deviceOsAuditEvent.findMany({ take: limit, orderBy: { createdAt: 'desc' }, include: { managedDevice: { select: { display: { select: { name: true, deviceId: true } } } }, campaign: { select: { name: true } } } })
@@ -416,7 +416,7 @@ app.post('/api/admin/deviceos/devices/:managedDeviceId/rotate-credential', async
 })
 
 app.get('/api/admin/deviceos/applications', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   return ok(request, asDeviceOsJson(await prisma.managedApplication.findMany({ include: { _count: { select: { releases: true, inventory: true } } }, orderBy: { updatedAt: 'desc' } })), reply)
 })
 
@@ -450,7 +450,7 @@ app.post('/api/admin/deviceos/applications/:applicationId/allowlist', async (req
 })
 
 app.get('/api/admin/deviceos/applications/:applicationId/releases', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const { applicationId } = request.params as { applicationId: string }
   const releases = await prisma.applicationRelease.findMany({ where: { applicationId }, orderBy: { createdAt: 'desc' } })
   return ok(request, asDeviceOsJson(releases), reply)
@@ -599,14 +599,14 @@ app.post('/api/admin/deviceos/deployments', async (request, reply) => {
 })
 
 app.get('/api/admin/deviceos/deployments', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const campaigns = await prisma.deploymentCampaign.findMany({ include: { application: true, release: true, _count: { select: { targets: true } }, targets: { select: { state: true } } }, orderBy: { createdAt: 'desc' } })
   const summarized = campaigns.map(({ targets, ...campaign }) => ({ ...campaign, targetSummary: targets.reduce<Record<string, number>>((summary, target) => { summary[target.state] = (summary[target.state] ?? 0) + 1; return summary }, {}) }))
   return ok(request, asDeviceOsJson(summarized), reply)
 })
 
 app.get('/api/admin/deviceos/deployments/:campaignId', async (request, reply) => {
-  await requireRoles(request, adminRoles)
+  await requirePermission(request, 'device:read')
   const { campaignId } = request.params as { campaignId: string }
   const campaign = await prisma.deploymentCampaign.findUnique({
     where: { id: campaignId },

@@ -1,11 +1,10 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from './prisma.js'
-import { requirePermission, requireRoles, response } from './http.js'
-const roles=['ADMIN','SUPER_ADMIN','OPERATIONS']
+import { requirePermission, response } from './http.js'
 export function registerNetworkOperations(app:FastifyInstance){
  app.get('/api/admin/network',async(request,reply)=>{
-  await requireRoles(request,roles)
+  await requirePermission(request,'operations:write')
   const [depots,routes,vehicles,drivers,screens]=await Promise.all([prisma.depot.findMany(),prisma.route.findMany(),prisma.vehicle.findMany({select:{id:true,registrationNumber:true,type:true,city:true,area:true,depotId:true,routeId:true,driverId:true,status:true}}),prisma.driver.findMany({select:{id:true,user:{select:{name:true}}}}),prisma.display.findMany({select:{id:true,name:true,vehicleId:true,state:true,tags:true}})])
   return reply.send(response(request,{depots,routes,vehicles,drivers,screens}))
  })

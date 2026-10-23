@@ -1,16 +1,15 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from './prisma.js'
-import { requirePermission, requireRoles, response } from './http.js'
+import { requirePermission, response } from './http.js'
 import { ApiError } from './errors.js'
 import { saveSchedule } from './domain/schedule-service.js'
 import { scheduleInput } from './domain/scheduling.js'
 
-const roles = ['ADMIN','SUPER_ADMIN','OPERATIONS']
 const safe = (data: unknown) => JSON.parse(JSON.stringify(data,(_,v)=>typeof v==='bigint'?v.toString():v))
 export function registerOperations(app: FastifyInstance) {
  app.get('/api/admin/scheduler', async (request,reply) => {
-  await requireRoles(request,roles)
+  await requirePermission(request,'operations:write')
   const [schedules,campaigns,screens,groups,routes,depots,vehicles] = await Promise.all([
    prisma.adSchedule.findMany({include:{campaign:{select:{name:true,assignments:{where:{active:true},select:{displayId:true}}}}},orderBy:{updatedAt:'desc'},take:500}),
    prisma.campaign.findMany({where:{status:{notIn:['COMPLETED','CANCELLED']}},select:{id:true,name:true,status:true,ownerEmail:true,startsAt:true,endsAt:true,creatives:{include:{asset:true},orderBy:{displayOrder:'asc'}}},take:500}),
@@ -44,7 +43,7 @@ export function registerOperations(app: FastifyInstance) {
   return reply.send(response(request,{total:screens.length,online:online.length,offline:screens.length-online.length,playing:online.filter(s=>s.currentPlaybackState==='PLAYING').length,idle:online.filter(s=>['IDLE','READY'].includes(s.currentPlaybackState??'')).length,errors:screens.filter(s=>['ERROR','FAILED'].includes(s.currentPlaybackState??'')).length,activeCampaigns:active,scheduledCampaigns:scheduled,pendingCampaigns:pending,pendingCreatives:creatives,playsToday:plays,manifestFailures:failedCommands}))
  })
  app.get('/api/admin/audit-log',async(request,reply)=>{
-  await requireRoles(request,roles);const q=z.object({skip:z.coerce.number().int().min(0).max(100000).default(0),entityId:z.string().optional()}).parse(request.query)
+  await requirePermission(request,'operations:write');const q=z.object({skip:z.coerce.number().int().min(0).max(100000).default(0),entityId:z.string().optional()}).parse(request.query)
   return reply.send(response(request,await prisma.auditLog.findMany({where:{entityId:q.entityId},orderBy:{createdAt:'desc'},take:50,skip:q.skip})))
  })
 }
