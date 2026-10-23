@@ -1,2 +1,6 @@
 import { AppShell } from "@/components/app/app-shell";
-export default function AppLayout({ children }: { children: React.ReactNode }) { return <AppShell>{children}</AppShell>; }
+import { webContext } from "@/lib/web-owner";
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const context = await webContext();
+  return <AppShell accountType={context?.account.accountType}>{children}</AppShell>;
+}
