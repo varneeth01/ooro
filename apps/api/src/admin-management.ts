@@ -71,8 +71,18 @@ export function registerAdminManagement(app: FastifyInstance) {
       await audit(tx,actor,'ADMIN_INVITED',result.id,{role:input.role})
       return result
     })
-    // Persisted invitation remains pending if provider fails; may be revoked/resubmitted.
-    await sendAdminInvitationEmail(input.email,input.name,`${config.adminWebBaseUrl}/admin/accept-invite?token=${encodeURIComponent(token)}`)
+    try {
+      await sendAdminInvitationEmail(input.email,input.name,`${config.adminWebBaseUrl}/admin/accept-invite?token=${encodeURIComponent(token)}`)
+    } catch {
+      // Never leave an accepted-capable invitation after the provider rejected delivery.
+      await prisma.$transaction(async tx => {
+        const revoked = await tx.adminInvitation.updateMany({
+          where: { id: invite.id, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() },
+        })
+        if (revoked.count) await audit(tx,actor,'ADMIN_INVITATION_DELIVERY_FAILED',invite.id)
+      })
+      throw new ApiError('ADMIN_INVITATION_DELIVERY_FAILED','Unable to send invitation; please retry',502)
+    }
     return reply.code(201).send(response(request,{id:invite.id,email:input.email,role:input.role,expiresAt}))
   })
 
