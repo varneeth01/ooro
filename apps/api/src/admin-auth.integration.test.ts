@@ -40,6 +40,28 @@ test('admin email/password workflow, generic failures, session revocation, and s
   }
   assert.equal((await app.inject({ method: 'GET', url: '/api/admin/earnings', headers: { authorization: `Bearer ${roleTokens.get('FINANCE')}` } })).statusCode, 200)
   for (const role of ['OPERATIONS', 'SUPPORT']) assert.equal((await app.inject({ method: 'GET', url: '/api/admin/earnings', headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 403, `${role} must not read finance data`)
+  const readCases = [
+    { name: 'device', paths: ['/api/admin/drivers', '/api/admin/vehicles', '/api/admin/displays', '/api/admin/displays/live-map', `/api/admin/displays/${randomUUID()}/live-state`, `/api/admin/displays/${randomUUID()}/location-history`], allowed: ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'], denied: ['FINANCE', 'SUPPORT'] },
+    { name: 'campaign proof', paths: ['/api/admin/proof-of-play'], allowed: ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT'], denied: ['FINANCE'] },
+    { name: 'financial orders', paths: ['/api/admin/orders', `/api/admin/orders/order-${randomUUID()}`], allowed: ['ADMIN', 'SUPER_ADMIN', 'FINANCE'], denied: ['OPERATIONS', 'SUPPORT'] },
+    { name: 'operational investigations', paths: ['/api/admin/rides', '/api/admin/verifications', '/api/admin/fraud'], allowed: ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'], denied: ['FINANCE', 'SUPPORT'] },
+  ] as const
+  for (const testCase of readCases) {
+    for (const path of testCase.paths) {
+      const unauthenticated = await app.inject({ method: 'GET', url: path })
+      assert.equal(unauthenticated.statusCode, 401, `${testCase.name} must require authentication`)
+      assert.equal(unauthenticated.json().data, null, `${testCase.name} unauthenticated response must not contain data`)
+      for (const role of testCase.allowed) {
+        const response = await app.inject({ method: 'GET', url: path, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })
+        assert.notEqual(response.statusCode, 403, `${role} should retain ${testCase.name} access: ${path}`)
+      }
+      for (const role of testCase.denied) {
+        const response = await app.inject({ method: 'GET', url: path, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })
+        assert.equal(response.statusCode, 403, `${role} must not access ${testCase.name}: ${path}`)
+        assert.equal(response.json().data, null, `${role} denied response must not contain data`)
+      }
+    }
+  }
   for (const role of ['ADMIN', 'SUPER_ADMIN']) assert.equal((await app.inject({ method: 'POST', url: `/api/admin/drivers/${randomUUID()}/restrict`, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 404, `${role} must reach admin driver restriction`)
   for (const role of ['OPERATIONS', 'FINANCE', 'SUPPORT']) assert.equal((await app.inject({ method: 'POST', url: `/api/admin/drivers/${randomUUID()}/restrict`, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 403, `${role} must not restrict drivers`)
   const lockUser = await prisma.user.create({ data: { phone: `lock-auth-${suffix}`, email: `lock-${suffix}@example.test`, passwordHash: await hashPassword('lock password 123'), role: 'ADMIN', accountStatus: 'ACTIVE' } })

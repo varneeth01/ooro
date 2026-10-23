@@ -6,9 +6,10 @@
 - Synced frontend AdminRole union with the backend.
 - Used an atomic conditional update inside a Prisma transaction for password setup/reset token use. Revokes sessions in the same transaction.
 - Added positive/negative unit coverage for canonical campaign permission decisions.
-- Enforced the matrix across Fastify device, DeviceOS, network, scheduler, finance and driver-admin routes.
+- Enforced the matrix across every Fastify admin GET and mutation route. Device, driver and vehicle reads use device/driver permissions; campaign analytics and proof-of-play use campaign:read; financial order history uses finance:read; rides, verifications and fraud use distinct operational read permissions.
+- Narrowed driver and vehicle responses to operational fields and exclude password, reset-token and session fields. The Next.js historical-order routes use the same finance:read boundary.
 - Enforced explicit permissions across Next.js privileged mutations, including creative, pricing, verification, inventory, news, settings and screen zones.
-- Added HTTP coverage for all five admin roles, finance-data boundaries, device writes and driver restriction.
+- Added HTTP coverage for all five admin roles, unauthenticated requests, finance/device/operational read boundaries, no-data-on-denial responses, device writes and driver restriction.
 - Added disposable-PostgreSQL coverage for reset-token concurrency/expiry, lockout, logout/session revocation and token reuse.
 
 ## Validation evidence
