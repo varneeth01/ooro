@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "./app-ui";
 import { MIN_SELF_SERVE_BUDGET_RUPEES } from "@/lib/campaign-policy";
@@ -19,7 +19,8 @@ export function BusinessCampaignFlow(){
  const validStep=[Boolean(draft.name.trim()&&validBudget),validLocation,true,true];
  const valid=validStep[0]&&validStep[1];
  const next=()=>{setError("");if(!validStep[step]){setError(step===0?"Add a campaign name and a valid planning budget.":"Choose valid dates, delivery hours and radius.");return}setStep(s=>Math.min(steps.length-1,s+1))};
- const preview=useMemo(()=>file&&file.type.startsWith("image/")?URL.createObjectURL(file):null,[file]);
+ const [preview,setPreview]=useState<string|null>(null);
+ useEffect(()=>{if(!file||!file.type.startsWith("image/")){setPreview(null);return;}const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);},[file]);
  async function persist(){
    const payload={name:draft.name.trim(),description:"OORO mobility advertising campaign brief",goal:"Reach",audience:"Local commuters",city:draft.city,area:draft.area.trim()||draft.city,startDate:draft.start,endDate:draft.end,budget,currency:"INR",deliveryTier:draft.tier,campaignCenterLat:12.9716,campaignCenterLng:77.5946,radiusKm:radius,metadata:{timezone:"Asia/Kolkata",budget,city:draft.city,area:draft.area.trim()||draft.city,deliveryTier:draft.tier,adminSchedule:{startTime:draft.startTime,endTime:draft.endTime,days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}}};
    const r=await fetch(draft.campaignId?`/api/campaigns/${draft.campaignId}`:"/api/campaigns",{method:draft.campaignId?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
