@@ -14,7 +14,7 @@ export type AdminPermission = 'admin:read' | 'admin:write' | 'campaign:read' | '
 export const adminPermissions: Record<string, readonly AdminPermission[]> = {
   SUPER_ADMIN: ['admin:read','admin:write','campaign:read','campaign:create','campaign:update','campaign:approve','campaign:schedule','creative:write','device:read','device:write','operations:write','finance:read','support:read'],
   ADMIN: ['admin:read','admin:write','campaign:read','campaign:create','campaign:update','campaign:approve','campaign:schedule','creative:write','device:read','device:write','operations:write','finance:read','support:read'],
-  OPERATIONS: ['admin:read','campaign:read','campaign:create','campaign:update','campaign:approve','campaign:schedule','device:read','device:write','operations:write','support:read'],
+  OPERATIONS: ['admin:read','campaign:read','campaign:create','campaign:update','campaign:schedule','device:read','device:write','operations:write','support:read'],
   FINANCE: ['admin:read','finance:read'],
   SUPPORT: ['admin:read','support:read','campaign:read'],
 }

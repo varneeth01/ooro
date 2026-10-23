@@ -18,11 +18,13 @@ test('campaign mutations deny finance, support and non-admin roles', () => {
       assert.equal(canAdmin(role, permission), false, `${role} must not ${permission}`)
     }
   }
-  for (const role of ['ADMIN','SUPER_ADMIN','OPERATIONS']) {
+  for (const role of ['ADMIN','SUPER_ADMIN']) {
     for (const permission of ['campaign:create','campaign:update','campaign:approve','campaign:schedule'] as const) {
       assert.equal(canAdmin(role, permission), true)
     }
   }
+  for (const permission of ['campaign:create','campaign:update','campaign:schedule'] as const) assert.equal(canAdmin('OPERATIONS', permission), true)
+  assert.equal(canAdmin('OPERATIONS', 'campaign:approve'), false)
   assert.equal(canAdmin('FINANCE','finance:read'), true)
   assert.equal(canAdmin('SUPPORT','support:read'), true)
 })

@@ -19,7 +19,7 @@
 
 ## Remaining review gates
 - PR #11 remains draft and its Netlify deploy-preview status is pending after the latest push; do not merge until it completes and required repository checks are confirmed.
-- Product-owner confirmation is still recommended for the OPERATIONS campaign create/approve permissions, although the current matrix explicitly excludes FINANCE and SUPPORT.
+- OPERATIONS may create/edit draft campaigns and schedule approved campaigns, but cannot approve campaigns; approval remains restricted to ADMIN and SUPER_ADMIN.
 - Phase 2 account invitations, suspension/reenablement, role changes, audit trails and last-Super-Admin protection remain out of scope.
 
 ## Phase 2 proposal
