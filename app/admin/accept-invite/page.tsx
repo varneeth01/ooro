@@ -1,8 +1,8 @@
 'use client'
-import {useState} from 'react'
+import {useState, type FormEvent} from 'react'
 export default function AcceptInvitePage(){
  const [phone,setPhone]=useState(''),[password,setPassword]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false)
- async function accept(e:React.FormEvent){e.preventDefault();setBusy(true);setMessage('');try{
+ async function accept(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{
  const token=new URLSearchParams(window.location.search).get('token')??''
  const base=process.env.NEXT_PUBLIC_API_URL
  if(!base)throw new Error('Invitation service is not configured')
