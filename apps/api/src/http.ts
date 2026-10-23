@@ -13,11 +13,12 @@ export const hashSecret = (value: string) => createHash('sha256').update(value).
 export const randomSecret = (bytes = 32) => randomBytes(bytes).toString('hex')
 
 export async function issueTokens(userId: string, role: string, driverId?: string, sessionMeta?: { userAgent?: string; ipAddress?: string }) {
-  const accessToken = await new SignJWT({ role, ...(driverId ? { driverId } : {}) })
+  const refreshToken = randomSecret()
+  const session = await prisma.session.create({ data: { userId, refreshTokenHash: hashSecret(refreshToken), expiresAt: new Date(Date.now() + config.refreshTtlSeconds * 1000), userAgent: sessionMeta?.userAgent?.slice(0, 512), ipAddress: sessionMeta?.ipAddress?.slice(0, 64) } })
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE'].includes(role)
+  const accessToken = await new SignJWT({ role, ...(driverId ? { driverId } : {}), ...(isAdmin ? { sid: session.id } : {}) })
     .setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt()
     .setExpirationTime(`${config.accessTtlSeconds}s`).sign(secret)
-  const refreshToken = randomSecret()
-  await prisma.session.create({ data: { userId, refreshTokenHash: hashSecret(refreshToken), expiresAt: new Date(Date.now() + config.refreshTtlSeconds * 1000), userAgent: sessionMeta?.userAgent?.slice(0, 512), ipAddress: sessionMeta?.ipAddress?.slice(0, 64) } })
   return { accessToken, refreshToken }
 }
 
@@ -27,7 +28,17 @@ export async function authenticate(request: FastifyRequest): Promise<AuthContext
   try {
     const verified = await jwtVerify(token, secret, { algorithms: ['HS256'] })
     if (!verified.payload.sub) throw unauthorized()
-    return { userId: String(verified.payload.sub), role: String(verified.payload.role ?? 'DRIVER'), driverId: verified.payload.driverId ? String(verified.payload.driverId) : undefined }
+    const role = String(verified.payload.role ?? 'DRIVER')
+    if (['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE'].includes(role)) {
+      const sid = verified.payload.sid
+      if (typeof sid !== 'string') throw unauthorized('Administrator session has expired')
+      const active = await prisma.session.findFirst({
+        where: { id: sid, userId: String(verified.payload.sub), revokedAt: null, expiresAt: { gt: new Date() } },
+        select: { id: true },
+      })
+      if (!active) throw unauthorized('Administrator session has expired')
+    }
+    return { userId: String(verified.payload.sub), role, driverId: verified.payload.driverId ? String(verified.payload.driverId) : undefined }
   } catch { throw unauthorized('Invalid or expired access token') }
 }
 
