@@ -17,10 +17,11 @@ const groups: readonly NavGroup[] = [
 ] as const;
 const adminGroups: readonly NavGroup[] = [
   ["CONTROL", [["Overview", "/admin"], ["Campaigns", "/admin/campaigns"], ["Creatives", "/admin/creatives"]]],
-  ["AD OPERATIONS", [["Scheduler", "/admin/operations/scheduler"], ["Proof of play", "/admin/proof-of-play"], ["Audit log", "/admin/logs"]]],
+  ["AD OPERATIONS", [["Scheduler", "/admin/operations/scheduler"], ["Proof of play", "/admin/proof-of-play"], ["Operations audit", "/admin/operations"]]],
   ["CONTROL", [["Orders", "/admin/orders"]]],
   ["NETWORK", [["Screens", "/admin/screens"], ["Screen groups", "/admin/screen-groups"], ["Vehicles / routes / depots", "/admin/network"], ["Device health", "/admin/device-health"], ["DeviceOS", "/admin/deviceos"], ["Live map", "/admin/map"], ["Inventory", "/admin/inventory"]]],
   ["GOVERNANCE", [["Verification", "/admin/verifications"], ["Agencies", "/admin/agencies"], ["Operations", "/admin/operations"], ["Forecast settings", "/admin/forecast"]]],
+  ["ADMINISTRATION", [["Manage administrators", "/admin/users"]]],
 ] as const;
 
 function Sidebar({ onNavigate, variant }: { onNavigate: () => void; variant: "customer" | "admin" }) {
