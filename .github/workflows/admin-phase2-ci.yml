@@ -1,0 +1,72 @@
+name: OORO Phase 2 Admin Security CI
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "app/admin/**"
+      - "app/api/admin/users/**"
+      - "app/api/auth/admin/accept-invitation/**"
+      - "middleware.ts"
+      - "lib/auth/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - ".github/workflows/admin-phase2-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ooro_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/ooro_test?schema=public
+      JWT_SECRET: ci-only-admin-secret-at-least-32-characters-long
+      OORO_SESSION_SECRET: ci-only-session-secret-at-least-32-characters-long
+      NODE_ENV: test
+      ADMIN_WEB_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      OORO_ADMIN_AUTH_INTEGRATION_TESTS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate Prisma schema and migrate disposable Postgres
+        run: |
+          pnpm --filter @ooro/api exec prisma generate
+          pnpm --filter @ooro/api exec prisma validate
+          pnpm --filter @ooro/api exec prisma migrate deploy
+      - name: TypeScript and lint
+        run: |
+          pnpm typecheck
+          pnpm lint
+      - name: API integration and unit tests
+        run: pnpm --filter @ooro/api test
+      - name: Production builds
+        run: pnpm build
+      - name: Separate disposable operations database
+        run: |
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 55432 -U postgres -d postgres -c 'CREATE DATABASE ooro_audit'
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:55432/ooro_audit?schema=public" pnpm --filter @ooro/api exec prisma migrate deploy
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:55432/ooro_audit?schema=public" OORO_INTEGRATION_TESTS=true pnpm --filter @ooro/api exec node --test --import tsx src/operations.integration.test.ts
