@@ -67,7 +67,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ data: { campaignId: id, creativeId: result.creative.id, assetId: result.asset.id, fileName: result.asset.fileName, mimeType: result.asset.mimeType, durationSeconds: result.creative.durationSeconds, brandName: result.creative.brandName, promotionalText: result.creative.promotionalText, qrEnabled: result.creative.qrEnabled, qrTargetUrl: result.creative.qrTargetUrl, qrLabel: result.creative.qrLabel, checksum: result.asset.checksum, url: result.asset.url } }, { status: 201 });
   } catch (error) {
     const contentMismatch = error instanceof Error && error.message === "CREATIVE_CONTENT_TYPE_MISMATCH";
+    const storageMissing = error instanceof Error && error.message === "OBJECT_STORAGE_NOT_CONFIGURED";
     const status = error instanceof AdminAuthError ? error.status : contentMismatch ? 422 : 503;
-    return NextResponse.json({ error: { message: contentMismatch ? "Creative content does not match its declared type." : status === 503 ? "Creative could not be persisted" : "Admin access required" } }, { status });
+    return NextResponse.json({ error: { message: contentMismatch ? "Creative content does not match its declared type." : storageMissing ? "Creative upload is unavailable: durable asset storage has not been configured for this website. Contact an administrator to configure object storage before trying again." : status === 503 ? "Creative upload failed on the server. Your campaign is not ready for scheduling; please retry or contact support." : "Admin access required" } }, { status });
   }
 }
