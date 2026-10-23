@@ -25,7 +25,7 @@ async function audit(tx: Prisma.TransactionClient, actor: {userId:string;role:st
 
 // Serializes last-Super-Admin changes across all API instances and concurrent requests.
 async function preserveLastSuperAdmin(tx: Prisma.TransactionClient, targetId: string, nextRole?: string, nextStatus?: string) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(847293051)`
+  await tx.$queryRaw`SELECT 1 AS acquired FROM pg_advisory_xact_lock(847293051)`
   const target = await tx.user.findUnique({where:{id:targetId},select:{id:true,role:true,accountStatus:true}})
   if (!target || !adminRoles.includes(target.role)) throw new ApiError('ADMIN_USER_NOT_FOUND','Administrator not found',404)
   if (target.role === 'SUPER_ADMIN' && target.accountStatus === 'ACTIVE' && ((nextRole !== undefined && nextRole !== 'SUPER_ADMIN') || (nextStatus !== undefined && nextStatus !== 'ACTIVE'))) {
