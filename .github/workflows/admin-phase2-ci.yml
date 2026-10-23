@@ -54,6 +54,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Validate Prisma schema and migrate disposable Postgres
         run: |
+          pnpm --filter @ooro/api exec prisma generate
           pnpm --filter @ooro/api exec prisma validate
           pnpm --filter @ooro/api exec prisma migrate deploy
       - name: TypeScript and lint
