@@ -20,6 +20,13 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     const access = await verifyAdminEnvelope(request.cookies.get(SESSION_COOKIE)?.value);
     if (access === "allowed") return NextResponse.next();
+    // A previously issued access token may expire while the refresh session remains valid.
+    // Resume through a Node route handler (which may securely rotate the HttpOnly cookie).
+    if (access === "anonymous" && request.cookies.has(SESSION_COOKIE)) {
+      const resume = new URL("/api/auth/admin/resume", request.url);
+      resume.searchParams.set("next", pathname + request.nextUrl.search);
+      return NextResponse.redirect(resume);
+    }
     if (access === "unavailable") return new NextResponse("Admin authentication service unavailable. Please retry.", { status:503, headers:{"cache-control":"no-store"} });
     const destination = new URL(access === "forbidden" ? "/unauthorized" : "/admin/login",request.url);
     if(access === "anonymous") destination.searchParams.set("next",pathname);
