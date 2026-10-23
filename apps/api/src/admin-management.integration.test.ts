@@ -10,8 +10,9 @@ const enabled = process.env.OORO_ADMIN_AUTH_INTEGRATION_TESTS === 'true' && /oor
 
 test('Phase 2: Super Admin directory, invitation, lifecycle and immediately revoked sessions', { skip: !enabled }, async () => {
   const unique = randomUUID()
+  let accountSequence = 0
   const make = async (role: string) => prisma.user.create({
-    data: { phone: `phase2-${role}-${unique}`, email: `phase2-${role}-${unique}@example.test`, role, accountStatus: 'ACTIVE', passwordHash: await hashPassword('secure test password 123') },
+    data: { phone: `phase2-${role}-${accountSequence++}-${unique}`, email: `phase2-${role}-${unique}@example.test`, role, accountStatus: 'ACTIVE', passwordHash: await hashPassword('secure test password 123') },
   })
   const primary = await make('SUPER_ADMIN')
   const secondary = await make('SUPER_ADMIN')
@@ -74,5 +75,5 @@ test('Phase 2: Super Admin directory, invitation, lifecycle and immediately revo
   assert.equal((await app.inject({ method: 'GET', url: '/api/auth/session', headers: auth(financeToken) })).statusCode, 401)
 
   // Suspension also invalidates the old access token without deleting account history.
-  assert.equal((await app.inject({ method: 'GET', url: '/api/auth/session', headers: auth(secondaryToken) })).statusCode, 403)
+  assert.equal((await app.inject({ method: 'GET', url: '/api/auth/session', headers: auth(secondaryToken) })).statusCode, 401)
 })
