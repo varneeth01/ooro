@@ -4,9 +4,7 @@ export default function AcceptInvitePage(){
  const [phone,setPhone]=useState(''),[password,setPassword]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false)
  async function accept(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{
  const token=new URLSearchParams(window.location.search).get('token')??''
- const base=process.env.NEXT_PUBLIC_API_URL
- if(!base)throw new Error('Invitation service is not configured')
- const response=await fetch(base.replace(/\/$/,'')+'/api/auth/admin/accept-invitation',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,phone,password})})
+ const response=await fetch('/api/auth/admin/accept-invitation',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,phone,password})})
  const data=await response.json();if(!response.ok)throw new Error(data.error?.message??'Invitation cannot be accepted')
  setMessage('Account created. Sign in at /admin/login.')
  }catch(e){setMessage(e instanceof Error?e.message:'Unable to accept invitation')}finally{setBusy(false)}}
