@@ -58,10 +58,10 @@ export async function POST(request: Request) {
     resolvedAccount = account;
   }
   const token = randomBytes(32).toString("hex");
-  try { await webPrisma.webSession.create({ data: { tokenHash: createHash("sha256").update(token).digest("hex"), ownerEmail: email, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } }); }
+  try { await webPrisma.webSession.create({ data: { tokenHash: createHash("sha256").update(token).digest("hex"), ownerEmail: email, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } }); }
   catch (error) { return unavailableResponse("webSession.create", error); }
   const response = NextResponse.json({ ok: true, user: { email, name: resolvedAccount?.name ?? name, accountType: accountType || undefined } });
-  response.cookies.set(WEB_SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 7 });
+  response.cookies.set(WEB_SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });
   return response;
 }
 
