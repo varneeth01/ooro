@@ -1,4 +1,5 @@
 import { verifyAdminEnvelope } from "@/lib/auth/admin-edge";
+import { isAcceptedAdminRequestOrigin } from "@/lib/auth/request-origin";
 import { NextRequest, NextResponse } from "next/server";
 import { protectedRoutePrefixes, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/lib/auth/session";
 
@@ -6,10 +7,13 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const adminApi = pathname.startsWith("/api/admin/") || pathname.startsWith("/api/auth/admin/");
   if (adminApi && !["GET", "HEAD", "OPTIONS"].includes(request.method) && process.env.NODE_ENV === "production") {
-    const origin = request.headers.get("origin");
-    const referer = request.headers.get("referer");
-    let sameOrigin = origin === request.nextUrl.origin;
-    if (!sameOrigin && referer) { try { sameOrigin = new URL(referer).origin === request.nextUrl.origin; } catch { sameOrigin = false; } }
+    const sameOrigin = isAcceptedAdminRequestOrigin({
+      origin: request.headers.get("origin"),
+      referer: request.headers.get("referer"),
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      requestOrigin: request.nextUrl.origin,
+    });
     if (!sameOrigin) return NextResponse.json({ error: { code: "CSRF_REJECTED", message: "Request origin was not accepted" } }, { status: 403 });
   }
   if (pathname === "/admin/login" || pathname === "/admin/reset-password" || pathname === "/admin/setup-password" || pathname === "/admin/accept-invite") return NextResponse.next();
