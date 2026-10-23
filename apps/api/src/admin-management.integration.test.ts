@@ -11,9 +11,12 @@ const enabled = process.env.OORO_ADMIN_AUTH_INTEGRATION_TESTS === 'true' && /oor
 test('Phase 2: Super Admin directory, invitation, lifecycle and immediately revoked sessions', { skip: !enabled }, async () => {
   const unique = randomUUID()
   let accountSequence = 0
-  const make = async (role: string) => prisma.user.create({
-    data: { phone: `phase2-${role}-${accountSequence++}-${unique}`, email: `phase2-${role}-${unique}@example.test`, role, accountStatus: 'ACTIVE', passwordHash: await hashPassword('secure test password 123') },
+  const make = async (role: string) => {
+    const index = accountSequence++
+    return prisma.user.create({
+    data: { phone: `phase2-${role}-${index}-${unique}`, email: `phase2-${role}-${index}-${unique}@example.test`, role, accountStatus: 'ACTIVE', passwordHash: await hashPassword('secure test password 123') },
   })
+  }
   const primary = await make('SUPER_ADMIN')
   const secondary = await make('SUPER_ADMIN')
   const finance = await make('FINANCE')
