@@ -61,6 +61,8 @@ jobs:
         run: |
           pnpm typecheck
           pnpm lint
+      - name: Public origin CSRF regression tests
+        run: pnpm --filter @ooro/api exec node --test --import tsx ../../lib/auth/request-origin.test.ts
       - name: API integration and unit tests
         run: pnpm --filter @ooro/api test
       - name: Production builds
