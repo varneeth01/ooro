@@ -5,6 +5,7 @@ import { app } from './server.js'
 import { prisma } from './prisma.js'
 import { issueTokens } from './http.js'
 import { createPasswordToken, hashPassword, passwordTokenHash } from './domain/admin-password-auth.js'
+import { emailProvider } from './domain/transactional-email.js'
 
 const enabled = process.env.OORO_ADMIN_AUTH_INTEGRATION_TESTS === 'true' && /ooro_test/.test(process.env.DATABASE_URL ?? '')
 
@@ -74,6 +75,40 @@ test('Phase 2: Super Admin directory, invitation, lifecycle and immediately revo
   } })
   assert.equal((await app.inject({ method: 'POST', url: '/api/auth/admin/accept-invitation',
     payload: { token: expiredToken, phone: '+919876543211', password: 'correct horse battery staple' } })).statusCode, 400)
+
+
+  // Concurrent redemption must produce exactly one account and one successful result.
+  const concurrentToken = createPasswordToken()
+  const concurrentEmail = `concurrent-${unique}@example.test`
+  await prisma.adminInvitation.create({ data: {
+    email: concurrentEmail, name: 'Concurrent Operator', role: 'OPERATIONS',
+    tokenHash: passwordTokenHash(concurrentToken), expiresAt: new Date(Date.now() + 3600000), createdById: primary.id,
+  } })
+  const concurrentPayload = { token: concurrentToken, phone: '+919876543213', password: 'correct horse battery staple' }
+  const concurrentResults = await Promise.all(Array.from({ length: 2 }, () => app.inject({
+    method: 'POST', url: '/api/auth/admin/accept-invitation', payload: concurrentPayload,
+  })))
+  assert.deepEqual(concurrentResults.map(result => result.statusCode).sort(), [200, 400])
+  assert.equal(await prisma.user.count({ where: { email: concurrentEmail } }), 1)
+
+  // A stubbed delivery failure must not leave an active invitation behind.
+  const originalSend = emailProvider.send
+  const failedEmail = `send-failed-${unique}@example.test`
+  emailProvider.send = async () => { throw new Error('Synthetic delivery failure') }
+  try {
+    const response = await app.inject({
+      method: 'POST', url: '/api/admin/users/invitations', headers: auth(adminToken),
+      payload: { name: 'Failed Delivery', email: failedEmail, role: 'SUPPORT' },
+    })
+    assert.equal(response.statusCode, 502, response.body)
+    assert.equal(response.body.includes('Synthetic delivery failure'), false)
+    const rows = await prisma.adminInvitation.findMany({ where: { email: failedEmail } })
+    assert.equal(rows.length, 1)
+    assert.ok(rows[0].revokedAt)
+    assert.equal(rows[0].acceptedAt, null)
+  } finally {
+    emailProvider.send = originalSend
+  }
 
   // Never disable the final active Super Admin.
   const stopSecondary = await app.inject({ method: 'PATCH', url: `/api/admin/users/${secondary.id}`,
