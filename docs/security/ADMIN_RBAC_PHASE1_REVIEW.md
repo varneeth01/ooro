@@ -1,4 +1,4 @@
-# Phase 1 admin security remediation — review in progress
+# Phase 1 admin security remediation — validation complete, review pending
 
 ## Implemented on this branch
 - Centralized explicit permission mapping for five canonical admin roles.
@@ -6,16 +6,21 @@
 - Synced frontend AdminRole union with the backend.
 - Used an atomic conditional update inside a Prisma transaction for password setup/reset token use. Revokes sessions in the same transaction.
 - Added positive/negative unit coverage for canonical campaign permission decisions.
+- Enforced the matrix across Fastify device, DeviceOS, network, scheduler, finance and driver-admin routes.
+- Enforced explicit permissions across Next.js privileged mutations, including creative, pricing, verification, inventory, news, settings and screen zones.
+- Added HTTP coverage for all five admin roles, finance-data boundaries, device writes and driver restriction.
+- Added disposable-PostgreSQL coverage for reset-token concurrency/expiry, lockout, logout/session revocation and token reuse.
 
-## Not yet verified / release blockers
-- This GitHub-only change has not been executed through TypeScript, full tests, or actual Docker builds in an authorized local runtime.
-- All other Fastify and Next.js admin endpoints need a route-by-route permission audit; existing adminRoles-wide gates are insufficient.
-- Review whether OPERATIONS should have campaign create/approve permissions, and ratify the permission matrix with the product owner.
-- Add adversarial tests exercising actual HTTP handlers as all five roles, including campaign approval and scheduling.
-- Add reset token concurrency/expiry and login lockout integration tests against disposable PostgreSQL.
-- Ensure all privileged mutations (screen controls, finance, operational state changes) enforce least privilege on the server.
-- Do not merge or deploy this branch until checks and security review pass.
-- No database, deployment, account or Android state was modified by this branch.
+## Validation evidence
+- Prisma validation, TypeScript, API build, Next.js production build and lint passed locally.
+- Full API suite: 89 passed, 0 failed, 4 skipped (unrelated database/device integration tests when run without PostgreSQL).
+- Disposable PostgreSQL 16 admin integration: 1 passed; all 34 checked-in migrations applied to the disposable database only.
+- No staging/production database, deployment, account, email or Android state was modified.
+
+## Remaining review gates
+- PR #11 remains draft and its Netlify deploy-preview status is pending after the latest push; do not merge until it completes and required repository checks are confirmed.
+- Product-owner confirmation is still recommended for the OPERATIONS campaign create/approve permissions, although the current matrix explicitly excludes FINANCE and SUPPORT.
+- Phase 2 account invitations, suspension/reenablement, role changes, audit trails and last-Super-Admin protection remain out of scope.
 
 ## Phase 2 proposal
 Super Admin-only invitations, invite acceptance, suspension/reenablement, role changes, audit trails, session revocation, and last-Super-Admin protection, with additive migrations if needed.
