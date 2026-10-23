@@ -88,3 +88,30 @@ test('admin email/password workflow, generic failures, session revocation, and s
   const newLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: admin.email, password: 'new correct horse battery staple' } })
   assert.equal(newLogin.statusCode, 200, newLogin.body)
 })
+
+test('admin reset requests expire within ten minutes and reject expired tokens', { skip: !enabled }, async () => {
+  const { config } = await import('./config.js')
+  assert.equal(config.adminPasswordResetTtlSeconds, 600)
+  const suffix = randomUUID()
+  const user = await prisma.user.create({
+    data: { phone: `reset-ttl-${suffix}`, email: `reset-ttl-${suffix}@example.test`, role: 'SUPER_ADMIN', accountStatus: 'ACTIVE', passwordHash: await hashPassword('old password is long') },
+  })
+  const before = Date.now()
+  const requested = await app.inject({ method: 'POST', url: '/api/auth/admin/request-password-reset', payload: { email: user.email } })
+  const after = Date.now()
+  assert.equal(requested.statusCode, 202, requested.body)
+  const issued = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+  assert.ok(issued.passwordResetTokenHash)
+  assert.ok(issued.passwordResetTokenExpiresAt)
+  const expiry = issued.passwordResetTokenExpiresAt.getTime()
+  assert.ok(expiry >= before + 600_000 && expiry <= after + 600_000, 'reset token must expire exactly ten minutes after issuance')
+
+  // The database expiry is authoritative; a previously issued token cannot be replayed.
+  const token = createPasswordToken()
+  await prisma.user.update({ where: { id: user.id }, data: {
+    passwordResetTokenHash: passwordTokenHash(token),
+    passwordResetTokenExpiresAt: new Date(Date.now() - 1000),
+  } })
+  const response = await app.inject({ method: 'POST', url: '/api/auth/admin/reset-password', payload: { token, password: 'new secure password 123' } })
+  assert.equal(response.statusCode, 400, response.body)
+})
