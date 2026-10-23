@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
     if (!sameOrigin && referer) { try { sameOrigin = new URL(referer).origin === request.nextUrl.origin; } catch { sameOrigin = false; } }
     if (!sameOrigin) return NextResponse.json({ error: { code: "CSRF_REJECTED", message: "Request origin was not accepted" } }, { status: 403 });
   }
-  if (pathname === "/admin/login" || pathname === "/admin/reset-password" || pathname === "/admin/setup-password") return NextResponse.next();
+  if (pathname === "/admin/login" || pathname === "/admin/reset-password" || pathname === "/admin/setup-password" || pathname === "/admin/accept-invite") return NextResponse.next();
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     const access = await verifyAdminEnvelope(request.cookies.get(SESSION_COOKIE)?.value);
     if (access === "allowed") return NextResponse.next();
