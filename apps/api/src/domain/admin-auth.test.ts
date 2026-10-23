@@ -33,3 +33,10 @@ test('campaign mutations deny finance, support and non-admin roles', () => {
     assert.equal(canAdmin('SUPPORT', permission), false)
   }
 })
+
+test('administrator account management requires SUPER_ADMIN', () => {
+  assert.equal(canAdmin('SUPER_ADMIN', 'admin-users:manage'), true)
+  for (const role of ['ADMIN', 'OPERATIONS', 'FINANCE', 'SUPPORT', 'DRIVER', undefined]) {
+    assert.equal(canAdmin(role, 'admin-users:manage'), false)
+  }
+})
