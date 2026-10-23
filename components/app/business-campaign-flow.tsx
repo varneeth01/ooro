@@ -34,8 +34,8 @@ export function BusinessCampaignFlow(){
      const id=await persist();
      if(file){
        if(file.size>100*1024*1024||!["image/jpeg","image/png","image/webp","video/mp4","video/webm"].includes(file.type))throw Error("Use JPG, PNG, WebP, MP4 or WebM smaller than 100 MB.");
-       const form=new FormData();form.set("file",file);form.set("durationSeconds",file.type.startsWith("video/")?"15":"10");
-       const r=await fetch(`/api/campaigns/${id}/creative`,{method:"POST",body:form});
+       const bytes=new Uint8Array(await file.arrayBuffer());let binary="";for(let i=0;i<bytes.length;i+=8192){binary+=String.fromCharCode(...bytes.subarray(i,i+8192));}
+       const r=await fetch(`/api/campaigns/${id}/creative`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({fileName:file.name,mimeType:file.type,base64:btoa(binary),durationSeconds:file.type.startsWith("video/")?15:10})});
        const p=await r.json().catch(()=>null);if(!r.ok)throw Error((p?.error?.message||"Media upload failed.")+" Your campaign brief was saved. You can retry the upload.");
        setDraft(d=>({...d,creativeId:p?.data?.creativeId,creativeName:file.name}));setFile(null);
      }
