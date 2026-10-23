@@ -1,26 +1,26 @@
-# OORO Phase 2 — multi-administrator management
+# OORO Phase 2 — invitation and admin lifecycle PR (draft)
 
-## Dependency and isolation
-This work begins from Phase 1 PR #11 head `594c34274e6c4b2c696e03181a92e6ea87bc4532` (not merged at branch creation). The Phase 2 PR should target the Phase 1 branch until Phase 1 merges, then be rebased onto main after approval. **Do not merge Phase 2 ahead of Phase 1.**
+## Scope implemented in this branch
+- Dedicated AdminInvitation table with SHA-256 hashed single-use tokens and expiry/revocation/acceptance timestamps; additive PostgreSQL migration.
+- Super Admin-only invitation creation/listing/revocation, administrator directory, role/status updates and session revocation.
+- Atomic invitation acceptance using a conditional database claim transaction; Argon2id passwords; existing unique real phone constraint preserved at acceptance.
+- Last active Super Admin protection uses a PostgreSQL transaction-scoped advisory lock across concurrent updates.
+- Changes to role/status revoke refresh sessions and require live role/status checks.
+- Audit events for invitation changes, acceptance, role/status updates and session revocation.
+- Next.js authenticated backend proxies and Super Admin /admin/users page; public /admin/accept-invite page.
+- No invitation email or accounts have been created.
 
-## First implemented slice
-- A dedicated `admin-users:manage` permission granted exclusively to `SUPER_ADMIN`.
-- `GET /api/admin/users` paginated, explicitly scoped to administrator roles, with a strict response field allowlist.
-- Unit coverage confirming all other roles are denied.
-- No invitations or account mutations have been enabled.
+## Critical release gates — NOT YET VERIFIED
+1. Run Prisma generate + validate and apply 35 migrations to a disposable PostgreSQL 16 instance; verify backward compatibility with all 34 existing migrations.
+2. Run API TypeScript/build, Next.js TypeScript/build, full unit/lint and integration tests in an isolated checkout.
+3. Add HTTP-level negative tests for all five roles, anti-CSRF protections for admin mutations, and unauthorized account listing.
+4. Add real disposable DB concurrency tests: invitation accept double-use; last Super Admin concurrent suspend/demote; email/phone uniqueness; session revocation; invite expiration/revocation; provider failures; locked admin access.
+5. Verify live access-token invalidation semantics after session revocation (current refresh-session revocation alone may not immediately invalidate previously issued access tokens). Consider session identifier check or short TTL and enforce logout guarantee.
+6. Review invitation dispatch failure recovery: email sent only after DB commit; email errors must be safely retryable without leaking tokens or sending privileged invites unexpectedly.
+7. Verify frontend /admin/users navigation/authenticated errors and /admin/accept-invite with configured NEXT_PUBLIC_API_URL and CORS.
+8. Review rate limits for recipient and actor/IP, auditing privacy, HTML escaping, and service monitoring; avoid token leaks through access logs and referrers.
+9. Product/security review: default role, who may invite SUPER_ADMIN, phone-on-acceptance policy, account suspension and support roles.
+10. After reviews pass, make PR ready, merge, apply **additive** migration to staging after backup, deploy paired API/web, and run authorized acceptance tests. Production only after separate approval.
 
-## Critical schema constraint
-`User.phone` is currently required and unique. Never assign dummy phone numbers to email-only admins. Evaluate a reviewed additive migration to support nullable phone (check OTP/driver/login flows and existing uniqueness), or use a separate invitation record until proper activation creates a valid User. Existing `TeamInvite` is NOT an admin invitation.
-
-## Planned milestones
-1. Add a dedicated `AdminInvitation` model with hashed random token, unique recipient scope, role, expiry, accepted/revoked timestamps, creator, and audit metadata. Use additive migrations only and verify against disposable PostgreSQL.
-2. Super Admin-only invite, list, revoke and resend APIs. Rate limit invites, prevent privilege escalation, avoid email/account enumeration, verify the email provider before sending. No passwords in email.
-3. Single-use, atomic accept flow with verified email and password. Link expiration and race handling; prevent elevation by editing request payloads. Define account creation compatibility with required phone field.
-4. Super Admin-only disable/reactivate, role changes and session revocation. Prevent the last active Super Admin from being disabled/demoted, including concurrent requests; use database locks/transactions as needed.
-5. Audited administrative changes (no tokens/passwords/secrets in logs). Rescope session privileges immediately following role change or disablement.
-6. Next.js `/admin/users` screen with administrator list, invites, status and actions; backend permissions, not UI visibility, enforce security.
-7. HTTP-level five-role tests, negative cases, concurrency, lockout, invitation expiry/replay, mail-provider stub, last-Super-Admin safety and disposable PostgreSQL migrations.
-8. Human review, gated merge, matching Coolify staging API/web deployment and authenticated staging acceptance.
-
-## Release status
-Foundation only. No schema migration, admin invites, account creation, outgoing emails, staging changes, or deployment have occurred. Full runtime/build validation is still required.
+## Explicit limitations
+This is a code implementation submitted for review, not validated, deployed or production-ready. Existing worktrees, staging/production database, email infrastructure and Android/DeviceOS devices have not been touched. Do not run production migrations automatically.
