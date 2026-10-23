@@ -1,6 +1,6 @@
 import { probeCreative } from "@/lib/creative-probe";
 import { NextResponse } from "next/server";
-import { getAuthenticatedAdmin, AdminAuthError } from "@/lib/auth/backend-session";
+import { requireAdminPermission, AdminAuthError } from "@/lib/auth/backend-session";
 import { webPrisma } from "@/lib/web-prisma";
 import { storeCreative } from "@/lib/creative-storage";
 import { safeDestination } from "@/apps/api/src/domain/qr-destination";
@@ -9,7 +9,7 @@ const allowed = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await getAuthenticatedAdmin();
+    const admin = await requireAdminPermission("creative:write");
     const { id } = await params;
     const contentType = request.headers.get("content-type") ?? "";
     let fileName: string | undefined;

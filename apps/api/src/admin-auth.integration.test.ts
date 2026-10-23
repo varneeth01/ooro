@@ -12,6 +12,7 @@ test('admin email/password workflow, generic failures, session revocation, and s
   const suffix = randomUUID()
   const admin = await prisma.user.create({ data: { phone: `admin-auth-${suffix}`, email: `admin-${suffix}@example.test`, passwordHash: await hashPassword('correct horse battery staple'), role: 'SUPER_ADMIN', accountStatus: 'ACTIVE' } })
   const customer = await prisma.user.create({ data: { phone: `customer-auth-${suffix}`, email: `customer-${suffix}@example.test`, passwordHash: await hashPassword('correct horse battery staple'), role: 'DRIVER', accountStatus: 'ACTIVE' } })
+  const roleUsers = await Promise.all((['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'FINANCE', 'SUPPORT'] as const).map(async (role) => prisma.user.create({ data: { phone: `role-${role.toLowerCase()}-${suffix}`, email: `role-${role.toLowerCase()}-${suffix}@example.test`, passwordHash: await hashPassword('role test password 123'), role, accountStatus: 'ACTIVE' } })))
   const login = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: admin.email, password: 'correct horse battery staple' } })
   assert.equal(login.statusCode, 200, login.body)
   const tokens = login.json().data
@@ -22,6 +23,34 @@ test('admin email/password workflow, generic failures, session revocation, and s
   assert.equal(wrongPassword.statusCode, 401)
   assert.equal(nonAdmin.statusCode, 401)
   assert.equal(wrongPassword.json().error.message, nonAdmin.json().error.message)
+  const roleTokens = new Map<string, string>()
+  for (const roleUser of roleUsers) {
+    const roleLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: roleUser.email, password: 'role test password 123' } })
+    assert.equal(roleLogin.statusCode, 200, `${roleUser.role}: ${roleLogin.body}`)
+    roleTokens.set(roleUser.role, roleLogin.json().data.accessToken)
+    assert.equal((await app.inject({ method: 'GET', url: '/api/admin/overview', headers: { authorization: `Bearer ${roleLogin.json().data.accessToken}` } })).statusCode, 200, roleUser.role)
+  }
+  for (const role of ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']) {
+    const response = await app.inject({ method: 'POST', url: `/api/admin/displays/${randomUUID()}/commands`, headers: { authorization: `Bearer ${roleTokens.get(role)}` }, payload: { commandType: 'HEALTH_CHECK' } })
+    assert.equal(response.statusCode, 404, `${role} must reach the protected device operation`)
+  }
+  for (const role of ['FINANCE', 'SUPPORT']) {
+    const response = await app.inject({ method: 'POST', url: `/api/admin/displays/${randomUUID()}/commands`, headers: { authorization: `Bearer ${roleTokens.get(role)}` }, payload: { commandType: 'HEALTH_CHECK' } })
+    assert.equal(response.statusCode, 403, `${role} must be denied device writes`)
+  }
+  const lockUser = await prisma.user.create({ data: { phone: `lock-auth-${suffix}`, email: `lock-${suffix}@example.test`, passwordHash: await hashPassword('lock password 123'), role: 'ADMIN', accountStatus: 'ACTIVE' } })
+  const lockoutResponses = []
+  for (let attempt = 0; attempt < 5; attempt++) lockoutResponses.push((await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: lockUser.email, password: 'incorrect password 123' } })).statusCode)
+  assert.ok(lockoutResponses.every(status => status === 401 || status === 429))
+  assert.ok([401, 429].includes((await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: lockUser.email, password: 'lock password 123' } })).statusCode))
+  const expiredToken = createPasswordToken()
+  await prisma.user.update({ where: { id: lockUser.id }, data: { passwordResetTokenHash: passwordTokenHash(expiredToken), passwordResetTokenExpiresAt: new Date(Date.now() - 1_000) } })
+  assert.equal((await app.inject({ method: 'POST', url: '/api/auth/admin/reset-password', payload: { token: expiredToken, password: 'expired password 123' } })).statusCode, 400)
+  const concurrentUser = await prisma.user.create({ data: { phone: `concurrent-auth-${suffix}`, email: `concurrent-${suffix}@example.test`, role: 'ADMIN', accountStatus: 'ACTIVE' } })
+  const concurrentToken = createPasswordToken()
+  await prisma.user.update({ where: { id: concurrentUser.id }, data: { passwordResetTokenHash: passwordTokenHash(concurrentToken), passwordResetTokenExpiresAt: new Date(Date.now() + 60_000) } })
+  const concurrent = await Promise.all([1, 2].map((index) => app.inject({ method: 'POST', url: '/api/auth/admin/reset-password', payload: { token: concurrentToken, password: `concurrent password ${index} 123` } })))
+  assert.deepEqual(concurrent.map(response => response.statusCode).sort(), [200, 400])
   assert.equal((await app.inject({ method: 'POST', url: '/api/auth/logout', payload: { refreshToken: tokens.refreshToken } })).statusCode, 200)
   assert.equal((await app.inject({ method: 'POST', url: '/api/auth/refresh', payload: { refreshToken: tokens.refreshToken } })).statusCode, 401)
   const resetToken = createPasswordToken()
@@ -29,6 +58,7 @@ test('admin email/password workflow, generic failures, session revocation, and s
   const reset = await app.inject({ method: 'POST', url: '/api/auth/admin/reset-password', payload: { token: resetToken, password: 'new correct horse battery staple' } })
   assert.equal(reset.statusCode, 200, reset.body)
   assert.equal((await app.inject({ method: 'POST', url: '/api/auth/admin/reset-password', payload: { token: resetToken, password: 'another password here' } })).statusCode, 400)
+  await prisma.adminLoginAttempt.deleteMany()
   const newLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: admin.email, password: 'new correct horse battery staple' } })
   assert.equal(newLogin.statusCode, 200, newLogin.body)
 })

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from './prisma.js'
-import { requireRoles, response } from './http.js'
+import { requirePermission, requireRoles, response } from './http.js'
 import { ApiError } from './errors.js'
 import { saveSchedule } from './domain/schedule-service.js'
 import { scheduleInput } from './domain/scheduling.js'
@@ -19,12 +19,12 @@ export function registerOperations(app: FastifyInstance) {
   return reply.send(response(request,safe({schedules,campaigns,screens,groups,routes,depots,vehicles})))
  })
  for (const action of ['check','publish']) app.post(`/api/admin/scheduler/${action}`,async(request,reply)=>{
-  const actor=await requireRoles(request,roles); const parsed=scheduleInput.safeParse(request.body)
+  const actor=await requirePermission(request,'campaign:schedule'); const parsed=scheduleInput.safeParse(request.body)
   if(!parsed.success) throw new ApiError('VALIDATION_ERROR',parsed.error.issues.map(i=>i.message).join('; '),422)
   return reply.send(response(request,await saveSchedule(parsed.data,actor,request.id,action==='check')))
  })
  app.post('/api/admin/screen-groups',async(request,reply)=>{
-  const actor=await requireRoles(request,roles)
+  const actor=await requirePermission(request,'operations:write')
   const input=z.object({id:z.string().uuid().optional(),name:z.string().trim().min(1).max(120),screenIds:z.array(z.string().uuid()).max(1000)}).parse(request.body)
   const result=await prisma.$transaction(async tx=>{
    const group=input.id ? await tx.screenGroup.update({where:{id:input.id},data:{name:input.name}}) : await tx.screenGroup.create({data:{name:input.name}})
@@ -35,7 +35,7 @@ export function registerOperations(app: FastifyInstance) {
   });return reply.send(response(request,result))
  })
  app.get('/api/admin/overview',async(request,reply)=>{
-  await requireRoles(request,roles)
+  await requirePermission(request,'admin:read')
   const now=new Date(); const india=new Date(now.getTime()+330*60000); const today=new Date(india.toISOString().slice(0,10)+'T00:00:00+05:30')
   const [screens,active,scheduled,pending,creatives,plays,failedCommands]=await Promise.all([
    prisma.display.findMany({select:{lastHeartbeatAt:true,currentPlaybackState:true}}),prisma.campaign.count({where:{status:'ACTIVE'}}),prisma.campaign.count({where:{status:'SCHEDULED'}}),prisma.campaign.count({where:{status:{in:['PENDING_REVIEW','CAMPAIGN_PENDING_REVIEW']}}}),prisma.creative.count({where:{status:'PENDING_REVIEW'}}),prisma.proofOfPlay.count({where:{playbackStartedAt:{gte:today},playbackCompleted:true}}),prisma.displayCommand.count({where:{commandType:{in:['SYNC_MANIFEST','REFRESH_MANIFEST']},status:'FAILED'}})

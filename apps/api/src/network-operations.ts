@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from './prisma.js'
-import { requireRoles,response } from './http.js'
+import { requirePermission, requireRoles, response } from './http.js'
 const roles=['ADMIN','SUPER_ADMIN','OPERATIONS']
 export function registerNetworkOperations(app:FastifyInstance){
  app.get('/api/admin/network',async(request,reply)=>{
@@ -10,7 +10,7 @@ export function registerNetworkOperations(app:FastifyInstance){
   return reply.send(response(request,{depots,routes,vehicles,drivers,screens}))
  })
  app.post('/api/admin/network',async(request,reply)=>{
-  const actor=await requireRoles(request,roles)
+  const actor=await requirePermission(request,'operations:write')
   const input=z.discriminatedUnion('kind',[
    z.object({kind:z.literal('depot'),id:z.string().uuid().optional(),name:z.string().trim().min(1).max(120),city:z.string().trim().min(1).max(120)}),
    z.object({kind:z.literal('route'),id:z.string().uuid().optional(),name:z.string().trim().min(1).max(120),city:z.string().trim().min(1).max(120),depotId:z.string().uuid().nullable().optional()}),
