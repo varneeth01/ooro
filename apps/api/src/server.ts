@@ -4,6 +4,7 @@ import { deliverOtp } from './domain/otp-delivery.js'
 import { registerNetworkOperations } from './network-operations.js'
 import { registerOperations } from './operations.js'
 import { registerAdminManagement } from './admin-management.js'
+import { registerAssetRoutes } from './asset-routes.js'
 import { Prisma } from '@prisma/client'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -844,6 +845,7 @@ app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { 
 
 registerOperations(app)
 registerAdminManagement(app)
+registerAssetRoutes(app)
 registerNetworkOperations(app)
 
 app.setErrorHandler((error, request, reply) => { request.log.error({ err: error }, 'request failed'); const mongoFailure = isMongoError(error); const status = error instanceof ApiError ? error.statusCode : error instanceof z.ZodError ? 422 : error instanceof Prisma.PrismaClientKnownRequestError && ['P2034','P2002'].includes(error.code) ? 409 : mongoFailure ? 503 : 500; const message = error instanceof Error ? error.message : 'Internal server error'; reply.status(status).send({ data: null, error: { code: error instanceof ApiError ? error.code : mongoFailure ? 'GUEST_STORE_UNAVAILABLE' : 'INTERNAL_ERROR', message: status === 500 ? 'Internal server error' : message }, requestId: request.id }) })
