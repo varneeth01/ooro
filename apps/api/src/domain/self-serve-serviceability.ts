@@ -7,9 +7,9 @@ export type ServiceabilityResult = {
   plannedPremiumSlotsPerAutoDay: number;
 };
 
-// Tirupati is the currently configured self-serve market. These are planning
-// inputs only; they are never exposed as device or vehicle counts to customers.
-const TIRUPATI = { latitude: 13.6288, longitude: 79.4192 };
+// Bengaluru is the launch planning market. These are modeled planning inputs,
+// not confirmed live screens, vehicle inventory, or guaranteed delivery.
+const BENGALURU = { latitude: 12.9716, longitude: 77.5946 };
 
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   const radians = (value: number) => value * Math.PI / 180;
@@ -20,7 +20,7 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
 }
 
 export function selfServeServiceability(latitude: number, longitude: number, radiusKm: number): ServiceabilityResult {
-  const marketDistance = distanceKm(latitude, longitude, TIRUPATI.latitude, TIRUPATI.longitude);
+  const marketDistance = distanceKm(latitude, longitude, BENGALURU.latitude, BENGALURU.longitude);
   if (marketDistance > 50) {
     return { availability: "UNSUPPORTED", plannedAutos: 0, plannedCommercialSlotsPerAutoDay: 0, plannedPremiumSlotsPerAutoDay: 0 };
   }
