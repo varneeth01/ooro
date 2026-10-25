@@ -11,12 +11,12 @@ type Forecast = { estimatedImpressionsLow: number; estimatedImpressionsHigh: num
 const money = (value: number) => `₹${Math.round(value).toLocaleString("en-IN")}`;
 
 export function SelfServeForecastBuilder() {
-  const [location, setLocation] = useState("Tirupati"); const [selected, setSelected] = useState<GeocodingResult | null>(null); const [suggestions, setSuggestions] = useState<GeocodingResult[]>([]); const [searching, setSearching] = useState(false);
+  const [location, setLocation] = useState("Bengaluru"); const [selected, setSelected] = useState<GeocodingResult | null>(null); const [suggestions, setSuggestions] = useState<GeocodingResult[]>([]); const [searching, setSearching] = useState(false);
   const [area, setArea] = useState(""); const [radiusKm, setRadiusKm] = useState(3); const [startDate, setStartDate] = useState(today); const [endDate, setEndDate] = useState(today); const [tier, setTier] = useState<"STANDARD" | "PREMIUM_PLUS">("STANDARD"); const [budget, setBudget] = useState("3000");
   const [forecast, setForecast] = useState<Forecast | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [retryNonce, setRetryNonce] = useState(0);
   const locationInput = useRef<HTMLInputElement>(null);
   const parsedBudget = Number(budget); const validBudget = Number.isFinite(parsedBudget) && parsedBudget >= 1000; const validDates = Boolean(startDate && endDate && endDate >= startDate);
-  const center = useMemo<[number, number]>(() => selected ? [selected.latitude, selected.longitude] : cities[location.trim().toLowerCase()] ?? cities.tirupati, [location, selected]);
+  const center = useMemo<[number, number]>(() => selected ? [selected.latitude, selected.longitude] : cities[location.trim().toLowerCase()] ?? cities.bengaluru, [location, selected]);
   const key = `${location}|${area}|${radiusKm}|${startDate}|${endDate}|${tier}|${budget}|${center.join(",")}`;
 
   useEffect(() => { if (selected?.formattedAddress === location || location.trim().length < 3) { setSuggestions([]); return; } const controller = new AbortController(); const timer = window.setTimeout(async () => { setSearching(true); try { const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(location.trim())}`, { signal: controller.signal }); const body = await response.json(); setSuggestions(response.ok ? body.data ?? [] : []); } catch { if (!controller.signal.aborted) setSuggestions([]); } finally { if (!controller.signal.aborted) setSearching(false); } }, 350); return () => { controller.abort(); window.clearTimeout(timer); }; }, [location, selected]);
