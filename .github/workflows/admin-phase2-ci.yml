@@ -1,7 +1,11 @@
-name: OORO Phase 2 Admin Security CI
+name: OORO Full Stack CI
 on:
   pull_request:
     paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "public/**"
       - "apps/api/**"
       - "app/admin/**"
       - "app/api/admin/users/**"

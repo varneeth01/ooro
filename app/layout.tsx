@@ -7,7 +7,7 @@ const siteDescription = "OORO is a smart mobility advertising network that helps
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  icons: { icon: "/favicon.jpeg", shortcut: "/favicon.jpeg", apple: "/favicon.jpeg" },
+  icons: { icon: "/ooro-mark.svg", shortcut: "/ooro-mark.svg", apple: "/favicon.jpeg" },
   title: { default: "OORO | Digital advertising in autos and cabs in Bengaluru", template: "%s | OORO" },
   description: siteDescription,
   keywords: ["OORO", "OORO advertising", "OORO Bengaluru", "mobility advertising India", "digital vehicle advertising", "vehicle screen advertising", "Bengaluru advertising", "Bangalore advertising", "Karnataka advertising", "smart city advertising", "digital out-of-home advertising", "DOOH India", "real world advertising", "Varneeth Varma", "Varneeth Varma Nandimandalam", "Siri Girish", "Jay Chandrudu Thammadi"],
@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": `${siteUrl}/#organization`, name: siteName, alternateName: ["Ooro", "Ooro mobility", "OORO advertising"], url: siteUrl, logo: `${siteUrl}/favicon.jpeg`, description: siteDescription, areaServed: { "@type": "City", name: "Bengaluru" }, founder: { "@id": `${siteUrl}/about#varneeth-varma-nandimandalam` }, employee: team.slice(1).map(person => ({ "@id": person["@id"] })), sameAs: team.flatMap((person) => "sameAs" in person ? person.sameAs : []) },
+      { "@type": "Organization", "@id": `${siteUrl}/#organization`, name: siteName, alternateName: ["Ooro", "Ooro mobility", "OORO advertising"], url: siteUrl, logo: `${siteUrl}/ooro-mark.svg`, description: siteDescription, areaServed: { "@type": "City", name: "Bengaluru" }, founder: { "@id": `${siteUrl}/about#varneeth-varma-nandimandalam` }, employee: team.slice(1).map(person => ({ "@id": person["@id"] })), sameAs: team.flatMap((person) => "sameAs" in person ? person.sameAs : []) },
       { "@type": "WebSite", "@id": `${siteUrl}/#website`, url: siteUrl, name: siteName, alternateName: "Ooro", description: siteDescription, publisher: { "@id": `${siteUrl}/#organization` }, inLanguage: "en-IN" },
       { "@type": "WebPage", "@id": `${siteUrl}/#webpage`, url: siteUrl, name: "OORO | Smart mobility advertising in India", isPartOf: { "@id": `${siteUrl}/#website` }, about: { "@id": `${siteUrl}/#organization` }, description: siteDescription, inLanguage: "en-IN" },
       ...team,
