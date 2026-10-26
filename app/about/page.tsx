@@ -1,19 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-
-export const metadata: Metadata = {
-  title: "OORO founders and team",
-  description: "Meet Varneeth Varma Nandimandalam, Siri Girish and Jay Chandrudu Thammadi, the OORO team building, a smart mobility advertising network starting in Bengaluru.",
-  alternates: { canonical: "/about" },
-  openGraph: { title: "OORO founders and team", description: "Meet the team building OORO's smart mobility advertising network from Bengaluru, India.", url: "/about", type: "profile" },
-};
-
-const people = [
-  ["Varneeth Varma Nandimandalam", "CEO and Founder", "https://www.linkedin.com/in/varneeth-varma-nandimandalam/"],
-  ["Siri Girish", "CMO and Brand Strategist", "https://www.linkedin.com/in/siri-girish-7b7b65378/"],
-  ["Jay Chandrudu Thammadi", "Operations and Hardware R&D", ""],
+import { ArrowUpRight, Cpu, MapPin, Megaphone } from "lucide-react";
+import { PublicPage } from "@/components/marketing/public-page";
+export const metadata:Metadata={title:"About OORO | The team building mobility advertising",description:"Meet the OORO team building in-auto and cab display advertising in Bengaluru.",alternates:{canonical:"/about"}};
+const team=[
+ {name:"Varneeth Varma Nandimandalam",role:"Founder & CEO",detail:"Product, platform and company direction.",url:"https://www.linkedin.com/in/varneeth-varma-nandimandalam/",Icon:Cpu},
+ {name:"Siri Girish",role:"CMO & Brand Strategist",detail:"Brands, positioning and growth.",url:"https://www.linkedin.com/in/siri-girish-7b7b65378/",Icon:Megaphone},
+ {name:"Jay Chandrudu Thammadi",role:"Operations & Hardware R&D",detail:"Fleet operations and connected display development.",url:null,Icon:Cpu},
 ];
-
-export default function AboutPage() {
-  return <main className="min-h-screen bg-[#f7f7f5] px-6 py-8 text-black sm:px-10"><Link href="/" className="text-sm font-medium">← OORO</Link><div className="mx-auto max-w-4xl pb-24 pt-24"><p className="eyebrow text-neutral-500">About OORO</p><h1 className="display mt-5 max-w-3xl text-5xl font-medium sm:text-7xl">The team building advertising that moves with your city.</h1><p className="mt-8 max-w-2xl text-lg leading-8 text-neutral-500">OORO is a smart mobility advertising network starting in Bengaluru, Karnataka, India. The founding team is building a more useful way for brands and businesses to reach people in the real world.</p><section className="mt-20" aria-labelledby="founders-heading"><h2 id="founders-heading" className="display text-3xl font-medium">OORO leadership and team</h2><div className="mt-8 divide-y border-y border-neutral-300">{people.map(([name, role, url]) => <div id={name.toLowerCase().replaceAll(" ", "-")} className="flex items-center justify-between gap-6 py-6" key={name}><span><strong className="block text-xl font-medium">{name}</strong><span className="mt-2 block text-neutral-500">{role}</span></span>{url ? <a href={url} target="_blank" rel="noreferrer" className="text-sm underline underline-offset-4">Profile ↗</a> : <span className="text-xs text-neutral-500">OORO team</span>}</div>)}</div></section></div></main>;
-}
+export default function AboutPage(){return <PublicPage eyebrow="Our story" title="Building the media network that moves with the city." description="OORO is developing an advertising network using connected screens inside autos and cabs. We are starting in Bengaluru and designing for transparent, verified campaign delivery.">
+ <section className="container-ooro py-20 sm:py-28"><div className="grid gap-10 lg:grid-cols-[.7fr_1.3fr] lg:gap-20"><div><span className="inline-flex items-center gap-2 text-sm font-semibold text-[#5b692c]"><MapPin size={16}/> Bengaluru, India</span><h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl">Technology should make real-world advertising easier to trust.</h2><p className="mt-5 text-base leading-8 text-neutral-700">A campaign is more than a booking. Our focus is on helping businesses plan local reach, getting approved creatives on eligible screens, and reporting what actually played.</p><Link className="mt-7 inline-flex items-center gap-2 text-sm font-semibold underline underline-offset-4" href="/how-it-works">How OORO works <ArrowUpRight size={17}/></Link></div>
+ <div><h2 className="text-2xl font-semibold tracking-tight">People building OORO</h2><div className="mt-6 divide-y divide-neutral-200 border-y border-neutral-200">{team.map(({name,role,detail,url,Icon},index)=><article id={name.toLowerCase().replaceAll(" ","-")} key={name} className="grid gap-4 py-7 sm:grid-cols-[56px_1fr_auto] sm:items-center"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#e4e8d6] text-[#39452c]"><Icon size={22} aria-hidden="true"/></div><div><p className="text-xs font-semibold tracking-wide text-neutral-500">{String(index+1).padStart(2,"0")} / {role}</p><h3 className="mt-1 text-lg font-semibold">{name}</h3><p className="mt-2 text-sm text-neutral-600">{detail}</p></div>{url?<a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">Profile <ArrowUpRight size={17}/></a>:<span className="text-xs text-neutral-500">OORO team</span>}</article>)}</div></div></div></section>
+ </PublicPage>}
