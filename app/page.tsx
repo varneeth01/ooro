@@ -5,7 +5,7 @@ import { HeroReveal } from "@/components/marketing/hero-reveal";
 import { ImmersiveShowcase } from "@/components/marketing/immersive-showcase";
 import { ExperienceBento } from "@/components/marketing/experience-bento";
 import { Navbar } from "@/components/marketing/navbar";
-import { Network, Cities, Founders, FinalCta } from "@/components/marketing/sections";
+import { Cities, Founders, FinalCta } from "@/components/marketing/sections";
 import { CampaignPricing } from "@/components/marketing/campaign-pricing";
 import { Footer } from "@/components/marketing/footer";
 import { JourneyCards } from "@/components/marketing/advertiser-journeys";
@@ -39,6 +39,6 @@ export default function Home(){
     <div><span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-xs font-semibold"><MapPin size={14}/> FIRST LAUNCH MARKET</span><h2 className="mt-6 text-4xl font-semibold tracking-[-.06em] sm:text-6xl">Made for the way <span className="text-[#5c6736]">Bengaluru moves.</span></h2><p className="mt-6 max-w-md text-base leading-8 text-[#505449]">From BTM Layout to Koramangala and Indiranagar, plan advertising around the areas you want to reach. Screen availability is confirmed by OORO before booking.</p><Link href="/coverage" className="mt-7 inline-flex items-center gap-3 rounded-xl bg-black px-5 py-3.5 text-sm font-semibold text-white hover:bg-neutral-800">Explore coverage <ArrowUpRight size={17}/></Link></div>
     <div className="grid grid-cols-2 gap-3 sm:gap-4"><div className="col-span-2 rounded-[24px] bg-[#101210] p-7 text-white sm:p-9"><Sparkles className="text-[#dfff00]" size={26}/><h3 className="mt-7 text-2xl font-semibold tracking-tight sm:text-3xl">Local attention.<br/>Real-world context.</h3><p className="mt-4 max-w-md text-sm leading-7 text-neutral-400">Mobility screens create space for messages inside everyday passenger journeys.</p></div><div className="rounded-[20px] border border-black/10 bg-white/70 p-5 sm:p-7"><p className="text-[11px] font-semibold tracking-widest text-neutral-500">TARGETING</p><p className="mt-6 text-xl font-semibold tracking-tight">Choose an area</p><p className="mt-2 text-xs leading-5 text-neutral-600">Neighborhood and radius preferences</p></div><div className="rounded-[20px] border border-black/10 bg-white/70 p-5 sm:p-7"><p className="text-[11px] font-semibold tracking-widest text-neutral-500">DELIVERY</p><p className="mt-6 text-xl font-semibold tracking-tight">Review first</p><p className="mt-2 text-xs leading-5 text-neutral-600">Confirm placement and commercial terms</p></div></div>
    </div></section>
-   <CampaignPricing/><Network/><Cities/><Founders/><FinalCta/><Footer/>
+   <CampaignPricing/><Cities/><Founders/><FinalCta/><Footer/>
  </main>;
 }
