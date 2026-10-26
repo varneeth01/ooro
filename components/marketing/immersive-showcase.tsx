@@ -1,41 +1,51 @@
 "use client";
 import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
-import { ArrowUpRight, MapPinned, ScanLine, Clapperboard, ChartNoAxesCombined, ChevronDown } from "lucide-react";
-const slides=[
- {index:"01 / 03",eyebrow:"LOCAL RELEVANCE",title:"Meet people where the city moves.",description:"Build a campaign around a Bengaluru neighborhood and the routes you want to reach.",icon:MapPinned,word:"BENGALURU",micro:"CHOOSE A TARGET AREA"},
- {index:"02 / 03",eyebrow:"CREATIVE DELIVERY",title:"A moment worth looking at.",description:"Your approved artwork appears on connected displays inside autos and cabs, subject to confirmed inventory.",icon:Clapperboard,word:"YOUR BRAND",micro:"CREATIVE + SCHEDULING"},
- {index:"03 / 03",eyebrow:"MEASURABLE DELIVERY",title:"Understand what actually played.",description:"Track supported proof-of-play events and campaign reports. Estimates are never presented as verified impressions.",icon:ChartNoAxesCombined,word:"PROOF OF PLAY",micro:"REPORTING + VERIFICATION"},
-];
-function ShowcasePanel({index,scrollYProgress,reduced}:{index:number;scrollYProgress:ReturnType<typeof useScroll>["scrollYProgress"];reduced:boolean|null}){
- const start=index/3,end=(index+1)/3;
- const opacity=useTransform(scrollYProgress,[Math.max(0,start-.07),start+.08,end-.08,Math.min(1,end+.07)],[index===0?1:0,1,1,index===2?1:0]);
- const scale=useTransform(scrollYProgress,[start,end],[.94,1.03]);
- const y=useTransform(scrollYProgress,[start,end],[18,-18]);
- const step=slides[index];const Icon=step.icon;
- return <motion.article aria-label={step.eyebrow} style={reduced?{}:{opacity,scale,y}} className={`absolute inset-0 flex flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-[#111417] p-6 text-white shadow-[0_45px_120px_rgba(0,0,0,.24)] sm:p-10 ${reduced && index!==0?"hidden":""}`}>
- <div className="relative z-10 flex items-start justify-between gap-4"><span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-[10px] font-semibold tracking-[.16em] text-neutral-300"><Icon size={14} className="text-[#dfff00]"/>{step.micro}</span><span className="font-mono text-xs text-neutral-500">{step.index}</span></div>
- <div className="pointer-events-none absolute -right-16 top-1/4 h-[330px] w-[330px] rounded-full bg-[#dfff00]/10 blur-[80px]"/>
- <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-  {index===0?<div className="relative flex h-48 w-48 items-center justify-center rounded-full border border-[#dfff00]/40 bg-[#dfff00]/5 shadow-[0_0_0_30px_rgba(223,255,0,.025),0_0_0_65px_rgba(223,255,0,.02)] sm:h-64 sm:w-64"><div className="absolute inset-7 rounded-full border border-dashed border-[#dfff00]/40"/><MapPinned size={48} className="text-[#dfff00]"/></div>:index===1?<div className="w-full max-w-[350px] -rotate-3 rounded-[28px] border border-white/30 bg-black p-3 shadow-[0_30px_80px_rgba(0,0,0,.6)]"><div className="flex aspect-[16/10] flex-col justify-between rounded-[18px] bg-[#dfff00] p-7 text-black"><ScanLine size={24}/><span className="text-4xl font-black leading-none tracking-[-.07em] sm:text-5xl">MORE<br/>TO SEE.</span><span className="text-[9px] font-bold tracking-[.2em]">OORO / CREATIVE PREVIEW</span></div></div>:<div className="w-full max-w-[350px] space-y-3 rounded-[22px] border border-white/15 bg-white/[.07] p-6 backdrop-blur-xl"><div className="flex items-center justify-between"><span className="text-xs text-neutral-400">Playback reporting</span><ScanLine size={18} className="text-[#dfff00]"/></div>{[72,92,56,81,64,100,76].map((height,i)=><span key={i} className="mr-2 inline-block w-[9%] rounded-t-md bg-[#dfff00]/80" style={{height:height*.95}}/>)}<p className="text-xs text-neutral-400">Illustrative dashboard, not live campaign data.</p></div>}
- </div>
- <div className="relative z-10 border-t border-white/10 pt-4"><p className="text-[10px] font-semibold tracking-[.2em] text-neutral-500">{step.eyebrow}</p><p className="mt-1 text-2xl font-semibold tracking-[-.05em] sm:text-3xl">{step.word}</p></div>
+import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+import { ArrowUpRight, ChartNoAxesColumnIncreasing, Clapperboard, MapPinned } from "lucide-react";
+
+const stories = [
+ {number:"01",label:"Where",title:"Start with a place.",body:"Choose Bengaluru neighborhoods, the radius you want to reach and the dates you have in mind. OORO confirms actual availability before any booking.",Icon:MapPinned,caption:"Planning preview · Bengaluru"},
+ {number:"02",label:"What",title:"Make the moment yours.",body:"Bring your artwork or video. OORO reviews the creative and schedules approved media on eligible in-vehicle screens.",Icon:Clapperboard,caption:"Creative preview · illustrative"},
+ {number:"03",label:"Proof",title:"See what actually played.",body:"Understand supported playback records and campaign reporting—without confusing estimated reach with verified delivery.",Icon:ChartNoAxesColumnIncreasing,caption:"Reporting preview · illustrative"},
+] as const;
+
+function StoryGraphic({index}:{index:number}){
+ if(index===0)return <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-[#1e2422]">
+  <div className="absolute inset-0 opacity-25" style={{backgroundImage:"linear-gradient(35deg,transparent 47%,#96aa7b 48%,#96aa7b 49%,transparent 50%),linear-gradient(125deg,transparent 47%,#96aa7b 48%,#96aa7b 49%,transparent 50%)",backgroundSize:"64px 64px"}}/>
+  <div className="relative flex h-48 w-48 items-center justify-center rounded-full border border-[#dfff00]/50 bg-[#dfff00]/10 shadow-[0_0_0_35px_rgba(223,255,0,.05)] sm:h-56 sm:w-56"><MapPinned className="text-[#dfff00]" size={48}/><span className="absolute bottom-7 text-xs font-medium text-white">Bengaluru</span></div>
+ </div>;
+ if(index===1)return <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-[#161918] p-6"><div className="w-full max-w-[330px] -rotate-3 rounded-[22px] border-[9px] border-[#333737] bg-[#dfff00] p-6 text-black shadow-[15px_22px_35px_rgba(0,0,0,.4)]"><p className="text-xs font-bold tracking-[.15em]">OORO / CREATIVE</p><p className="mt-12 text-4xl font-black leading-[.95] tracking-tight sm:text-5xl">MORE<br/>TO SEE.</p><p className="mt-10 text-[10px] font-semibold">DISPLAY CONCEPT — NOT LIVE</p></div></div>;
+ return <div className="flex aspect-[4/3] flex-col justify-between rounded-xl bg-[#171d1b] p-6 sm:p-9"><p className="text-sm text-neutral-300">Proof-of-play dashboard</p><div className="flex h-36 items-end gap-3">{[38,70,50,82,56,95,67].map((height,i)=><div key={i} className="flex-1 rounded-t-md bg-[#dfff00]" style={{height:height+"%"}}/>)}</div><p className="text-xs text-neutral-400">Illustrative chart · no real campaign figures</p></div>;
+}
+function MobileStories(){return <div className="space-y-7 pb-16 md:hidden">{stories.map((s,i)=><article key={s.number} className="overflow-hidden rounded-2xl bg-[#111513] p-4 text-white"><StoryGraphic index={i}/><div className="px-2 pb-4 pt-6"><span className="text-xs font-semibold tracking-wide text-[#dfff00]">{s.number} / {s.label}</span><h3 className="mt-3 text-2xl font-semibold tracking-tight">{s.title}</h3><p className="mt-3 text-base leading-7 text-neutral-300">{s.body}</p></div></article>)}</div>}
+function StoryFrame({index,progress}:{index:number;progress:ReturnType<typeof useSpring>}) {
+ const start=index/3,stop=(index+1)/3,enter=Math.max(0,start-.03),leave=Math.min(1,stop+.04);
+ const opacity=useTransform(progress,[enter,Math.min(enter+.09,stop),Math.max(start+.12,stop-.09),leave],[index===0?1:0,1,1,index===2?1:0]);
+ const translate=useTransform(progress,[start,stop],[16,-16]);
+ const story=stories[index];
+ return <motion.article aria-hidden={false} style={{opacity,y:translate}} className="pointer-events-none absolute inset-0 flex flex-col justify-center">
+   <StoryGraphic index={index}/>
+   <div className="mt-5 flex items-center justify-between text-xs text-neutral-500"><span>{story.caption}</span><span>{story.number} / 03</span></div>
  </motion.article>;
 }
 export function ImmersiveShowcase(){
- const reduced=useReducedMotion(); const ref=useRef<HTMLElement>(null);
+ const reduced=useReducedMotion();
+ const ref=useRef<HTMLElement>(null);
  const {scrollYProgress}=useScroll({target:ref,offset:["start start","end end"]});
- const spring=useSpring(scrollYProgress,{stiffness:75,damping:25,mass:.4});
- const progress=useTransform(spring,[0,1],["0%","100%"]);
- return <section ref={ref} id="experience" className="relative bg-[#f6f6f2] text-[#101010]">
- <div className="container-ooro py-20 sm:py-28"><div className="max-w-3xl"><p className="text-[11px] font-semibold tracking-[.2em] text-neutral-500">THE OORO EXPERIENCE</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.065em] sm:text-6xl">From a place on the map<br/><span className="text-neutral-500">to a moment that matters.</span></h2></div></div>
- <div className={reduced?"container-ooro grid gap-7 pb-20 lg:grid-cols-2":"relative h-[245vh]"}><div className={reduced?"space-y-8":"sticky top-0 flex h-screen items-center overflow-hidden py-16"}>
- <div className="container-ooro grid w-full items-center gap-10 lg:grid-cols-[.85fr_1.15fr] lg:gap-16">
- <div className="order-2 lg:order-1"><p className="text-[11px] font-semibold tracking-[.18em] text-neutral-500">MOBILITY, MADE MEASURABLE</p><h3 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-[-.06em] sm:text-5xl">Plan. Play.<br/>Prove.</h3><p className="mt-6 max-w-sm text-base leading-8 text-neutral-600">OORO brings digital campaigns into real journeys. Create a brief, let the team confirm inventory, and get the playback data that is actually available.</p><Link href="/advertise" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold hover:underline">Explore campaign planning <ArrowUpRight size={17}/></Link>
- <div className="mt-10 hidden items-center gap-4 lg:flex"><span className="text-xs font-medium text-neutral-500">SCROLL TO EXPLORE</span><ChevronDown size={16} className="text-neutral-500"/></div></div>
- <div className="order-1 lg:order-2"><div className="relative h-[370px] sm:h-[500px]">{slides.map((_,index)=><ShowcasePanel key={index} index={index} scrollYProgress={spring} reduced={reduced}/>)}</div></div>
- </div></div></div>
- {!reduced&&<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-1 bg-neutral-200"><motion.div style={{width:progress}} className="h-full bg-[#a3bf19]"/></div>}
+ const progress=useSpring(scrollYProgress,{stiffness:90,damping:30,mass:.35});
+ const bar=useTransform(progress,[0,1],["0%","100%"]);
+ return <section id="experience" ref={ref} className="relative scroll-mt-28 bg-[#f6f7f3] text-[#101210]">
+  <div className="container-ooro pb-3 pt-20 sm:pt-28"><h2 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">From a place on the map to <span className="text-[#66724d]">a moment that matters.</span></h2><p className="mt-5 max-w-xl text-base leading-7 text-neutral-600">A simpler way to plan mobility advertising, deliver approved creatives, and understand playback.</p></div>
+  <div className="container-ooro md:hidden"><MobileStories/></div>
+  {reduced?<div className="container-ooro hidden gap-10 pb-24 md:grid">{stories.map((s,i)=><div key={s.number} className="grid items-center gap-8 md:grid-cols-2"><div><h3 className="text-3xl font-semibold">{s.title}</h3><p className="mt-4 text-base leading-7 text-neutral-600">{s.body}</p></div><StoryGraphic index={i}/></div>)}</div>:<div className="relative hidden h-[230vh] md:block"><div className="sticky top-0 flex h-screen items-center"><div className="container-ooro grid w-full items-center gap-14 lg:grid-cols-[.85fr_1.15fr]">
+    <div><span className="text-sm font-medium text-neutral-500">An OORO campaign, in three moments</span><div className="mt-9 space-y-8">{stories.map((s,i)=><StoryCopy key={s.number} index={i} progress={progress} title={s.title} body={s.body} />)}</div><Link href="/advertise" className="mt-8 inline-flex min-h-12 items-center gap-2 text-sm font-semibold underline underline-offset-4 hover:text-[#53632d] focus-visible:outline-2 focus-visible:outline-offset-4">Plan a Bengaluru campaign <ArrowUpRight size={17}/></Link></div>
+    <div className="relative h-[430px] lg:h-[510px]">{stories.map((s,i)=><StoryFrame key={s.number} index={i} progress={progress}/>)}</div>
+   </div></div><div className="pointer-events-none absolute bottom-0 inset-x-0 h-[3px] bg-[#d9ded2]"><motion.div style={{width:bar}} className="h-full bg-[#6b8129]"/></div></div>}
  </section>;
+}
+function StoryCopy({index,progress,title,body}:{index:number;progress:ReturnType<typeof useSpring>;title:string;body:string}){
+ const start=index/3,stop=(index+1)/3;
+ const opacity=useTransform(progress,[Math.max(0,start-.04),Math.min(start+.08,stop),Math.max(start+.12,stop-.08),Math.min(1,stop+.04)],[index===0?1:.36,1,1,index===2?1:.36]);
+ return <motion.div style={{opacity}} className="border-l border-[#abb6a0] pl-5"><p className="text-xs font-semibold text-[#596944]">{String(index+1).padStart(2,"0")} / 03</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h3><p className="mt-2 max-w-md text-sm leading-6 text-neutral-600">{body}</p></motion.div>;
 }
