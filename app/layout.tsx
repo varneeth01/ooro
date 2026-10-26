@@ -7,7 +7,7 @@ const siteDescription = "OORO is a smart mobility advertising network that helps
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  icons: { icon: "/favicon.jpeg", shortcut: "/favicon.jpeg", apple: "/favicon.jpeg" },
+  icons: { icon: "/ooro-mark.svg", shortcut: "/ooro-mark.svg", apple: "/favicon.jpeg" },
   title: { default: "OORO | Digital advertising in autos and cabs in Bengaluru", template: "%s | OORO" },
   description: siteDescription,
   keywords: ["OORO", "OORO advertising", "OORO Bengaluru", "mobility advertising India", "digital vehicle advertising", "vehicle screen advertising", "Bengaluru advertising", "Bangalore advertising", "Karnataka advertising", "smart city advertising", "digital out-of-home advertising", "DOOH India", "real world advertising", "Varneeth Varma", "Varneeth Varma Nandimandalam", "Siri Girish", "Jay Chandrudu Thammadi"],
