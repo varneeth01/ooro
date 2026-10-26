@@ -30,4 +30,5 @@ button, input { font: inherit; }
 
 @media (min-width: 768px) { .container-ooro { width: min(100% - 64px, 1280px); } }
 @media (max-width: 700px) { .site-grid { background-size: 42px 42px; } .display { letter-spacing: -.055em; } .section-sm { padding-block: 72px; } .section-md { padding-block: 88px; } .section-lg { padding-block: 112px; } }
-\n@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }\n
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
