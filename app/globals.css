@@ -20,7 +20,11 @@ button, input { font: inherit; }
 .eyebrow { letter-spacing: .08em; text-transform: uppercase; font-size: 11px; font-weight: 600; }
 .app-eyebrow { color: #85857f; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 .hairline { border-color: var(--line); }
-.focus-ring:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.focus-ring:focus-visible { outline: 2px solid #829d00; outline-offset: 3px; }
+:where(a, button, input, textarea, select):focus-visible { outline-offset: 3px; }
+:where(#solutions, #features, #experience, #bengaluru) { scroll-margin-top: 112px; }
+:where(button, a) { -webkit-tap-highlight-color: transparent; }
+@media (prefers-contrast: more) { .text-neutral-400, .text-neutral-500 { color: #747474; } }
 .map-section { position: relative; isolation: isolate; z-index: var(--z-map); overflow: hidden; }
 .unlock-backdrop { position: fixed; inset: 0; z-index: var(--z-backdrop); pointer-events: auto; }
 .unlock-modal { position: fixed; z-index: var(--z-modal); pointer-events: auto; }
