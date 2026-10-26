@@ -11,6 +11,6 @@ return <div className="mx-auto max-w-3xl space-y-6 py-10">
   <Link href={pendingApproval?`/onboarding/${onboarding}`:network?"/onboarding/network":"/locations"} className="rounded-lg border border-neutral-200 p-4 transition hover:border-black"><strong className="block text-sm">{pendingApproval?"Review your organization":network?"Continue network onboarding":"Explore OORO coverage"}</strong><span className="mt-2 block text-xs text-neutral-500">Continue using your existing account</span></Link>
   <Link href="/signup" className="rounded-lg border border-neutral-200 p-4 transition hover:border-black"><strong className="block text-sm">Advertise with a different account</strong><span className="mt-2 block text-xs text-neutral-500">Choose Business, Brand or Agency when registering</span></Link>
  </div>
- <p className="text-xs text-neutral-500">Access is enforced by OORO's server, not just by the menu. Contact support if your account type was selected incorrectly.</p>
+ <p className="text-xs text-neutral-500">Access is enforced by OORO server, not just by the menu. Contact support if your account type was selected incorrectly.</p>
  </div>;
 }
