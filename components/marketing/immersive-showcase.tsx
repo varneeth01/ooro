@@ -3,7 +3,6 @@ import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
 import { ArrowUpRight, MapPinned, ScanLine, Clapperboard, ChartNoAxesCombined, ChevronDown } from "lucide-react";
-const ease=[0.22,1,0.36,1] as const;
 const slides=[
  {index:"01 / 03",eyebrow:"LOCAL RELEVANCE",title:"Meet people where the city moves.",description:"Build a campaign around a Bengaluru neighborhood and the routes you want to reach.",icon:MapPinned,word:"BENGALURU",micro:"CHOOSE A TARGET AREA"},
  {index:"02 / 03",eyebrow:"CREATIVE DELIVERY",title:"A moment worth looking at.",description:"Your approved artwork appears on connected displays inside autos and cabs, subject to confirmed inventory.",icon:Clapperboard,word:"YOUR BRAND",micro:"CREATIVE + SCHEDULING"},
@@ -29,7 +28,6 @@ export function ImmersiveShowcase(){
  const {scrollYProgress}=useScroll({target:ref,offset:["start start","end end"]});
  const spring=useSpring(scrollYProgress,{stiffness:75,damping:25,mass:.4});
  const progress=useTransform(spring,[0,1],["0%","100%"]);
- const current=useTransform(spring,[0,.33,.67,1],[1,1,2,3]);
  return <section ref={ref} id="experience" className="relative bg-[#f6f6f2] text-[#101010]">
  <div className="container-ooro py-20 sm:py-28"><div className="max-w-3xl"><p className="text-[11px] font-semibold tracking-[.2em] text-neutral-500">THE OORO EXPERIENCE</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.065em] sm:text-6xl">From a place on the map<br/><span className="text-neutral-500">to a moment that matters.</span></h2></div></div>
  <div className={reduced?"container-ooro grid gap-7 pb-20 lg:grid-cols-2":"relative h-[245vh]"}><div className={reduced?"space-y-8":"sticky top-0 flex h-screen items-center overflow-hidden py-16"}>
