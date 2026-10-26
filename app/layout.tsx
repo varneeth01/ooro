@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": `${siteUrl}/#organization`, name: siteName, alternateName: ["Ooro", "Ooro mobility", "OORO advertising"], url: siteUrl, logo: `${siteUrl}/favicon.jpeg`, description: siteDescription, areaServed: { "@type": "City", name: "Bengaluru" }, founder: { "@id": `${siteUrl}/about#varneeth-varma-nandimandalam` }, employee: team.slice(1).map(person => ({ "@id": person["@id"] })), sameAs: team.flatMap((person) => "sameAs" in person ? person.sameAs : []) },
+      { "@type": "Organization", "@id": `${siteUrl}/#organization`, name: siteName, alternateName: ["Ooro", "Ooro mobility", "OORO advertising"], url: siteUrl, logo: `${siteUrl}/ooro-mark.svg`, description: siteDescription, areaServed: { "@type": "City", name: "Bengaluru" }, founder: { "@id": `${siteUrl}/about#varneeth-varma-nandimandalam` }, employee: team.slice(1).map(person => ({ "@id": person["@id"] })), sameAs: team.flatMap((person) => "sameAs" in person ? person.sameAs : []) },
       { "@type": "WebSite", "@id": `${siteUrl}/#website`, url: siteUrl, name: siteName, alternateName: "Ooro", description: siteDescription, publisher: { "@id": `${siteUrl}/#organization` }, inLanguage: "en-IN" },
       { "@type": "WebPage", "@id": `${siteUrl}/#webpage`, url: siteUrl, name: "OORO | Smart mobility advertising in India", isPartOf: { "@id": `${siteUrl}/#website` }, about: { "@id": `${siteUrl}/#organization` }, description: siteDescription, inLanguage: "en-IN" },
       ...team,
