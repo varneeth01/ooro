@@ -21,10 +21,14 @@ export const config = {
   heartbeatOnlineSeconds: Number(process.env.HEARTBEAT_ONLINE_SECONDS ?? 90),
   heartbeatDegradedSeconds: Number(process.env.HEARTBEAT_DEGRADED_SECONDS ?? 300),
   payoutMinimumMinor: BigInt(process.env.PAYOUT_MINIMUM_MINOR ?? '1000'),
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID ?? '',
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
+  razorpayMode: process.env.RAZORPAY_MODE?.trim().toLowerCase() ?? '',
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
   adminWebBaseUrl: (process.env.ADMIN_WEB_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
-  adminPasswordResetTtlSeconds: 600, // Hard security limit: reset links expire 10 minutes after issuance.,
+  adminPasswordResetTtlSeconds: Number(process.env.ADMIN_PASSWORD_RESET_TTL_SECONDS ?? 3600),
   adminPasswordSetupTtlSeconds: Number(process.env.ADMIN_PASSWORD_SETUP_TTL_SECONDS ?? 86400),
   adminLoginWindowSeconds: Number(process.env.ADMIN_LOGIN_WINDOW_SECONDS ?? 900),
   adminLoginMaxAttempts: Number(process.env.ADMIN_LOGIN_MAX_ATTEMPTS ?? 10),
@@ -41,6 +45,17 @@ export const config = {
   deviceOsS3SecretAccessKey: process.env.DEVICEOS_S3_SECRET_ACCESS_KEY ?? '',
   deviceOsDownloadBaseUrl: (process.env.DEVICEOS_DOWNLOAD_BASE_URL ?? '').replace(/\/$/, ''),
   deviceOsRequestReceiptRetentionDays: Number.isFinite(Number(process.env.DEVICEOS_REQUEST_RECEIPT_RETENTION_DAYS ?? 7)) ? Math.max(1, Math.floor(Number(process.env.DEVICEOS_REQUEST_RECEIPT_RETENTION_DAYS ?? 7))) : 7,
+  documentStorageMode: process.env.DOCUMENT_STORAGE_MODE?.trim().toLowerCase() ?? 'local',
+  documentStorageDir: process.env.DOCUMENT_STORAGE_DIR ?? '/var/lib/ooro/private-documents',
+  documentStorageKey: process.env.DOCUMENT_STORAGE_KEY ?? 'development-only-document-key-change-me',
+  documentStorageBucket: process.env.DOCUMENT_STORAGE_BUCKET ?? '',
+  documentStorageRegion: process.env.DOCUMENT_STORAGE_REGION ?? 'auto',
+  documentStorageEndpoint: process.env.DOCUMENT_STORAGE_ENDPOINT ?? '',
+  documentStorageAccessKeyId: process.env.DOCUMENT_STORAGE_ACCESS_KEY_ID ?? '',
+  documentStorageSecretAccessKey: process.env.DOCUMENT_STORAGE_SECRET_ACCESS_KEY ?? '',
+  documentStorageUploadTtlSeconds: Math.min(900, Math.max(60, Number(process.env.DOCUMENT_STORAGE_UPLOAD_TTL_SECONDS ?? 600))),
+  documentStorageReadTtlSeconds: Math.min(300, Math.max(30, Number(process.env.DOCUMENT_STORAGE_READ_TTL_SECONDS ?? 120))),
+  documentScanMode: process.env.DOCUMENT_SCAN_MODE?.trim().toLowerCase() ?? 'local-dev',
   corsOrigins: process.env.NODE_ENV === 'production'
     ? [...defaultCorsOrigins, ...list(process.env.CORS_ORIGINS)]
     : [...developmentCorsOrigins, ...list(process.env.CORS_ORIGINS)],
@@ -61,4 +76,8 @@ if (config.nodeEnv === 'production') {
   if (!config.emailProviderApiKey) throw new Error('EMAIL_PROVIDER_API_KEY must be configured in production')
   if (!config.adminWebBaseUrl.startsWith('https://')) throw new Error('ADMIN_WEB_BASE_URL must use HTTPS in production')
   if (config.deviceOsStorageMode !== 's3') throw new Error('DEVICEOS_STORAGE_MODE must be s3 in production')
+  if (config.documentStorageMode !== 's3') throw new Error('DOCUMENT_STORAGE_MODE must be s3 in production')
+  if (config.documentStorageKey === 'development-only-document-key-change-me' || config.documentStorageKey.length < 32) throw new Error('DOCUMENT_STORAGE_KEY must be configured in production')
+  if (!config.documentStorageBucket || !config.documentStorageAccessKeyId || !config.documentStorageSecretAccessKey) throw new Error('Private document S3 credentials must be configured in production')
+  if (config.documentScanMode !== 'remote') throw new Error('DOCUMENT_SCAN_MODE must be remote in production')
 }
