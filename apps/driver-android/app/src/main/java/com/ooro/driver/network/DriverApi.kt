@@ -18,6 +18,7 @@ interface DriverApi {
     suspend fun requestOtp(phone: String)
     suspend fun verifyOtp(phone: String, otp: String): SessionResponse
     suspend fun pairDisplay(code: String, driverId: String, vehicleId: String): DisplayBinding
+    suspend fun assignedVehicleId(): String? = null
     suspend fun sendRideEvents(events: List<NormalizedRideEvent>)
     suspend fun sendLocations(samples: List<LocationSample>)
     suspend fun sendProof(proofs: List<ProofOfPlay>)
@@ -53,7 +54,8 @@ data class PayoutResponse(val id: String, val status: PayoutStatus)
 
 class MockDriverApi : DriverApi {
     override suspend fun requestOtp(phone: String) = Unit
-    override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { require(otp == "000000") { "Use 000000 in debug mode" }; return SessionResponse("demo-access", "demo-refresh", "demo-driver", DriverProfile("demo-driver", "OORO Demo Driver", phone, "driver@example.test", "Bengaluru", driverType = DriverType.INDIVIDUAL, kycStatus = VerificationStatus.VERIFIED)) }
+    override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { require(otp == "000000") { "Use 000000 in debug mode" }; return SessionResponse("demo-access", "demo-refresh", "demo-driver", DriverProfile("demo-driver", "OORO Demo Driver", phone, "driver@example.test", "Bengaluru", driverType = DriverType.INDIVIDUAL, kycStatus = VerificationStatus.PENDING)) }
+    override suspend fun assignedVehicleId(): String? = "demo-vehicle"
     override suspend fun pairDisplay(code: String, driverId: String, vehicleId: String): DisplayBinding { require(code.replace(" ", "").uppercase() in setOf("OORO-DEMO", "742981")) { "Invalid development display code" }; return DisplayBinding("OORO-DEMO", vehicleId, "Demo Display", DisplayState.IDLE_SLEEP, Instant.now(), "1.0.0", 1, networkType = NetworkType.WIFI) }
     override suspend fun sendRideEvents(events: List<NormalizedRideEvent>) = Unit
     override suspend fun sendLocations(samples: List<LocationSample>) = Unit
@@ -89,6 +91,7 @@ class HttpDriverApi(private val baseUrl: String, private val token: () -> String
     override suspend fun requestOtp(phone: String) { request("/api/auth/request-otp", "POST", JSONObject().put("phone", phone).toString()) }
     override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { val response = data(request("/api/auth/verify-otp", "POST", JSONObject().put("phone", phone).put("code", otp).toString())); val driver = response.optJSONObject("driver") ?: JSONObject(); val user = response.optJSONObject("user") ?: JSONObject(); val id = driver.optString("id", user.optString("id")); return SessionResponse(response.getString("accessToken"), response.getString("refreshToken"), id, DriverProfile(id, user.optString("name", ""), phone, user.optString("email").takeIf { it.isNotBlank() })) }
     override suspend fun pairDisplay(code: String, driverId: String, vehicleId: String): DisplayBinding { val result = data(request("/api/displays/pair", "POST", JSONObject().put("pairingCode", code.replace(" ", "")).put("vehicleId", vehicleId).toString())); return DisplayBinding(result.getString("displayId"), vehicleId, result.optString("displayName", "OORO Display"), DisplayState.IDLE_SLEEP) }
+    override suspend fun assignedVehicleId(): String? { val root = data(request("/api/driver/dashboard", "GET")); return root.optJSONArray("vehicles")?.optJSONObject(0)?.optString("id")?.takeIf(String::isNotBlank) }
     override suspend fun sendRideEvents(events: List<NormalizedRideEvent>) { request("/api/mobility/events", "POST", JSONObject().put("events", events.map { JSONObject().put("eventId", it.eventId).put("provider", it.provider).put("eventType", it.eventType.name).put("timestamp", it.timestamp.toString()).put("confidence", it.confidence).put("source", "NOTIFICATION").put("sourcePackage", it.sourcePackage).put("evidenceClass", it.evidence.name).put("diagnosticCode", it.diagnosticCode) }).toString()) }
     override suspend fun sendLocations(samples: List<LocationSample>) { samples.groupBy { it.rideId }.forEach { (rideId, points) -> request("/api/rides/$rideId/locations", "POST", JSONObject().put("points", points.map { JSONObject().put("timestamp", it.timestamp.toString()).put("latitude", it.latitude).put("longitude", it.longitude).put("accuracy", it.accuracyMeters).put("speed", it.speedMps).put("bearing", it.bearing) }).toString()) } }
     override suspend fun sendProof(proofs: List<ProofOfPlay>) { request("/api/device/proof-of-play", "POST", JSONObject().put("events", proofs.map { JSONObject().put("proofId", it.proofId).put("rideId", it.rideId).put("displayId", it.displayId).put("creativeId", it.creativeId).put("playbackStartedAt", it.playbackStartedAt.toString()).put("playbackEndedAt", it.playbackEndedAt?.toString()).put("expectedDuration", it.expectedDurationSeconds).put("actualDuration", it.actualDurationSeconds).put("manifestVersion", it.manifestVersion).put("playerVersion", it.playerVersion).put("playbackCompleted", it.playbackCompleted) }).toString()) }

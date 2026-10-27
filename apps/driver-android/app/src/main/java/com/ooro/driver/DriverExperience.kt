@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,9 +66,12 @@ private fun PrimaryDriverButton(label: String, enabled: Boolean = true, onClick:
 }
 @Composable
 fun DriverWelcomeScreen(vm: DriverAppViewModel, mode: AppMode) {
-    var phone by remember { mutableStateOf("") }
+    val savedPhone by vm.savedPhone.collectAsState()
+    val authLoading by vm.authLoading.collectAsState()
+    var phone by rememberSaveable { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     val message by vm.message.collectAsState()
+    LaunchedEffect(savedPhone) { if (phone.isBlank()) phone = savedPhone }
     DriverShell("Your next ride starts here", if (mode == AppMode.LOGIN) "Drive with confidence." else "Verify your number.",
         if (mode == AppMode.LOGIN) "Connect your eligible rides and OORO display. Track verified activity and available earnings in one place."
         else "Enter the one-time code sent to your phone. Your driver account stays protected.") {
@@ -80,14 +84,14 @@ fun DriverWelcomeScreen(vm: DriverAppViewModel, mode: AppMode) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true,
                         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                     Spacer(Modifier.height(18.dp))
-                    PrimaryDriverButton("Continue securely", phone.length == 10) { vm.requestOtp(phone) }
+                    PrimaryDriverButton(if (authLoading) "Sending code…" else "Continue securely", phone.length == 10 && !authLoading) { vm.requestOtp(phone) }
                 } else {
                     Text("Verification code", fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(value = otp, onValueChange = { otp = it.filter(Char::isDigit).take(6) },
                         placeholder = { Text("6-digit code") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                     Spacer(Modifier.height(18.dp))
-                    PrimaryDriverButton("Verify & continue", otp.length == 6) { vm.verifyOtp(otp) }
+                    PrimaryDriverButton(if (authLoading) "Verifying…" else "Verify & continue", otp.length == 6 && !authLoading) { vm.verifyOtp(otp) }
                 }
             }
         }
