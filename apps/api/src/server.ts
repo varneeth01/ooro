@@ -62,6 +62,10 @@ app.addHook('preHandler', async (request) => {
 app.addHook('preHandler', async (request) => {
   if (request.method === 'GET' && request.url.split('?')[0] === '/api/admin/proof-of-play') await requirePermission(request, 'campaign:read')
 })
+app.addHook('preHandler', async (request) => {
+  const path = request.url.split('?')[0]
+  if (request.method === 'GET' && (path === '/api/admin/orders' || /^\/api\/admin\/orders\/[^/]+$/.test(path))) await requirePermission(request, 'finance:read')
+})
 app.addHook('preHandler', async (request) => { if (request.url.split('?')[0].startsWith('/api/admin/')) await requireRoles(request, adminRoles); if (request.url.split('?')[0] === '/api/webhooks/razorpay') await connectMongo() })
 
 const ok = (request: any, data: unknown, reply: any) => reply.send(response(request, data))
