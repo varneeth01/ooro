@@ -69,7 +69,9 @@ fun DriverWelcomeScreen(vm: DriverAppViewModel, mode: AppMode) {
     val savedPhone by vm.savedPhone.collectAsState()
     val authLoading by vm.authLoading.collectAsState()
     var phone by rememberSaveable { mutableStateOf("") }
-    var otp by remember { mutableStateOf("") }
+    // OTP is retained only in saved UI state for rotation/process recreation; it is
+    // never written to Room or the encrypted session store.
+    var otp by rememberSaveable { mutableStateOf("") }
     val message by vm.message.collectAsState()
     LaunchedEffect(savedPhone) { if (phone.isBlank()) phone = savedPhone }
     DriverShell("Your next ride starts here", if (mode == AppMode.LOGIN) "Drive with confidence." else "Verify your number.",
@@ -113,11 +115,13 @@ fun DriverPermissionsScreen(vm: DriverAppViewModel) {
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    val notificationGranted = Build.VERSION.SDK_INT < 33 ||
+    val notificationGranted = remember(revision) { Build.VERSION.SDK_INT < 33 ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-    val locationGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+    }
+    val locationGranted = remember(revision) { ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val listenerGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+    val listenerGranted = remember(revision) { NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { revision++ }
     DriverShell("Step 7 of 9 · Your choice", "Connect your ride tools.",
         "OORO can recognize supported ride notifications and use foreground location to help verify trips. You stay in control of these permissions.") {

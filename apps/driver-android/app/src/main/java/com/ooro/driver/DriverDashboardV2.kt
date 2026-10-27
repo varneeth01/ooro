@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
@@ -30,6 +32,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -39,7 +43,9 @@ fun DriverDashboardV2(vm: DriverAppViewModel) {
     Scaffold(bottomBar = {
         NavigationBar {
             listOf("HOME" to "Home", "RIDES" to "Rides", "EARNINGS" to "Earnings", "PROFILE" to "Profile").forEach { (key, label) ->
-                NavigationBarItem(selected = tab == key, onClick = { tab = key }, icon = { Text(label.take(1)) }, label = { Text(label) })
+                NavigationBarItem(selected = tab == key, onClick = { tab = key },
+                    icon = { Text(label.take(1), modifier = Modifier.semantics { contentDescription = "$label tab" }) },
+                    label = { Text(label) })
             }
         }
     }) { padding ->
@@ -59,12 +65,12 @@ private fun DriverHomeTab(vm: DriverAppViewModel, modifier: Modifier) {
     val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
         if (grants.values.any { it }) vm.startDuty()
     }
-    LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
-            Text(snapshot?.let { "Good morning, ${it.name}" } ?: "OORO Driver")
+            Text(snapshot?.let { "Good morning, ${it.name}" } ?: "OORO Driver", style = MaterialTheme.typography.headlineSmall)
             Text(snapshot?.let { "${it.onboardingStatus.replace('_', ' ')} · ${it.accountStatus.replace('_', ' ')}" } ?: "Your driver account")
             if (dashboard.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            dashboard.error?.let { Text(it) }
+            dashboard.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { vm.refreshDashboard() }, enabled = !dashboard.loading) { Text("Refresh") }
                 if (dashboard.error != null) TextButton(onClick = { vm.refreshDashboard() }) { Text("Retry") }
@@ -73,7 +79,7 @@ private fun DriverHomeTab(vm: DriverAppViewModel, modifier: Modifier) {
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp)) {
-                    Text(if (dashboard.dutySession == null) "Off duty" else "On duty")
+                    Text(if (dashboard.dutySession == null) "Off duty" else "On duty", style = MaterialTheme.typography.titleLarge)
                     Text(if (dashboard.dutySession == null) "Location sharing is off until you start duty." else "Location sharing is active for this duty session.")
                     if (dashboard.dutySession == null) Button(onClick = { locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)) }, enabled = !dashboard.loading) { Text("Start duty") }
                     else OutlinedButton(onClick = { vm.endDuty() }, enabled = !dashboard.loading) { Text("End duty") }
@@ -119,7 +125,7 @@ private fun DriverHomeTab(vm: DriverAppViewModel, modifier: Modifier) {
 private fun DriverRidesTab(vm: DriverAppViewModel, modifier: Modifier) {
     val dashboard by vm.dashboard.collectAsState()
     val rides = dashboard.snapshot?.rides.orEmpty()
-    LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text("Ride activity"); Text("Only server-recorded events are shown. Unknown destinations remain unknown."); OutlinedButton(onClick = { vm.refreshDashboard() }) { Text("Refresh rides") } }
         if (rides.isEmpty()) item { Text(if (dashboard.loading) "Loading ride activity…" else "No rides recorded yet.") }
         items(rides) { ride -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text(ride.provider); Text(ride.state.replace('_', ' ')); Text("${ride.verificationStatus} · ${ride.source}"); Text(ride.updatedAt.toString()) } } }
@@ -130,7 +136,7 @@ private fun DriverRidesTab(vm: DriverAppViewModel, modifier: Modifier) {
 private fun DriverEarningsTab(vm: DriverAppViewModel, modifier: Modifier) {
     val snapshot by vm.dashboard.collectAsState()
     val data = snapshot.snapshot
-    LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text("Earnings and payouts"); Text("Verified advertising ledger entries only. Provisional amounts remain pending."); OutlinedButton(onClick = { vm.refreshDashboard() }) { Text("Refresh earnings") } }
         item { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("Available: ${data?.let { "₹${it.availableMinor / 100}" } ?: "Not available"}"); Text("Pending: ${data?.let { "₹${it.pendingMinor / 100}" } ?: "Not available"}"); Text("Settled: ${data?.let { "₹${it.settledMinor / 100}" } ?: "Not available"}") } } }
         item { Text("Payout history") }
@@ -143,7 +149,7 @@ private fun DriverEarningsTab(vm: DriverAppViewModel, modifier: Modifier) {
 private fun DriverProfileTab(vm: DriverAppViewModel, modifier: Modifier) {
     val dashboard by vm.dashboard.collectAsState()
     val data = dashboard.snapshot
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Profile")
         Text(data?.name ?: "Profile unavailable")
         Text(data?.city ?: "City not provided")
