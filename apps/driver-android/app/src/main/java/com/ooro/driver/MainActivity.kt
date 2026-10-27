@@ -56,7 +56,22 @@ class MainActivity : ComponentActivity() {
     }
     MaterialTheme(colorScheme = colors, content = content)
 }
-@Composable private fun DriverRoot(vm: DriverAppViewModel) { val mode by vm.mode.collectAsState(); when (mode) { AppMode.LOGIN, AppMode.OTP -> DriverWelcomeScreen(vm, mode); AppMode.FLEET_INQUIRY -> FleetInquiry(vm); AppMode.ONBOARDING -> OnboardingScreen(vm); AppMode.DASHBOARD -> DriverDashboardV2(vm) } }
+@Composable private fun DriverRoot(vm: DriverAppViewModel) {
+    val mode by vm.mode.collectAsState()
+    Box(Modifier.fillMaxSize()) {
+        if (BuildConfig.USE_MOCK_BACKEND) {
+            Surface(color = OoroYellow, modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
+                Text("LOCAL MOCK MODE · NO REAL DRIVER DATA", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            }
+        }
+        when (mode) {
+            AppMode.LOGIN, AppMode.OTP -> DriverWelcomeScreen(vm, mode)
+            AppMode.FLEET_INQUIRY -> FleetInquiry(vm)
+            AppMode.ONBOARDING -> OnboardingScreen(vm)
+            AppMode.DASHBOARD -> DriverDashboardV2(vm)
+        }
+    }
+}
 
 @Composable private fun BrandedAuthScreen(vm: DriverAppViewModel, mode: AppMode) { var phone by remember { mutableStateOf("") }; var otp by remember { mutableStateOf("") }; val message by vm.message.collectAsState(); Column(Modifier.fillMaxSize().background(OoroBackground).verticalScroll(androidx.compose.foundation.rememberScrollState()).imePadding().padding(horizontal = 24.dp)) { Spacer(Modifier.height(52.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp).background(OoroYellow, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Text("∞", fontSize = 30.sp, color = Color.Black, fontWeight = FontWeight.Bold) }; Spacer(Modifier.width(10.dp)); Text("OORO DRIVER", fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp) }; Spacer(Modifier.height(44.dp)); Text("YOUR NEXT RIDE STARTS HERE", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp); Spacer(Modifier.height(10.dp)); Text(if (mode == AppMode.LOGIN) "Drive with confidence." else "Verify your number.", fontSize = 34.sp, lineHeight = 39.sp, fontWeight = FontWeight.Bold); Text(if (mode == AppMode.LOGIN) "Connect your eligible rides and OORO display. Track verified activity and available earnings in one place." else "Enter the one-time code sent to your phone. Your driver account stays protected.", Modifier.padding(top = 12.dp), color = Color.Gray, lineHeight = 23.sp); Spacer(Modifier.height(28.dp)); Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Column(Modifier.padding(20.dp)) { if (mode == AppMode.LOGIN) { Text("Mobile number", fontWeight = FontWeight.SemiBold); OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(10) }, placeholder = { Text("10-digit mobile number") }, leadingIcon = { Text("+91") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)); Spacer(Modifier.height(18.dp)); Button({ vm.requestOtp(phone) }, Modifier.fillMaxWidth().heightIn(min = 54.dp), enabled = phone.length == 10, shape = RoundedCornerShape(15.dp)) { Text("Continue securely", fontWeight = FontWeight.SemiBold) } } else { Text("Verification code", fontWeight = FontWeight.SemiBold); OutlinedTextField(otp, { otp = it.filter(Char::isDigit).take(6) }, placeholder = { Text("6-digit code") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)); Spacer(Modifier.height(18.dp)); Button({ vm.verifyOtp(otp) }, Modifier.fillMaxWidth().heightIn(min = 54.dp), enabled = otp.length == 6, shape = RoundedCornerShape(15.dp)) { Text("Verify & continue", fontWeight = FontWeight.SemiBold) } } } }; if (message != null) Text(message!!, Modifier.padding(top = 16.dp), color = Color(0xFF9B2020), fontSize = 14.sp); Spacer(Modifier.height(22.dp)); Text("Your information is used for driver verification and ride-related operations only. Notification access and location permissions are optional until you explicitly enable them.", color = Color.Gray, fontSize = 13.sp, lineHeight = 20.sp); Spacer(Modifier.height(42.dp)) } }
 

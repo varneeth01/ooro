@@ -1,5 +1,17 @@
 package com.ooro.driver
 
+fun resolveDriverRoute(
+    authenticated: Boolean,
+    onboardingStatus: String?,
+    accountStatus: String?,
+    assignedDisplayLabel: String?
+): DriverRoute = when {
+    !authenticated -> DriverRoute.AUTH
+    onboardingStatus == "APPROVED" && accountStatus == "ACTIVE" && assignedDisplayLabel.isNullOrBlank() -> DriverRoute.DISPLAY_SETUP
+    onboardingStatus == "APPROVED" && accountStatus == "ACTIVE" -> DriverRoute.DASHBOARD
+    else -> DriverRoute.REVIEW_STATUS
+}
+
 fun isServerApprovedDriver(onboardingStatus: String, accountStatus: String): Boolean =
     onboardingStatus == "APPROVED" && accountStatus == "ACTIVE"
 
