@@ -3,6 +3,7 @@ import Fastify from 'fastify'
 import { deliverOtp } from './domain/otp-delivery.js'
 import { registerNetworkOperations } from './network-operations.js'
 import { registerOperations } from './operations.js'
+import { registerAdminManagement } from './admin-management.js'
 import { Prisma } from '@prisma/client'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -936,7 +937,7 @@ app.post('/api/admin/displays', async (request, reply) => {
   await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_CREATED', entityType: 'Display', entityId: display.id, after: { city: input.city, area: input.area, notes: input.notes } as any, requestId: request.id } })
   return ok(request, { displayId: display.id, pairingCode: code, expiresAt, display }, reply)
 })
-app.get('/api/admin/drivers', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true } })), reply) })
+app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true } })), reply) })
 app.get('/api/admin/drivers/:driverId/review', async (request, reply) => {
   await requireRoles(request, adminRoles); const { driverId } = request.params as { driverId: string }
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, include: { user: true, documents: { select: { id: true, documentType: true, status: true, maskedDocumentNumber: true, rejectionReason: true, expiresAt: true, submittedAt: true, verifiedAt: true, verifiedBy: true } }, vehicles: { include: { displays: true } }, consents: { include: { agreementVersion: true } }, integrations: true } })
@@ -1037,6 +1038,7 @@ app.post('/api/admin/drivers/:driverId/reactivate', async (request, reply) => { 
 app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display) throw notFound('Display not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
 
 registerOperations(app)
+registerAdminManagement(app)
 registerNetworkOperations(app)
 
 app.setErrorHandler((error, request, reply) => { request.log.error({ err: error }, 'request failed'); const mongoFailure = isMongoError(error); const status = error instanceof ApiError ? error.statusCode : error instanceof z.ZodError ? 422 : error instanceof Prisma.PrismaClientKnownRequestError && ['P2034','P2002'].includes(error.code) ? 409 : mongoFailure ? 503 : 500; const message = error instanceof Error ? error.message : 'Internal server error'; reply.status(status).send({ data: null, error: { code: error instanceof ApiError ? error.code : mongoFailure ? 'GUEST_STORE_UNAVAILABLE' : 'INTERNAL_ERROR', message: status === 500 ? 'Internal server error' : message }, requestId: request.id }) })
