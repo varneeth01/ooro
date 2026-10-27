@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
@@ -28,19 +29,25 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
-import org.junit.Before
+import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
+import org.junit.rules.TestRule
 
 class OnboardingInstrumentationTest {
-    @get:Rule val composeRule = createAndroidComposeRule<MainActivity>()
+    private val composeRule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule: TestRule = RuleChain.outerRule(SyntheticFixtureRule()).around(composeRule)
 
-    @Before fun resetSyntheticDriverState() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        DriverDatabase.get(context).clearAllTables()
-        SecureSessionStore(context).clear()
-        context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE).edit().putString("scenario", "SUBMITTED").commit()
-        context.getSharedPreferences("ooro_notification_access", Context.MODE_PRIVATE).edit().clear().commit()
-        composeRule.activityRule.scenario.onActivity { it.resetSyntheticState() }
-        composeRule.waitForIdle()
+    private class SyntheticFixtureRule : ExternalResource() {
+        override fun before() {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            DriverDatabase.get(context).clearAllTables()
+            SecureSessionStore(context).clear()
+            context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE).edit()
+                .putString("scenario", "SUBMITTED")
+                .remove("submitted")
+                .commit()
+            context.getSharedPreferences("ooro_notification_access", Context.MODE_PRIVATE).edit().clear().commit()
+        }
     }
 
     @Test fun loginScreenIsAccessible() {
@@ -150,7 +157,10 @@ class OnboardingInstrumentationTest {
         composeRule.onNode(hasText("Earnings").and(hasClickAction())).performClick()
         waitForText("Earnings and payouts")
         composeRule.onNode(hasText("Profile").and(hasClickAction())).performClick()
-        waitForText("Driver profile")
+        composeRule.waitUntil(10_000) {
+            runCatching { composeRule.onNodeWithTag("driver-profile-screen").assertIsDisplayed(); true }.getOrDefault(false)
+        }
+        composeRule.onNodeWithTag("driver-profile-screen").assertIsDisplayed()
         composeRule.onNode(hasText("Log out").and(hasClickAction())).performClick()
         waitForText("Drive with confidence.")
     }

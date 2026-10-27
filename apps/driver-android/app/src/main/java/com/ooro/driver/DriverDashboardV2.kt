@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -149,7 +150,7 @@ private fun DriverEarningsTab(vm: DriverAppViewModel, modifier: Modifier) {
 private fun DriverProfileTab(vm: DriverAppViewModel, modifier: Modifier) {
     val dashboard by vm.dashboard.collectAsState()
     val data = dashboard.snapshot
-    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp).testTag("driver-profile-screen"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Profile")
         Text(data?.name ?: "Profile unavailable")
         Text(data?.city ?: "City not provided")
