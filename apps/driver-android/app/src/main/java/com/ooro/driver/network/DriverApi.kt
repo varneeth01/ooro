@@ -52,7 +52,11 @@ data class DriverDashboardSnapshot(val name: String, val onboardingStatus: Strin
 data class SessionResponse(val accessToken: String, val refreshToken: String, val driverId: String, val profile: DriverProfile)
 data class PayoutResponse(val id: String, val status: PayoutStatus)
 
-class MockDriverApi(private val scenarioProvider: () -> String = { "APPROVED" }) : DriverApi {
+class MockDriverApi(
+    private val submittedProvider: () -> Boolean = { false },
+    private val markSubmitted: () -> Unit = {},
+    private val scenarioProvider: () -> String = { "APPROVED" }
+) : DriverApi {
     private fun scenario() = scenarioProvider().uppercase()
     override suspend fun requestOtp(phone: String) = Unit
     override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { require(otp == "000000") { "Use 000000 in debug mode" }; return SessionResponse("demo-access", "demo-refresh", "demo-driver", DriverProfile("demo-driver", "OORO Demo Driver", phone, "driver@example.test", "Bengaluru", driverType = DriverType.INDIVIDUAL, kycStatus = VerificationStatus.PENDING)) }
@@ -78,7 +82,7 @@ class MockDriverApi(private val scenarioProvider: () -> String = { "APPROVED" })
     override suspend fun uploadDocument(documentType: String, contentType: String, content: ByteArray, onProgress: (Int) -> Unit) = "demo-document"
     override suspend fun requiredAgreements() = listOf(AgreementSummary("demo-agreement", "DRIVER_PARTICIPATION", "1.0", contentHash = "development-manual-review"))
     override suspend fun acceptAgreement(versionId: String) = AgreementSummary(versionId, "DRIVER_PARTICIPATION", "1.0", contentHash = "development-manual-review", accepted = true)
-    override suspend fun submitOnboarding() = "SUBMITTED"
+    override suspend fun submitOnboarding(): String { markSubmitted(); return "SUBMITTED" }
     override suspend fun createBeneficiary(type: String, value: String) = "demo-beneficiary"
     override suspend fun createVehicle(type: String, registrationNumber: String, manufacturer: String, model: String) = "demo-vehicle"
     override suspend fun currentDuty(): DutySessionSummary? = null
@@ -86,14 +90,15 @@ class MockDriverApi(private val scenarioProvider: () -> String = { "APPROVED" })
         if (scenario() == "OFFLINE") error("Mock backend unavailable")
         val approved = scenario() == "APPROVED" || scenario() == "APPROVED_NO_DISPLAY"
         val suspended = scenario() == "SUSPENDED"
-        return DriverDashboardSnapshot("OORO Demo Driver", if (approved) "APPROVED" else if (scenario() == "REJECTED") "REJECTED" else if (scenario() == "NEW") "DRAFT" else "SUBMITTED", if (suspended) "SUSPENDED" else if (approved) "ACTIVE" else "PENDING", "Bengaluru", "Demo vehicle", if (approved) "VERIFIED" else "PENDING", if (scenario() == "APPROVED_NO_DISPLAY") null else "Demo Display", if (scenario() == "APPROVED_NO_DISPLAY") null else "READY", null, null, null, "ENABLED", "GRANTED", 0, 0, 0, emptyList(), emptyList(), "PENDING", mapOf("LOCATION" to true, "DATA_PROCESSING" to true))
+        val submitted = submittedProvider()
+        return DriverDashboardSnapshot("OORO Demo Driver", if (approved) "APPROVED" else if (scenario() == "REJECTED") "REJECTED" else if (scenario() == "NEW" && !submitted) "DRAFT" else "SUBMITTED", if (suspended) "SUSPENDED" else if (approved) "ACTIVE" else "PENDING", "Bengaluru", "Demo vehicle", if (approved) "VERIFIED" else "PENDING", if (scenario() == "APPROVED_NO_DISPLAY") null else "Demo Display", if (scenario() == "APPROVED_NO_DISPLAY") null else "READY", null, null, null, "ENABLED", "GRANTED", 0, 0, 0, emptyList(), emptyList(), "PENDING", mapOf("LOCATION" to true, "DATA_PROCESSING" to true))
     }
     override suspend fun onboardingStatus(): OnboardingStatusSnapshot = when (scenario()) {
         "APPROVED", "APPROVED_NO_DISPLAY" -> OnboardingStatusSnapshot("APPROVED", "ACTIVE", emptyList(), emptyList())
         "REJECTED" -> OnboardingStatusSnapshot("REJECTED", "PENDING", listOf(OnboardingDocumentStatus("PAN", "REJECTED", "Document is not readable")), emptyList())
         "CHANGES_REQUESTED" -> OnboardingStatusSnapshot("CHANGES_REQUESTED", "PENDING", listOf(OnboardingDocumentStatus("DRIVING_LICENCE", "REJECTED", "Upload the front and back clearly")), emptyList())
         "SUSPENDED" -> OnboardingStatusSnapshot("APPROVED", "SUSPENDED", emptyList(), emptyList())
-        "NEW" -> OnboardingStatusSnapshot("DRAFT", "PENDING", emptyList(), emptyList())
+        "NEW" -> OnboardingStatusSnapshot(if (submittedProvider()) "SUBMITTED" else "DRAFT", "PENDING", emptyList(), emptyList())
         else -> OnboardingStatusSnapshot("SUBMITTED", "PENDING", emptyList(), emptyList())
     }
     override suspend fun createSupportTicket(category: String, description: String) = "support-demo"

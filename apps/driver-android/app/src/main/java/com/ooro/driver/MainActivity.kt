@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
     fun resetSyntheticState() = vm.resetSyntheticState()
     fun seedSyntheticOtp(phone: String) = vm.seedSyntheticOtp(phone)
     fun seedSyntheticAuthenticatedScenario(scenario: String) = vm.seedSyntheticAuthenticatedScenario(scenario)
+    fun syntheticDebugState() = vm.syntheticDebugState()
     override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { OoroTheme { DriverRoot(vm) } } }
 }
 

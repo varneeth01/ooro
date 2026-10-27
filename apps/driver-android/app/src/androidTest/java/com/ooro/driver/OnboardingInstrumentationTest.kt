@@ -5,15 +5,19 @@ import android.provider.Settings
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
+import android.view.inputmethod.InputMethodManager
 import android.content.Context
+import android.util.Log
 import com.ooro.driver.data.DriverDatabase
 import com.ooro.driver.data.SecureSessionStore
 import com.ooro.driver.domain.RideEventType
@@ -87,6 +91,7 @@ class OnboardingInstrumentationTest {
         composeRule.onNodeWithText("Full name").performTextInput("Test Driver")
         composeRule.onNodeWithText("Email (optional)").performTextInput("test.driver@example.test")
         composeRule.onNodeWithText("City").performTextInput("Bengaluru")
+        hideKeyboard()
         composeRule.onNode(hasText("Save and continue").and(hasClickAction())).assertIsEnabled().performClick()
         waitForText("Identity and documents")
         composeRule.onNode(hasText("Use controlled test document").and(hasClickAction())).performClick()
@@ -97,17 +102,24 @@ class OnboardingInstrumentationTest {
         composeRule.onNodeWithText("Registration number").performTextInput("KA01AB1234")
         composeRule.onNodeWithText("Manufacturer").performTextInput("OORO")
         composeRule.onNodeWithText("Model").performTextInput("Driver Cab")
+        hideKeyboard()
         composeRule.onNode(hasText("Save vehicle").and(hasClickAction())).assertIsEnabled().performClick()
         waitForText("Payout beneficiary")
         composeRule.onNodeWithText("Account or IFSC details").performTextInput("TESTBANK123456")
+        hideKeyboard()
         composeRule.onNode(hasText("Submit for verification").and(hasClickAction())).assertIsEnabled().performClick()
         waitForText("Review agreements")
         waitForText("Accept this version")
         composeRule.onNode(hasText("Accept this version").and(hasClickAction())).performClick()
-        waitForText("Application submitted")
-        composeRule.onNode(hasText("Submit application").and(hasClickAction())).performClick()
+        composeRule.waitUntil(10_000) {
+            runCatching {
+                composeRule.onNode(hasText("Submit application").and(hasClickAction())).assertIsEnabled()
+                true
+            }.getOrDefault(false)
+        }
+        composeRule.onNode(hasText("Submit application").and(hasClickAction())).assertIsEnabled().performClick()
         waitForText("Application status")
-        composeRule.onNodeWithText("SUBMITTED").assertIsDisplayed()
+        composeRule.onNodeWithText("SUBMITTED").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun rejectedApplicationShowsReasonAndCorrectionAction() {
@@ -126,19 +138,19 @@ class OnboardingInstrumentationTest {
         waitForText("Connect an OORO display")
         composeRule.onNode(hasText("Continue without pairing").and(hasClickAction())).performClick()
         waitForText("Connect your ride tools.")
-        composeRule.onNodeWithText("Continue to payment setup").performClick()
+        composeRule.onNode(hasText("Continue to payment setup").and(hasClickAction())).assertIsEnabled().performScrollTo().performClick()
         waitForText("Payout beneficiary")
     }
 
     @Test fun approvedDriverCanNavigateDashboardTabsAndLogout() {
         authenticateForScenario("APPROVED")
         waitForText("Good morning, OORO Demo Driver")
-        composeRule.onNodeWithText("Rides").performClick()
+        composeRule.onNode(hasText("Rides").and(hasClickAction())).performClick()
         waitForText("Ride activity")
-        composeRule.onNodeWithText("Earnings").performClick()
+        composeRule.onNode(hasText("Earnings").and(hasClickAction())).performClick()
         waitForText("Earnings and payouts")
-        composeRule.onNodeWithText("Profile").performClick()
-        waitForText("Profile")
+        composeRule.onNode(hasText("Profile").and(hasClickAction())).performClick()
+        waitForText("Driver profile")
         composeRule.onNode(hasText("Log out").and(hasClickAction())).performClick()
         waitForText("Drive with confidence.")
     }
@@ -154,10 +166,22 @@ class OnboardingInstrumentationTest {
         composeRule.activityRule.scenario.onActivity { it.seedSyntheticAuthenticatedScenario(scenario) }
     }
 
+    private fun hideKeyboard() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val focus = activity.currentFocus
+            if (focus != null) activity.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(focus.windowToken, 0)
+            focus?.clearFocus()
+        }
+        composeRule.waitForIdle()
+    }
+
     private fun waitForText(value: String) {
         try {
             composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty() }
         } catch (error: Throwable) {
+            var state = "unavailable"
+            composeRule.activityRule.scenario.onActivity { state = it.syntheticDebugState() }
+            Log.e("JourneyFailure", "waitingFor=$value state=$state semantics=${composeRule.onRoot(useUnmergedTree = true).fetchSemanticsNode()}")
             throw AssertionError("Timed out waiting for [$value]", error)
         }
         composeRule.onNodeWithText(value).assertIsDisplayed()
