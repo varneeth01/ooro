@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,15 +60,25 @@ private fun DriverShell(eyebrow: String, title: String, caption: String, content
 @Composable
 private fun PrimaryDriverButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(15.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White)) {
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Ink,
+            contentColor = Color.White,
+            disabledContainerColor = Color(0xFFD8DCD5),
+            disabledContentColor = Color(0xFF59605A)
+        )) {
         Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 @Composable
 fun DriverWelcomeScreen(vm: DriverAppViewModel, mode: AppMode) {
-    var phone by remember { mutableStateOf("") }
-    var otp by remember { mutableStateOf("") }
+    val savedPhone by vm.savedPhone.collectAsState()
+    val authLoading by vm.authLoading.collectAsState()
+    var phone by rememberSaveable { mutableStateOf("") }
+    // OTP is retained only in saved UI state for rotation/process recreation; it is
+    // never written to Room or the encrypted session store.
+    var otp by rememberSaveable { mutableStateOf("") }
     val message by vm.message.collectAsState()
+    LaunchedEffect(savedPhone) { if (phone.isBlank()) phone = savedPhone }
     DriverShell("Your next ride starts here", if (mode == AppMode.LOGIN) "Drive with confidence." else "Verify your number.",
         if (mode == AppMode.LOGIN) "Connect your eligible rides and OORO display. Track verified activity and available earnings in one place."
         else "Enter the one-time code sent to your phone. Your driver account stays protected.") {
@@ -80,14 +91,14 @@ fun DriverWelcomeScreen(vm: DriverAppViewModel, mode: AppMode) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true,
                         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                     Spacer(Modifier.height(18.dp))
-                    PrimaryDriverButton("Continue securely", phone.length == 10) { vm.requestOtp(phone) }
+                    PrimaryDriverButton(if (authLoading) "Sending code…" else "Continue securely", phone.length == 10 && !authLoading) { vm.requestOtp(phone) }
                 } else {
                     Text("Verification code", fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(value = otp, onValueChange = { otp = it.filter(Char::isDigit).take(6) },
                         placeholder = { Text("6-digit code") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                     Spacer(Modifier.height(18.dp))
-                    PrimaryDriverButton("Verify & continue", otp.length == 6) { vm.verifyOtp(otp) }
+                    PrimaryDriverButton(if (authLoading) "Verifying…" else "Verify & continue", otp.length == 6 && !authLoading) { vm.verifyOtp(otp) }
                 }
             }
         }
@@ -109,11 +120,13 @@ fun DriverPermissionsScreen(vm: DriverAppViewModel) {
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    val notificationGranted = Build.VERSION.SDK_INT < 33 ||
+    val notificationGranted = remember(revision) { Build.VERSION.SDK_INT < 33 ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-    val locationGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+    }
+    val locationGranted = remember(revision) { ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val listenerGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+    val listenerGranted = remember(revision) { NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { revision++ }
     DriverShell("Step 7 of 9 · Your choice", "Connect your ride tools.",
         "OORO can recognize supported ride notifications and use foreground location to help verify trips. You stay in control of these permissions.") {
