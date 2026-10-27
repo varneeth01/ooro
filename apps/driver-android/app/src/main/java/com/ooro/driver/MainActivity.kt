@@ -59,16 +59,18 @@ class MainActivity : ComponentActivity() {
 @Composable private fun DriverRoot(vm: DriverAppViewModel) {
     val mode by vm.mode.collectAsState()
     Box(Modifier.fillMaxSize()) {
-        if (BuildConfig.USE_MOCK_BACKEND) {
-            Surface(color = OoroYellow, modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
-                Text("LOCAL MOCK MODE · NO REAL DRIVER DATA", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Box(Modifier.fillMaxSize().padding(top = if (BuildConfig.USE_MOCK_BACKEND) 28.dp else 0.dp)) {
+            when (mode) {
+                AppMode.LOGIN, AppMode.OTP -> DriverWelcomeScreen(vm, mode)
+                AppMode.FLEET_INQUIRY -> FleetInquiry(vm)
+                AppMode.ONBOARDING -> OnboardingScreen(vm)
+                AppMode.DASHBOARD -> DriverDashboardV2(vm)
             }
         }
-        when (mode) {
-            AppMode.LOGIN, AppMode.OTP -> DriverWelcomeScreen(vm, mode)
-            AppMode.FLEET_INQUIRY -> FleetInquiry(vm)
-            AppMode.ONBOARDING -> OnboardingScreen(vm)
-            AppMode.DASHBOARD -> DriverDashboardV2(vm)
+        if (BuildConfig.USE_MOCK_BACKEND) {
+            Surface(color = OoroYellow, modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(top = 28.dp)) {
+                Text("LOCAL MOCK MODE · NO REAL DRIVER DATA", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            }
         }
     }
 }
