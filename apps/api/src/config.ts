@@ -28,7 +28,7 @@ export const config = {
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
   adminWebBaseUrl: (process.env.ADMIN_WEB_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
-  adminPasswordResetTtlSeconds: Number(process.env.ADMIN_PASSWORD_RESET_TTL_SECONDS ?? 3600),
+  adminPasswordResetTtlSeconds: Number(process.env.ADMIN_PASSWORD_RESET_TTL_SECONDS ?? 600),
   adminPasswordSetupTtlSeconds: Number(process.env.ADMIN_PASSWORD_SETUP_TTL_SECONDS ?? 86400),
   adminLoginWindowSeconds: Number(process.env.ADMIN_LOGIN_WINDOW_SECONDS ?? 900),
   adminLoginMaxAttempts: Number(process.env.ADMIN_LOGIN_MAX_ATTEMPTS ?? 10),
