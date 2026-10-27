@@ -7,6 +7,7 @@ fun resolveDriverRoute(
     assignedDisplayLabel: String?
 ): DriverRoute = when {
     !authenticated -> DriverRoute.AUTH
+    onboardingStatus == "DRAFT" || onboardingStatus == "NOT_STARTED" -> DriverRoute.REGISTRATION
     onboardingStatus == "APPROVED" && accountStatus == "ACTIVE" && assignedDisplayLabel.isNullOrBlank() -> DriverRoute.DISPLAY_SETUP
     onboardingStatus == "APPROVED" && accountStatus == "ACTIVE" -> DriverRoute.DASHBOARD
     else -> DriverRoute.REVIEW_STATUS

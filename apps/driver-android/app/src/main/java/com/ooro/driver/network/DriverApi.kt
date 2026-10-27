@@ -86,13 +86,14 @@ class MockDriverApi(private val scenarioProvider: () -> String = { "APPROVED" })
         if (scenario() == "OFFLINE") error("Mock backend unavailable")
         val approved = scenario() == "APPROVED" || scenario() == "APPROVED_NO_DISPLAY"
         val suspended = scenario() == "SUSPENDED"
-        return DriverDashboardSnapshot("OORO Demo Driver", if (approved) "APPROVED" else if (scenario() == "REJECTED") "REJECTED" else "SUBMITTED", if (suspended) "SUSPENDED" else if (approved) "ACTIVE" else "PENDING", "Bengaluru", "Demo vehicle", if (approved) "VERIFIED" else "PENDING", if (scenario() == "APPROVED_NO_DISPLAY") null else "Demo Display", if (scenario() == "APPROVED_NO_DISPLAY") null else "READY", null, null, null, "ENABLED", "GRANTED", 0, 0, 0, emptyList(), emptyList(), "PENDING", mapOf("LOCATION" to true, "DATA_PROCESSING" to true))
+        return DriverDashboardSnapshot("OORO Demo Driver", if (approved) "APPROVED" else if (scenario() == "REJECTED") "REJECTED" else if (scenario() == "NEW") "DRAFT" else "SUBMITTED", if (suspended) "SUSPENDED" else if (approved) "ACTIVE" else "PENDING", "Bengaluru", "Demo vehicle", if (approved) "VERIFIED" else "PENDING", if (scenario() == "APPROVED_NO_DISPLAY") null else "Demo Display", if (scenario() == "APPROVED_NO_DISPLAY") null else "READY", null, null, null, "ENABLED", "GRANTED", 0, 0, 0, emptyList(), emptyList(), "PENDING", mapOf("LOCATION" to true, "DATA_PROCESSING" to true))
     }
     override suspend fun onboardingStatus(): OnboardingStatusSnapshot = when (scenario()) {
         "APPROVED", "APPROVED_NO_DISPLAY" -> OnboardingStatusSnapshot("APPROVED", "ACTIVE", emptyList(), emptyList())
         "REJECTED" -> OnboardingStatusSnapshot("REJECTED", "PENDING", listOf(OnboardingDocumentStatus("PAN", "REJECTED", "Document is not readable")), emptyList())
         "CHANGES_REQUESTED" -> OnboardingStatusSnapshot("CHANGES_REQUESTED", "PENDING", listOf(OnboardingDocumentStatus("DRIVING_LICENCE", "REJECTED", "Upload the front and back clearly")), emptyList())
         "SUSPENDED" -> OnboardingStatusSnapshot("APPROVED", "SUSPENDED", emptyList(), emptyList())
+        "NEW" -> OnboardingStatusSnapshot("DRAFT", "PENDING", emptyList(), emptyList())
         else -> OnboardingStatusSnapshot("SUBMITTED", "PENDING", emptyList(), emptyList())
     }
     override suspend fun createSupportTicket(category: String, description: String) = "support-demo"

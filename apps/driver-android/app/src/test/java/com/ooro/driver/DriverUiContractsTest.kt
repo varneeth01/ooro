@@ -24,6 +24,7 @@ class DriverUiContractsTest {
 
     @Test fun authenticatedDriversReviewBeforeDashboardAndPairAfterApproval() {
         assertEquals(DriverRoute.AUTH, resolveDriverRoute(false, null, null, null))
+        assertEquals(DriverRoute.REGISTRATION, resolveDriverRoute(true, "DRAFT", "PENDING", null))
         assertEquals(DriverRoute.REVIEW_STATUS, resolveDriverRoute(true, "SUBMITTED", "ACTIVE", null))
         assertEquals(DriverRoute.DISPLAY_SETUP, resolveDriverRoute(true, "APPROVED", "ACTIVE", null))
         assertEquals(DriverRoute.DASHBOARD, resolveDriverRoute(true, "APPROVED", "ACTIVE", "OORO Display"))
