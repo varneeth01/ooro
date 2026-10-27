@@ -54,6 +54,11 @@ app.addHook('preHandler', async (request, reply) => {
     return reply.code(410).send({ data: null, error: { code: 'PAYMENT_PROCESSING_RETIRED', message: 'Online payment processing is no longer available.' }, requestId: request.id })
   }
 })
+const deviceReadPaths = new Set(['/api/admin/drivers', '/api/admin/vehicles', '/api/admin/displays', '/api/admin/displays/live-map'])
+app.addHook('preHandler', async (request) => {
+  const path = request.url.split('?')[0]
+  if (request.method === 'GET' && (deviceReadPaths.has(path) || /^\/api\/admin\/displays\/[^/]+\/(live-state|location-history|manifest-debug)$/.test(path))) await requirePermission(request, 'device:read')
+})
 app.addHook('preHandler', async (request) => { if (request.url.split('?')[0].startsWith('/api/admin/')) await requireRoles(request, adminRoles); if (request.url.split('?')[0] === '/api/webhooks/razorpay') await connectMongo() })
 
 const ok = (request: any, data: unknown, reply: any) => reply.send(response(request, data))
