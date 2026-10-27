@@ -28,6 +28,24 @@ model User {
   sessions                    Session[]
   driver                      Driver?
   auditLogs                   AuditLog[]
+  adminInvitationsCreated     AdminInvitation[] @relation("AdminInvitationCreator")
+}
+
+model AdminInvitation {
+  id          String    @id @default(uuid()) @db.Uuid
+  email       String
+  name        String
+  role        String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  createdById String    @db.Uuid
+  createdBy   User      @relation("AdminInvitationCreator", fields: [createdById], references: [id])
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
 }
 
 model Session {

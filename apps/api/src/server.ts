@@ -46,6 +46,13 @@ app.addHook('onRequest', async (request) => {
 })
 app.removeContentTypeParser('application/json')
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => { try { (request as any).rawBody = body; done(null, JSON.parse(body as string)) } catch (error) { done(error as Error, undefined) } })
+const retiredPaymentRoutes = new Set(['/api/public/campaign-orders', '/api/public/campaign-orders/verify', '/api/webhooks/razorpay'])
+app.addHook('preHandler', async (request, reply) => {
+  const path = request.url.split('?')[0]
+  if (request.method === 'POST' && retiredPaymentRoutes.has(path)) {
+    return reply.code(410).send({ data: null, error: { code: 'PAYMENT_PROCESSING_RETIRED', message: 'Online payment processing is no longer available.' }, requestId: request.id })
+  }
+})
 app.addHook('preHandler', async (request) => { if (request.url.split('?')[0].startsWith('/api/admin/')) await requireRoles(request, adminRoles); if (request.url.split('?')[0] === '/api/webhooks/razorpay') await connectMongo() })
 
 const ok = (request: any, data: unknown, reply: any) => reply.send(response(request, data))
