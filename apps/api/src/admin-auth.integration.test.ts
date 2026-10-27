@@ -23,6 +23,15 @@ test('admin email/password workflow, generic failures, session revocation, and s
   assert.equal(wrongPassword.statusCode, 401)
   assert.equal(nonAdmin.statusCode, 401)
   assert.equal(wrongPassword.json().error.message, nonAdmin.json().error.message)
+  const unknownAccount = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: `missing-${suffix}@example.test`, password: 'correct horse battery staple' } })
+  assert.equal(unknownAccount.statusCode, 401)
+  assert.equal(unknownAccount.json().error.message, wrongPassword.json().error.message)
+  const suspended = await prisma.user.create({ data: { phone: `suspended-auth-${suffix}`, email: `suspended-${suffix}@example.test`, passwordHash: await hashPassword('correct horse battery staple'), role: 'ADMIN', accountStatus: 'SUSPENDED' } })
+  const suspendedLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: suspended.email, password: 'correct horse battery staple' } })
+  assert.equal(suspendedLogin.statusCode, 401)
+  assert.equal(suspendedLogin.json().error.message, wrongPassword.json().error.message)
+  assert.equal((await prisma.user.findUnique({ where: { id: suspended.id }, select: { accountStatus: true } }))?.accountStatus, 'SUSPENDED')
+
   const roleTokens = new Map<string, string>()
   for (const roleUser of roleUsers) {
     const roleLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: roleUser.email, password: 'role test password 123' } })
