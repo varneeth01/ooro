@@ -32,6 +32,8 @@ test('admin email/password workflow, generic failures, session revocation, and s
   assert.equal(suspendedLogin.json().error.message, wrongPassword.json().error.message)
   assert.equal((await prisma.user.findUnique({ where: { id: suspended.id }, select: { accountStatus: true } }))?.accountStatus, 'SUSPENDED')
 
+  // Tests share Fastify's loopback IP; isolate independent scenarios without weakening production throttling.
+  await prisma.adminLoginAttempt.deleteMany({ where: { key: 'ip:127.0.0.1' } })
   const roleTokens = new Map<string, string>()
   for (const roleUser of roleUsers) {
     const roleLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: roleUser.email, password: 'role test password 123' } })
@@ -73,6 +75,7 @@ test('admin email/password workflow, generic failures, session revocation, and s
   }
   for (const role of ['ADMIN', 'SUPER_ADMIN']) assert.equal((await app.inject({ method: 'POST', url: `/api/admin/drivers/${randomUUID()}/restrict`, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 404, `${role} must reach admin driver restriction`)
   for (const role of ['OPERATIONS', 'FINANCE', 'SUPPORT']) assert.equal((await app.inject({ method: 'POST', url: `/api/admin/drivers/${randomUUID()}/restrict`, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 403, `${role} must not restrict drivers`)
+  await prisma.adminLoginAttempt.deleteMany({ where: { key: 'ip:127.0.0.1' } })
   const lockUser = await prisma.user.create({ data: { phone: `lock-auth-${suffix}`, email: `lock-${suffix}@example.test`, passwordHash: await hashPassword('lock password 123'), role: 'ADMIN', accountStatus: 'ACTIVE' } })
   const lockoutResponses = []
   for (let attempt = 0; attempt < 5; attempt++) lockoutResponses.push((await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: lockUser.email, password: 'incorrect password 123' } })).statusCode)
