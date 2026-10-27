@@ -157,7 +157,8 @@ app.post('/api/webhooks/razorpay', async (request, reply) => { const signature =
 app.post('/api/auth/request-otp', async (request, reply) => {
   const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
   const recent = await prisma.otpChallenge.count({where:{phone,createdAt:{gte:new Date(Date.now()-60000)}}}); if(recent>=3) throw new ApiError('OTP_RATE_LIMIT','Please wait before requesting another code',429)
-  const code = config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
+  const stagingTestPhone = config.stagingOtpTestMode && phone === config.stagingOtpTestPhone
+  const code = stagingTestPhone ? config.stagingOtpTestCode : config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
   const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
   await deliverOtp(phone, code)
   await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })

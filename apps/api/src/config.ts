@@ -8,6 +8,7 @@ const developmentCorsOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'
 
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  deploymentEnvironment: process.env.OORO_DEPLOYMENT_ENV ?? process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? process.env.API_PORT ?? 8080),
   trackingBaseUrl: (process.env.TRACKING_BASE_URL ?? 'https://theooro.com').replace(/\/$/, ''),
   databaseUrl: process.env.DATABASE_URL ?? 'postgresql://ooro:ooro@localhost:5432/ooro',
@@ -18,6 +19,9 @@ export const config = {
   otpTtlSeconds: Number(process.env.OTP_TTL_SECONDS ?? 300),
   devMockOtpEnabled: bool(process.env.DEV_MOCK_OTP_ENABLED, true),
   devMockOtp: process.env.DEV_MOCK_OTP ?? '000000',
+  stagingOtpTestMode: bool(process.env.OORO_STAGING_OTP_TEST_MODE),
+  stagingOtpTestPhone: process.env.OORO_STAGING_OTP_TEST_PHONE ?? '',
+  stagingOtpTestCode: process.env.OORO_STAGING_OTP_TEST_CODE ?? '',
   heartbeatOnlineSeconds: Number(process.env.HEARTBEAT_ONLINE_SECONDS ?? 90),
   heartbeatDegradedSeconds: Number(process.env.HEARTBEAT_DEGRADED_SECONDS ?? 300),
   payoutMinimumMinor: BigInt(process.env.PAYOUT_MINIMUM_MINOR ?? '1000'),
@@ -80,4 +84,10 @@ if (config.nodeEnv === 'production') {
   if (config.documentStorageKey === 'development-only-document-key-change-me' || config.documentStorageKey.length < 32) throw new Error('DOCUMENT_STORAGE_KEY must be configured in production')
   if (!config.documentStorageBucket || !config.documentStorageAccessKeyId || !config.documentStorageSecretAccessKey) throw new Error('Private document S3 credentials must be configured in production')
   if (config.documentScanMode !== 'remote') throw new Error('DOCUMENT_SCAN_MODE must be remote in production')
+}
+
+if (config.stagingOtpTestMode) {
+  if (config.nodeEnv !== 'production' || config.deploymentEnvironment !== 'staging') throw new Error('Staging OTP test mode requires NODE_ENV=production and OORO_DEPLOYMENT_ENV=staging')
+  if (!/^\+?[0-9]{7,20}$/.test(config.stagingOtpTestPhone)) throw new Error('OORO_STAGING_OTP_TEST_PHONE must be a valid dedicated test phone')
+  if (!/^\d{6}$/.test(config.stagingOtpTestCode)) throw new Error('OORO_STAGING_OTP_TEST_CODE must be a six-digit secret')
 }
