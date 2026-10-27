@@ -4,6 +4,7 @@ import { ApiError } from '../errors.js'
 // Integrate the operator's SMS gateway without returning production OTPs to browsers.
 export async function deliverOtp(phone: string, code: string) {
  if (config.nodeEnv !== 'production' && config.devMockOtpEnabled) return
+ if (config.stagingOtpTestMode && phone === config.stagingOtpTestPhone) return
  const endpoint=process.env.OORO_OTP_DELIVERY_URL
  const token=process.env.OORO_OTP_DELIVERY_TOKEN
  if (!endpoint || !token || !endpoint.startsWith('https://')) throw new ApiError('OTP_DELIVERY_UNAVAILABLE','SMS delivery is not configured',503)
