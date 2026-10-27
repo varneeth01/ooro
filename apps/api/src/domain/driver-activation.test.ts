@@ -1,10 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import type { PrismaClient } from '@prisma/client'
 import { getDriverActivationEligibility } from './driver-activation.js'
 
-function fakePrisma(overrides: any = {}) {
+type FakeDriver = {
+  id: string
+  onboardingStatus: string
+  user: { accountStatus: string }
+  documents: Array<{ documentType: string; status: string }>
+  vehicles: Array<{ id: string; status: string; displays: Array<{ id: string; state: string }> }>
+  consents: Array<{ agreementVersionId: string; revokedAt: Date | null }>
+  permissionGrants: Array<{ permission: string; granted: boolean; revokedAt: Date | null }>
+  beneficiaries: unknown[]
+}
+
+function fakePrisma(overrides: Partial<FakeDriver> = {}): PrismaClient {
   const driver = { id: 'driver-1', onboardingStatus: 'APPROVED', user: { accountStatus: 'ACTIVE' }, documents: [{ documentType: 'AADHAAR', status: 'VERIFIED' }, { documentType: 'PAN', status: 'VERIFIED' }, { documentType: 'DRIVING_LICENCE', status: 'VERIFIED' }, { documentType: 'RC', status: 'VERIFIED' }], vehicles: [{ id: 'vehicle-1', status: 'VERIFIED', displays: [{ id: 'display-1', state: 'READY' }] }], consents: [{ agreementVersionId: 'agreement-1', revokedAt: null }], permissionGrants: [{ permission: 'LOCATION', granted: true, revokedAt: null }, { permission: 'DATA_PROCESSING', granted: true, revokedAt: null }], beneficiaries: [], ...overrides }
-  return { driver: { findUnique: async () => driver }, agreementVersion: { findMany: async () => [{ id: 'agreement-1', type: 'DRIVER', version: '1' }] } } as any
+  return { driver: { findUnique: async () => driver }, agreementVersion: { findMany: async () => [{ id: 'agreement-1', type: 'DRIVER', version: '1' }] } } as unknown as PrismaClient
 }
 
 test('activation is eligible only when approval, documents, consent, permissions and vehicle pass', async () => {
