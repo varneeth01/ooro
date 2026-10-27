@@ -60,7 +60,12 @@ private fun DriverShell(eyebrow: String, title: String, caption: String, content
 @Composable
 private fun PrimaryDriverButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(15.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White)) {
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Ink,
+            contentColor = Color.White,
+            disabledContainerColor = Color(0xFFD8DCD5),
+            disabledContentColor = Color(0xFF59605A)
+        )) {
         Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }
