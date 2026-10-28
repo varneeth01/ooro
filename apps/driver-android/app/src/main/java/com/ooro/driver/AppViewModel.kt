@@ -14,7 +14,9 @@ import com.ooro.driver.duty.DutySessionManager
 import com.ooro.driver.documents.DocumentImageProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 
 enum class AppMode { LOGIN, OTP, ONBOARDING, FLEET_INQUIRY, DASHBOARD }
@@ -77,18 +79,54 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
     fun saveVehicle(type: String, registrationNumber: String, manufacturer: String, model: String) { viewModelScope.launch { runCatching { api.createVehicle(type, registrationNumber.trim(), manufacturer.trim(), model.trim()) }.onSuccess { advance(OnboardingStep.DISPLAY_OWNERSHIP) }.onFailure { _message.value = it.message ?: "Vehicle could not be saved" } } }
     fun saveProfile(name: String, email: String, city: String, language: String) { viewModelScope.launch { runCatching { api.updateProfile(name.trim(), email.trim().ifBlank { null }, city.trim(), language) }.onSuccess { _profile.value = _profile.value?.copy(fullName = name.trim(), email = email.trim().ifBlank { null }, city = city.trim(), language = language); advance(OnboardingStep.KYC) }.onFailure { _message.value = it.message ?: "Profile could not be saved" } } }
     fun uploadDocument(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String) { uploadDocument(resolver, uri, documentType, contentType, 0, false) }
-    fun uploadDocument(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String, rotationDegrees: Int, cropSquare: Boolean) { uploadJob?.cancel(); uploadJob = viewModelScope.launch { _dashboard.value = _dashboard.value.copy(uploadProgress = 5, uploadError = null); _message.value = "Uploading securely…"; runCatching { if (contentType.startsWith("image/")) DocumentImageProcessor.process(resolver, uri, rotationDegrees, cropSquare) else resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Unable to read selected document") }.mapCatching { bytes -> _dashboard.value = _dashboard.value.copy(uploadProgress = 35); api.uploadDocument(documentType, if (contentType.startsWith("image/")) "image/jpeg" else contentType, bytes) { progress -> _dashboard.value = _dashboard.value.copy(uploadProgress = progress) } }.onSuccess { _dashboard.value = _dashboard.value.copy(uploadProgress = null); _message.value = "Document submitted for review" }.onFailure { _dashboard.value = _dashboard.value.copy(uploadProgress = null, uploadError = it.message ?: "Document upload failed"); _message.value = it.message ?: "Document upload failed" } } }
+    fun uploadDocument(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String, rotationDegrees: Int, cropSquare: Boolean) { uploadJob?.cancel(); uploadJob = viewModelScope.launch { _dashboard.value = _dashboard.value.copy(uploadProgress = 5, uploadError = null); _message.value = "Uploading securely…"; runCatching { if (BuildConfig.USE_MOCK_BACKEND && uri.toString().startsWith("content://ooro.synthetic/")) byteArrayOf(1, 2, 3) else if (contentType.startsWith("image/")) DocumentImageProcessor.process(resolver, uri, rotationDegrees, cropSquare) else resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Unable to read selected document") }.mapCatching { bytes -> _dashboard.value = _dashboard.value.copy(uploadProgress = 35); api.uploadDocument(documentType, if (contentType.startsWith("image/")) "image/jpeg" else contentType, bytes) { progress -> _dashboard.value = _dashboard.value.copy(uploadProgress = progress) } }.onSuccess { _dashboard.value = _dashboard.value.copy(uploadProgress = null); _message.value = "Document submitted for review" }.onFailure { _dashboard.value = _dashboard.value.copy(uploadProgress = null, uploadError = it.message ?: "Document upload failed"); _message.value = it.message ?: "Document upload failed" } } }
     fun cancelDocumentUpload() { uploadJob?.cancel(); uploadJob = null; _dashboard.value = _dashboard.value.copy(uploadProgress = null, uploadError = "Upload cancelled"); _message.value = "Upload cancelled" }
     fun retryDocumentUpload(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String) = uploadDocument(resolver, uri, documentType, contentType)
     fun retryDocumentUpload(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String, rotationDegrees: Int, cropSquare: Boolean) = uploadDocument(resolver, uri, documentType, contentType, rotationDegrees, cropSquare)
     fun submitSupportTicket(category: String, description: String) { viewModelScope.launch { _dashboard.value = _dashboard.value.copy(supportSubmitting = true); runCatching { api.createSupportTicket(category, description) }.onSuccess { _dashboard.value = _dashboard.value.copy(supportSubmitting = false); _message.value = "Support request submitted" }.onFailure { _dashboard.value = _dashboard.value.copy(supportSubmitting = false); _message.value = it.message ?: "Support request could not be submitted" } } }
     fun startDuty() { viewModelScope.launch { runCatching { DutySessionManager(context, com.ooro.driver.network.ApiProvider(object : SecureTokenProvider { override fun token() = sessionStore.get()?.accessToken })).start() }.onSuccess { _dashboard.value = _dashboard.value.copy(dutySession = it); _message.value = null }.onFailure { _message.value = it.message ?: "Unable to start duty" } } }
     fun endDuty() { val current = _dashboard.value.dutySession ?: return; viewModelScope.launch { runCatching { DutySessionManager(context, com.ooro.driver.network.ApiProvider(object : SecureTokenProvider { override fun token() = sessionStore.get()?.accessToken })).stop(current) }.onSuccess { _dashboard.value = _dashboard.value.copy(dutySession = null); _message.value = null }.onFailure { _message.value = it.message ?: "Unable to end duty" } } }
-    fun showOnboarding() { _mode.value = AppMode.ONBOARDING }
+    fun showOnboarding() { if (_step.value == OnboardingStep.APPLICATION_STATUS) _step.value = OnboardingStep.KYC; _mode.value = AppMode.ONBOARDING }
+    fun resetSyntheticState() {
+        if (!BuildConfig.USE_MOCK_BACKEND) return
+        uploadJob?.cancel()
+        sessionStore.clear()
+        context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE).edit().clear().apply()
+        runBlocking(Dispatchers.IO) { database.clearAllTables() }
+        _mode.value = AppMode.LOGIN
+        _step.value = OnboardingStep.DRIVER_TYPE
+        _message.value = null
+        _savedPhone.value = ""
+        _profile.value = null
+        _agreements.value = emptyList()
+        _dashboard.value = DashboardState()
+        phone = ""
+    }
+    fun seedSyntheticOtp(phoneNumber: String) {
+        if (!BuildConfig.USE_MOCK_BACKEND) return
+        phone = phoneNumber
+        _savedPhone.value = phoneNumber
+        _mode.value = AppMode.OTP
+    }
+    fun seedSyntheticAuthenticatedScenario(scenario: String) {
+        if (!BuildConfig.USE_MOCK_BACKEND) return
+        context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE).edit().putString("scenario", scenario).remove("submitted").commit()
+        sessionStore.save(Session("synthetic-access", "synthetic-refresh", "synthetic-driver"))
+        phone = "9876543210"
+        _savedPhone.value = phone
+        when (scenario.uppercase()) {
+            "REJECTED" -> { _step.value = OnboardingStep.APPLICATION_STATUS; _mode.value = AppMode.ONBOARDING }
+            "APPROVED_NO_DISPLAY" -> { _step.value = OnboardingStep.DISPLAY_OWNERSHIP; _mode.value = AppMode.ONBOARDING }
+            "APPROVED" -> { _step.value = OnboardingStep.COMPLETE; _mode.value = AppMode.DASHBOARD }
+            else -> { _step.value = OnboardingStep.DRIVER_TYPE; _mode.value = AppMode.ONBOARDING }
+        }
+        refreshDashboard()
+    }
+    fun syntheticDebugState(): String = "mode=${_mode.value};step=${_step.value};scenario=${context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE).getString("scenario", "")};session=${sessionStore.get() != null}"
     fun logout() { val refreshToken = sessionStore.get()?.refreshToken; viewModelScope.launch { runCatching { if (refreshToken != null) api.logout(refreshToken) }; sessionStore.clear(); _mode.value = AppMode.LOGIN; _dashboard.value = DashboardState() } }
     fun clearMessage() { _message.value = null }
     fun simulate(event: RideEventType) { if (!BuildConfig.ALLOW_DEBUG_SIMULATION) return; handleRideEvent(NormalizedRideEvent(provider = "DEBUG", eventType = event, confidence = 1.0)) }
     private fun handleRideEvent(event: NormalizedRideEvent) { val current = _dashboard.value.activeRide; val machine = RideStateMachine(); val next = if (current == null) { RideCandidate(provider = event.provider, state = runCatching { machine.reduce(RideState.IDLE, event.eventType) }.getOrDefault(RideState.IDLE)) } else current.copy(state = runCatching { machine.reduce(current.state, event.eventType) }.getOrDefault(current.state), pickupAt = if (event.eventType == RideEventType.PASSENGER_PICKED_UP) event.timestamp else current.pickupAt, completedAt = if (event.eventType == RideEventType.RIDE_COMPLETED) event.timestamp else current.completedAt); _dashboard.value = _dashboard.value.copy(activeRide = next, display = when (next.state) { RideState.ACTIVE_VERIFIED -> _dashboard.value.display?.copy(state = DisplayState.ACTIVE_PLAYBACK); RideState.CANCELLED, RideState.COMPLETED -> _dashboard.value.display?.copy(state = DisplayState.ENDING_SESSION); else -> _dashboard.value.display }); viewModelScope.launch { database.rides().save(RideEntity(next.id, next.provider, next.state.name, next.createdAt.toString(), next.pickupAt?.toString(), next.completedAt?.toString(), next.verification?.score, next.verification?.status?.name, next.verifiedAdSeconds)); database.rides().addEvent(RideEventEntity(eventId = event.eventId, rideId = next.id, provider = event.provider, type = event.eventType.name, timestamp = event.timestamp.toString(), confidence = event.confidence, sourcePackage = event.sourcePackage, evidence = event.evidence.name, diagnosticCode = event.diagnosticCode)) } }
     override fun onCleared() { NormalizedRideEventBus.unsubscribe(eventListener); super.onCleared() }
-    companion object { fun factory(context: Context) = object : ViewModelProvider.Factory { override fun <T : ViewModel> create(modelClass: Class<T>): T { val db = DriverDatabase.get(context); val store = SecureSessionStore(context); val api = if (BuildConfig.USE_MOCK_BACKEND) MockDriverApi() else HttpDriverApi(BuildConfig.API_BASE_URL) { store.get()?.accessToken }; return DriverAppViewModel(db, store, api, context) as T } } }
+    companion object { fun factory(context: Context) = object : ViewModelProvider.Factory { override fun <T : ViewModel> create(modelClass: Class<T>): T { val db = DriverDatabase.get(context); val store = SecureSessionStore(context); val mockPrefs = context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE); val api = if (BuildConfig.USE_MOCK_BACKEND) MockDriverApi(scenario = { mockPrefs.getString("scenario", "APPROVED") ?: "APPROVED" }, submittedProvider = { mockPrefs.getBoolean("submitted", false) }, markSubmitted = { mockPrefs.edit().putBoolean("submitted", true).apply() }) else HttpDriverApi(BuildConfig.API_BASE_URL) { store.get()?.accessToken }; return DriverAppViewModel(db, store, api, context) as T } } }
 }

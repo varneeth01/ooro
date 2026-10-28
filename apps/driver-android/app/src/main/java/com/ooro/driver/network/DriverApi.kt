@@ -54,7 +54,11 @@ data class DriverDashboardSnapshot(val name: String, val onboardingStatus: Strin
 data class SessionResponse(val accessToken: String, val refreshToken: String, val driverId: String, val profile: DriverProfile)
 data class PayoutResponse(val id: String, val status: PayoutStatus)
 
-class MockDriverApi(private val scenario: () -> String = { "APPROVED" }) : DriverApi {
+class MockDriverApi(
+    private val submittedProvider: () -> Boolean = { false },
+    private val markSubmitted: () -> Unit = {},
+    private val scenario: () -> String = { "APPROVED" }
+) : DriverApi {
     override suspend fun requestOtp(phone: String) = Unit
     override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { require(otp == "000000") { "Use 000000 in debug mode" }; return SessionResponse("demo-access", "demo-refresh", "demo-driver", DriverProfile("demo-driver", "OORO Demo Driver", phone, "driver@example.test", "Bengaluru", driverType = DriverType.INDIVIDUAL, kycStatus = VerificationStatus.VERIFIED)) }
     override suspend fun refreshSession(session: Session) = session
@@ -78,18 +82,18 @@ class MockDriverApi(private val scenario: () -> String = { "APPROVED" }) : Drive
     override suspend fun uploadDocument(documentType: String, contentType: String, content: ByteArray, onProgress: (Int) -> Unit) = "demo-document"
     override suspend fun requiredAgreements() = listOf(AgreementSummary("demo-agreement", "DRIVER_PARTICIPATION", "1.0", contentHash = "development-manual-review"))
     override suspend fun acceptAgreement(versionId: String) = AgreementSummary(versionId, "DRIVER_PARTICIPATION", "1.0", contentHash = "development-manual-review", accepted = true)
-    override suspend fun submitOnboarding() = "SUBMITTED"
+    override suspend fun submitOnboarding(): String { markSubmitted(); return "SUBMITTED" }
     override suspend fun createBeneficiary(type: String, value: String) = "demo-beneficiary"
     override suspend fun createVehicle(type: String, registrationNumber: String, manufacturer: String, model: String) = "demo-vehicle"
     override suspend fun currentDuty(): DutySessionSummary? = null
     override suspend fun dashboard(): DriverDashboardSnapshot {
-        val status = scenario()
+        val status = if (submittedProvider()) "SUBMITTED" else scenario()
         val approved = status == "APPROVED" || status == "APPROVED_NO_DISPLAY"
         return DriverDashboardSnapshot("OORO Demo Driver", if (approved) "APPROVED" else status, if (status == "SUSPENDED") "SUSPENDED" else "ACTIVE", "Bengaluru", "Demo vehicle", "ACTIVE", if (status == "APPROVED_NO_DISPLAY") null else "Demo Display", "READY", null, null, null, "ENABLED", "GRANTED", 0, 0, 0, emptyList(), emptyList(), "PENDING", mapOf("LOCATION" to true, "DATA_PROCESSING" to true))
     }
     override suspend fun onboardingStatus(): OnboardingStatusSnapshot {
-        val status = scenario()
-        val documents = if (status == "REJECTED") listOf(OnboardingDocumentStatus("IDENTITY", "REJECTED", "Document is not readable")) else emptyList()
+        val status = if (submittedProvider()) "SUBMITTED" else scenario()
+        val documents = if (status == "REJECTED") listOf(OnboardingDocumentStatus("PAN", "REJECTED", "Document is not readable")) else emptyList()
         return OnboardingStatusSnapshot(if (status == "APPROVED_NO_DISPLAY") "APPROVED" else status, if (status == "SUSPENDED") "SUSPENDED" else if (status == "APPROVED" || status == "APPROVED_NO_DISPLAY") "ACTIVE" else "PENDING", documents, emptyList())
     }
     override suspend fun createSupportTicket(category: String, description: String) = "support-demo"
