@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.StatFs
 import androidx.work.*
+import com.ooro.deviceagent.BuildConfig
 import com.ooro.deviceagent.data.AgentDatabaseProvider
 import com.ooro.deviceagent.data.InstallStateEntity
 import com.ooro.deviceagent.data.SecureStore
@@ -141,7 +142,7 @@ internal fun reopensLocalFailureForRetry(localState: String, targetState: String
 internal fun deploymentWorkDeferred(campaignState: String): Boolean = campaignState == "PAUSED"
 
 object WorkScheduler {
-    fun enqueue(context: Context) { val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(); val request = PeriodicWorkRequestBuilder<SyncWorker>(15, java.util.concurrent.TimeUnit.MINUTES).setConstraints(constraints).build(); WorkManager.getInstance(context).enqueueUniquePeriodicWork("deviceos-sync", ExistingPeriodicWorkPolicy.KEEP, request); WorkManager.getInstance(context).enqueueUniqueWork("deviceos-sync-now", ExistingWorkPolicy.REPLACE, OneTimeWorkRequestBuilder<SyncWorker>().setConstraints(constraints).build()) }
+    fun enqueue(context: Context) { val networkType = if (BuildConfig.DEBUG && BuildConfig.API_BASE_URL.startsWith("http://127.0.0.1")) NetworkType.NOT_REQUIRED else NetworkType.CONNECTED; val constraints = Constraints.Builder().setRequiredNetworkType(networkType).build(); val request = PeriodicWorkRequestBuilder<SyncWorker>(15, java.util.concurrent.TimeUnit.MINUTES).setConstraints(constraints).build(); WorkManager.getInstance(context).enqueueUniquePeriodicWork("deviceos-sync", ExistingPeriodicWorkPolicy.KEEP, request); WorkManager.getInstance(context).enqueueUniqueWork("deviceos-sync-now", ExistingWorkPolicy.REPLACE, OneTimeWorkRequestBuilder<SyncWorker>().setConstraints(constraints).build()) }
 }
 
 fun capabilities(context: Context): JSONObject { val cm = context.getSystemService(ConnectivityManager::class.java); val network = cm.activeNetwork; val caps = network?.let(cm::getNetworkCapabilities); val stat = StatFs(context.filesDir.absolutePath); val memory = ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }; val loadAverage = runCatching { java.io.File("/proc/loadavg").bufferedReader().use { it.readLine().substringBefore(' ').toDouble() } }.getOrNull(); return JSONObject().put("deviceOwner", context.getSystemService(android.app.admin.DevicePolicyManager::class.java).isDeviceOwnerApp(context.packageName)).put("androidSdkInt", android.os.Build.VERSION.SDK_INT).put("networkConnected", caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true).put("networkType", when { caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "WIFI"; caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "CELLULAR"; else -> "OTHER" }).put("storageFreeBytes", stat.availableBytes).put("storageTotalBytes", stat.totalBytes).put("memoryAvailableBytes", memory.availMem).put("memoryTotalBytes", memory.totalMem).put("lowMemory", memory.lowMemory).put("cpuLoad1m", loadAverage).put("cpuProcessorCount", Runtime.getRuntime().availableProcessors()).put("observationMode", !context.getSystemService(android.app.admin.DevicePolicyManager::class.java).isDeviceOwnerApp(context.packageName)) }

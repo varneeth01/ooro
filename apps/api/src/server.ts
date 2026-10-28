@@ -3,7 +3,6 @@ import Fastify from 'fastify'
 import { deliverOtp } from './domain/otp-delivery.js'
 import { registerNetworkOperations } from './network-operations.js'
 import { registerOperations } from './operations.js'
-import { registerAdminManagement } from './admin-management.js'
 import { Prisma } from '@prisma/client'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -12,7 +11,7 @@ import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { config } from './config.js'
 import { prisma } from './prisma.js'
 import { ApiError, forbidden, notFound, unauthorized } from './errors.js'
-import { authenticateDeviceOs, authenticateDisplay, hashSecret, issueTokens, randomSecret, requireAuth, requirePermission, requireRoles, response } from './http.js'
+import { authenticateDeviceOs, authenticateDisplay, hashSecret, issueTokens, randomSecret, requireAuth, requireRoles, response } from './http.js'
 import { assertRideTransition, stateForEvent } from './domain/ride-state.js'
 import { verifyRide } from './domain/verification.js'
 import { calculateEarnings } from './domain/earnings.js'
@@ -47,33 +46,12 @@ app.addHook('onRequest', async (request) => {
 })
 app.removeContentTypeParser('application/json')
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => { try { (request as any).rawBody = body; done(null, JSON.parse(body as string)) } catch (error) { done(error as Error, undefined) } })
-const retiredPaymentRoutes = new Set(['/api/public/campaign-orders', '/api/public/campaign-orders/verify', '/api/webhooks/razorpay'])
-app.addHook('preHandler', async (request, reply) => {
-  const path = request.url.split('?')[0]
-  if (request.method === 'POST' && retiredPaymentRoutes.has(path)) {
-    return reply.code(410).send({ data: null, error: { code: 'PAYMENT_PROCESSING_RETIRED', message: 'Online payment processing is no longer available.' }, requestId: request.id })
-  }
-})
-const deviceReadPaths = new Set(['/api/admin/drivers', '/api/admin/vehicles', '/api/admin/displays', '/api/admin/displays/live-map'])
 app.addHook('preHandler', async (request) => {
   const path = request.url.split('?')[0]
-  if (request.method === 'GET' && (deviceReadPaths.has(path) || /^\/api\/admin\/displays\/[^/]+\/(live-state|location-history|manifest-debug)$/.test(path))) await requirePermission(request, 'device:read')
+  if (request.method === 'POST' && ['/api/public/campaign-orders', '/api/public/campaign-orders/verify', '/api/webhooks/razorpay'].includes(path)) throw new ApiError('PAYMENT_PROCESSING_RETIRED', 'Payment processing is retired', 410)
+  if (path.startsWith('/api/admin/')) await requireRoles(request, adminRoles)
+  if (path === '/api/webhooks/razorpay') await connectMongo()
 })
-app.addHook('preHandler', async (request) => {
-  if (request.method === 'GET' && request.url.split('?')[0] === '/api/admin/proof-of-play') await requirePermission(request, 'campaign:read')
-})
-app.addHook('preHandler', async (request) => {
-  const path = request.url.split('?')[0]
-  if (request.method === 'GET' && (path === '/api/admin/orders' || /^\/api\/admin\/orders\/[^/]+$/.test(path))) await requirePermission(request, 'finance:read')
-})
-app.addHook('preHandler', async (request) => {
-  const path = request.url.split('?')[0]
-  if (request.method !== 'GET') return
-  if (path === '/api/admin/rides') await requirePermission(request, 'ride:read')
-  else if (path === '/api/admin/verifications') await requirePermission(request, 'verification:read')
-  else if (path === '/api/admin/fraud') await requirePermission(request, 'fraud:read')
-})
-app.addHook('preHandler', async (request) => { if (request.url.split('?')[0].startsWith('/api/admin/')) await requireRoles(request, adminRoles); if (request.url.split('?')[0] === '/api/webhooks/razorpay') await connectMongo() })
 
 const ok = (request: any, data: unknown, reply: any) => reply.send(response(request, data))
 const sendDeviceOsApk = (request: any, reply: any, content: Buffer, filename?: string) => {
@@ -171,10 +149,7 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   if(challenge) await prisma.otpChallenge.update({where:{id:challenge.id},data:{attempts:{increment:1}}})
   if (!challenge || challenge.attempts >= 5 || challenge.codeHash !== hashOtp(phone, code)) throw new ApiError('INVALID_OTP', 'Invalid or expired OTP', 401)
   const consumed = await prisma.otpChallenge.updateMany({ where: { id: challenge.id, consumedAt:null, attempts:{lte:5} }, data: { consumedAt: new Date() } }); if(consumed.count!==1) throw unauthorized('Code already used or too many attempts')
-  const existingUser = await prisma.user.findUnique({ where: { phone }, select: { role: true } })
-  if (existingUser && existingUser.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
   const user = await prisma.user.upsert({ where: { phone }, update: name ? { name } : {}, create: { phone, name, role: 'DRIVER', accountStatus: 'PENDING' } })
-  if (user.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
   const tokens = await issueTokens(user.id, user.role, driver.id)
   return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role }, driver: { id: driver.id, onboardingStatus: driver.onboardingStatus } }, reply)
@@ -957,7 +932,7 @@ app.post('/api/admin/displays', async (request, reply) => {
   await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_CREATED', entityType: 'Display', entityId: display.id, after: { city: input.city, area: input.area, notes: input.notes } as any, requestId: request.id } })
   return ok(request, { displayId: display.id, pairingCode: code, expiresAt, display }, reply)
 })
-app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true } })), reply) })
+app.get('/api/admin/drivers', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true } })), reply) })
 app.get('/api/admin/drivers/:driverId/review', async (request, reply) => {
   await requireRoles(request, adminRoles); const { driverId } = request.params as { driverId: string }
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, include: { user: true, documents: { select: { id: true, documentType: true, status: true, maskedDocumentNumber: true, rejectionReason: true, expiresAt: true, submittedAt: true, verifiedAt: true, verifiedBy: true } }, vehicles: { include: { displays: true } }, consents: { include: { agreementVersion: true } }, integrations: true } })
@@ -1017,7 +992,7 @@ app.post('/api/admin/documents/cleanup', async (request, reply) => {
   await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DOCUMENT_UPLOAD_CLEANUP', entityType: 'DocumentUploadSession', entityId: 'batch', after: { expired: expired.length, deleted }, requestId: request.id } })
   return ok(request, { expired: expired.length, deleted }, reply)
 })
-app.get('/api/admin/vehicles', async (request, reply) => { await requirePermission(request, 'device:read'); return ok(request, await prisma.vehicle.findMany({ include: { driver: { include: { user: true } }, displays: true } }), reply) })
+app.get('/api/admin/vehicles', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, await prisma.vehicle.findMany({ include: { driver: { include: { user: true } }, displays: true } }), reply) })
 app.get('/api/admin/displays', async (request, reply) => { await requireRoles(request, adminRoles); const rows = await prisma.display.findMany({ select: { id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: {city:true} }, vehicleId: true, state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true, lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true, currentPlaybackState: true, vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } }, createdAt: true, updatedAt: true, heartbeats: { select: { occurredAt: true, receivedAt: true, networkType: true }, orderBy: { receivedAt: 'desc' }, take: 1 } } }); return ok(request, asJson(rows.map((display) => ({ ...display, connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? display.heartbeats[0]?.receivedAt, new Date(), config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds) }))), reply) })
 app.get('/api/admin/displays/:displayId/live-state', async (request, reply) => {
   await requireRoles(request, adminRoles)
@@ -1051,14 +1026,13 @@ app.get('/api/admin/proof-of-play', async (request, reply) => {
  const [items,total] = await Promise.all([prisma.proofOfPlay.findMany({where,orderBy:{playbackStartedAt:'desc'},take:50,skip:q.skip,include:{display:{select:{name:true,vehicleId:true}}}}),prisma.proofOfPlay.count({where})])
  return ok(request,{items,total,skip:q.skip,take:50},reply)
 })
-app.get('/api/admin/earnings', async (request, reply) => { await requirePermission(request, 'finance:read'); return ok(request, asJson(await prisma.earningEntry.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
-app.get('/api/admin/payouts', async (request, reply) => { await requirePermission(request, 'finance:read'); return ok(request, asJson(await prisma.payout.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
+app.get('/api/admin/earnings', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, asJson(await prisma.earningEntry.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
+app.get('/api/admin/payouts', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, asJson(await prisma.payout.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
 app.post('/api/admin/drivers/:driverId/restrict', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'SUSPENDED' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'SUSPENDED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_SUSPENDED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { suspended: true }, reply) })
 app.post('/api/admin/drivers/:driverId/reactivate', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); transitionDriverOnboarding(driver.onboardingStatus, 'APPROVED'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'ACTIVE' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'APPROVED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_REACTIVATED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { reactivated: true }, reply) })
 app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display) throw notFound('Display not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
 
 registerOperations(app)
-registerAdminManagement(app)
 registerNetworkOperations(app)
 
 app.setErrorHandler((error, request, reply) => { request.log.error({ err: error }, 'request failed'); const mongoFailure = isMongoError(error); const status = error instanceof ApiError ? error.statusCode : error instanceof z.ZodError ? 422 : error instanceof Prisma.PrismaClientKnownRequestError && ['P2034','P2002'].includes(error.code) ? 409 : mongoFailure ? 503 : 500; const message = error instanceof Error ? error.message : 'Internal server error'; reply.status(status).send({ data: null, error: { code: error instanceof ApiError ? error.code : mongoFailure ? 'GUEST_STORE_UNAVAILABLE' : 'INTERNAL_ERROR', message: status === 500 ? 'Internal server error' : message }, requestId: request.id }) })

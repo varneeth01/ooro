@@ -69,13 +69,18 @@ class ApkInstaller(private val context: Context, private val db: AgentDatabase) 
         val sessionId = packageInstaller.createSession(params)
         db.installStates().let { dao -> runBlocking { dao.put(InstallStateEntity(targetId, "INSTALLING", sessionId, file.absolutePath)) } }
         val session = packageInstaller.openSession(sessionId)
-        session.use { current -> file.inputStream().use { input -> current.openWrite("base.apk", 0, file.length()).use { output -> input.copyTo(output); output.flush(); current.fsync(output) } }; val intent = Intent(context, InstallResultReceiver::class.java).setAction(InstallResultReceiver.ACTION).putExtra("targetId", targetId).putExtra("sessionId", sessionId); val pending = PendingIntent.getBroadcast(context, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE); current.commit(pending.intentSender) }
+        session.use { current -> file.inputStream().use { input -> current.openWrite("base.apk", 0, file.length()).use { output -> input.copyTo(output); output.flush(); current.fsync(output) } }; val intent = Intent(context, InstallResultReceiver::class.java).setAction(InstallResultReceiver.ACTION).putExtra("targetId", targetId).putExtra("sessionId", sessionId); val pending = PendingIntent.getBroadcast(context, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE); current.commit(pending.intentSender) }
         return sessionId
     }
 }
 
 class InstallResultReceiver : BroadcastReceiver() {
-    companion object { const val ACTION = "com.ooro.deviceagent.INSTALL_RESULT" }
+    companion object {
+        const val ACTION = "com.ooro.deviceagent.INSTALL_RESULT"
+        const val PENDING_APPROVAL_ACTION = "com.ooro.deviceagent.INSTALL_APPROVAL_PENDING"
+        private const val APPROVAL_PREFS = "install_approval"
+        private const val APPROVAL_URI = "uri"
+    }
     override fun onReceive(context: Context, intent: Intent) {
         val sessionId = intent.getIntExtra("sessionId", -1); val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE); val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
         val dao = AgentDatabaseProvider.get(context).installStates()
@@ -83,7 +88,11 @@ class InstallResultReceiver : BroadcastReceiver() {
             dao.bySession(sessionId)?.let { current ->
                 if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
                     dao.put(current.copy(state = "PENDING_USER_ACTION", updatedAt = System.currentTimeMillis(), error = message ?: "PENDING_USER_ACTION_REQUIRED"))
-                    intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let(context::startActivity)
+                    intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.let { approvalIntent ->
+                        context.getSharedPreferences(APPROVAL_PREFS, Context.MODE_PRIVATE).edit()
+                            .putString(APPROVAL_URI, approvalIntent.toUri(Intent.URI_INTENT_SCHEME)).apply()
+                        context.sendBroadcast(Intent(PENDING_APPROVAL_ACTION).setPackage(context.packageName))
+                    }
                 } else {
                     val state = installerCallbackState(status)
                     dao.put(current.copy(state = state, updatedAt = System.currentTimeMillis(), error = message ?: if (state == "FAILED") "INSTALL_FAILED" else null))

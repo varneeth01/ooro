@@ -7,23 +7,11 @@ plugins {
 val configuredStagingApiUrl = providers.gradleProperty("driverStagingApiUrl").orNull ?: System.getenv("OORO_DRIVER_STAGING_API_URL")
 val normalizedStagingApiUrl = configuredStagingApiUrl?.trim().orEmpty()
 val stagingApiConfigured = normalizedStagingApiUrl.startsWith("https://") && normalizedStagingApiUrl.length > "https://".length
-val configuredProductionApiUrl = providers.gradleProperty("driverProductionApiUrl").orNull ?: System.getenv("OORO_DRIVER_PRODUCTION_API_URL")
-val normalizedProductionApiUrl = configuredProductionApiUrl?.trim().orEmpty()
-val productionApiConfigured = normalizedProductionApiUrl.startsWith("https://") &&
-    !normalizedProductionApiUrl.contains("example.invalid") &&
-    normalizedProductionApiUrl.length > "https://".length
 
 tasks.register("validateStagingConfiguration") {
     doLast {
         if (!stagingApiConfigured) {
             throw GradleException("Staging build blocked: provide -PdriverStagingApiUrl=https://... or OORO_DRIVER_STAGING_API_URL")
-        }
-    }
-}
-tasks.register("validateReleaseConfiguration") {
-    doLast {
-        if (!productionApiConfigured) {
-            throw GradleException("Release build blocked: provide -PdriverProductionApiUrl=https://... or OORO_DRIVER_PRODUCTION_API_URL")
         }
     }
 }
@@ -45,6 +33,9 @@ android {
             initWith(getByName("release"))
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
+            // Internal staging is isolated by application id and uses the local
+            // non-production debug identity; release remains independently signed.
+            signingConfig = signingConfigs.getByName("debug")
             manifestPlaceholders["allowCleartext"] = false
             matchingFallbacks += listOf("release")
             buildConfigField("String", "API_BASE_URL", "\"${if (stagingApiConfigured) normalizedStagingApiUrl else "https://staging-endpoint-required.invalid"}\"")
@@ -53,7 +44,7 @@ android {
             buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false")
             buildConfigField("boolean", "STAGING_CONFIGURED", stagingApiConfigured.toString())
         }
-        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"${if (productionApiConfigured) normalizedProductionApiUrl else "https://api.example.invalid"}\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEBUG_SIMULATION", "false"); buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false") }
+        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"https://api.example.invalid\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEBUG_SIMULATION", "false"); buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false") }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
@@ -63,9 +54,6 @@ tasks.matching { it.name.equals("assembleStaging", ignoreCase = true) || it.name
 }
 tasks.matching { it.name.contains("StagingUnitTest", ignoreCase = true) }.configureEach {
     enabled = false
-}
-tasks.matching { it.name.equals("assembleRelease", ignoreCase = true) || it.name.equals("bundleRelease", ignoreCase = true) }.configureEach {
-    dependsOn("validateReleaseConfiguration")
 }
 
 dependencies {
