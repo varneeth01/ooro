@@ -60,6 +60,10 @@ export const config = {
   documentStorageUploadTtlSeconds: Math.min(900, Math.max(60, Number(process.env.DOCUMENT_STORAGE_UPLOAD_TTL_SECONDS ?? 600))),
   documentStorageReadTtlSeconds: Math.min(300, Math.max(30, Number(process.env.DOCUMENT_STORAGE_READ_TTL_SECONDS ?? 120))),
   documentScanMode: process.env.DOCUMENT_SCAN_MODE?.trim().toLowerCase() ?? 'local-dev',
+  documentScannerHost: process.env.DOCUMENT_SCANNER_HOST?.trim() ?? '',
+  documentScannerPort: Number(process.env.DOCUMENT_SCANNER_PORT ?? 3310),
+  documentScannerTimeoutMs: Math.min(30_000, Math.max(1_000, Number(process.env.DOCUMENT_SCANNER_TIMEOUT_MS ?? 10_000))),
+  documentScannerRetries: Math.min(2, Math.max(0, Number(process.env.DOCUMENT_SCANNER_RETRIES ?? 1))),
   corsOrigins: process.env.NODE_ENV === 'production'
     ? [...defaultCorsOrigins, ...list(process.env.CORS_ORIGINS)]
     : [...developmentCorsOrigins, ...list(process.env.CORS_ORIGINS)],

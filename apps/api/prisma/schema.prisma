@@ -143,6 +143,7 @@ model KycDocument {
   storageKey           String
   maskedDocumentNumber String?
   status               String    @default("PENDING")
+  scanStatus           String    @default("PENDING")
   submittedAt          DateTime  @default(now())
   verifiedAt           DateTime?
   verifiedBy           String?
@@ -263,6 +264,7 @@ model DocumentUploadSession {
   sizeBytes     Int
   sha256        String
   status        String    @default("ISSUED")
+  scanOutcome   String?
   expiresAt     DateTime
   completedAt   DateTime?
   createdAt     DateTime  @default(now())
