@@ -1,15 +1,26 @@
 import { config } from '../config.js'
 import { ApiError } from '../errors.js'
 
-// Integrate the operator's SMS gateway without returning production OTPs to browsers.
+type OtpRequest = { url: string; headers: Record<string, string>; body: Record<string, unknown> }
+
+export function buildOtpRequest(phone: string, code: string): OtpRequest {
+  if (config.otpProvider === 'msg91') return {
+    url: config.msg91DeliveryUrl,
+    headers: { 'content-type': 'application/json', authkey: config.msg91AuthKey },
+    body: { template_id: config.msg91TemplateId, mobile: phone.replace(/^\+/, ''), otp: code, ...(config.msg91SenderId ? { sender: config.msg91SenderId } : {}), otp_expiry: Math.ceil(config.otpTtlSeconds / 60) },
+  }
+  return { url: config.otpDeliveryUrl, headers: { 'content-type': 'application/json', authorization: `Bearer ${config.otpDeliveryToken}` }, body: { phone, code, expiresInSeconds: config.otpTtlSeconds } }
+}
+
+async function send(request: OtpRequest) {
+  if (!request.url.startsWith('https://')) throw new Error('OTP provider endpoint must use HTTPS')
+  const response = await fetch(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(request.body), signal: AbortSignal.timeout(10_000), redirect: 'error' })
+  if (!response.ok) throw new Error(`OTP provider returned HTTP ${response.status}`)
+}
+
+// Provider responses and errors intentionally omit the OTP and phone number.
 export async function deliverOtp(phone: string, code: string) {
- if (config.nodeEnv !== 'production' && config.devMockOtpEnabled) return
- if (config.stagingOtpTestMode && phone === config.stagingOtpTestPhone) return
- const endpoint=process.env.OORO_OTP_DELIVERY_URL
- const token=process.env.OORO_OTP_DELIVERY_TOKEN
- if (!endpoint || !token || !endpoint.startsWith('https://')) throw new ApiError('OTP_DELIVERY_UNAVAILABLE','SMS delivery is not configured',503)
- try {
-  const result=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({phone,code,expiresInSeconds:config.otpTtlSeconds}),signal:AbortSignal.timeout(10000),redirect:'error'})
-  if(!result.ok) throw new Error('delivery failed')
- }catch{throw new ApiError('OTP_DELIVERY_UNAVAILABLE','Unable to deliver verification code. Retry later.',503)}
+  if (config.nodeEnv !== 'production' && config.devMockOtpEnabled) return
+  if (config.stagingOtpTestMode && phone === config.stagingOtpTestPhone) return
+  try { await send(buildOtpRequest(phone, code)) } catch { throw new ApiError('OTP_DELIVERY_UNAVAILABLE', 'Unable to deliver verification code. Retry later.', 503) }
 }
