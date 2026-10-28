@@ -7,11 +7,21 @@ plugins {
 val configuredStagingApiUrl = providers.gradleProperty("driverStagingApiUrl").orNull ?: System.getenv("OORO_DRIVER_STAGING_API_URL")
 val normalizedStagingApiUrl = configuredStagingApiUrl?.trim().orEmpty()
 val stagingApiConfigured = normalizedStagingApiUrl.startsWith("https://") && normalizedStagingApiUrl.length > "https://".length
+val configuredProductionApiUrl = providers.gradleProperty("driverProductionApiUrl").orNull ?: System.getenv("OORO_DRIVER_PRODUCTION_API_URL")
+val normalizedProductionApiUrl = configuredProductionApiUrl?.trim().orEmpty()
+val productionApiConfigured = normalizedProductionApiUrl.startsWith("https://") && normalizedProductionApiUrl.length > "https://".length
 
 tasks.register("validateStagingConfiguration") {
     doLast {
         if (!stagingApiConfigured) {
             throw GradleException("Staging build blocked: provide -PdriverStagingApiUrl=https://... or OORO_DRIVER_STAGING_API_URL")
+        }
+    }
+}
+tasks.register("validateProductionConfiguration") {
+    doLast {
+        if (!productionApiConfigured) {
+            throw GradleException("Release build blocked: provide -PdriverProductionApiUrl=https://... or OORO_DRIVER_PRODUCTION_API_URL")
         }
     }
 }
@@ -44,13 +54,16 @@ android {
             buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false")
             buildConfigField("boolean", "STAGING_CONFIGURED", stagingApiConfigured.toString())
         }
-        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"https://api.example.invalid\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEBUG_SIMULATION", "false"); buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false") }
+        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"${if (productionApiConfigured) normalizedProductionApiUrl else "https://production-endpoint-required.invalid"}\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEBUG_SIMULATION", "false"); buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false") }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
 tasks.matching { it.name.equals("assembleStaging", ignoreCase = true) || it.name.equals("installStaging", ignoreCase = true) }.configureEach {
     dependsOn("validateStagingConfiguration")
+}
+tasks.matching { it.name.equals("assembleRelease", ignoreCase = true) || it.name.equals("installRelease", ignoreCase = true) }.configureEach {
+    dependsOn("validateProductionConfiguration")
 }
 tasks.matching { it.name.contains("StagingUnitTest", ignoreCase = true) }.configureEach {
     enabled = false
