@@ -40,3 +40,9 @@ test('scanner connection failure is distinct from a scan failure', async () => {
   const port = (server.address() as net.AddressInfo).port; await new Promise<void>((resolve) => server.close(() => resolve()))
   assert.equal(await createClamAvScanner({ host: '127.0.0.1', port, timeoutMs: 100, retries: 0 }).scan(Buffer.from('safe')), 'SCANNER_UNAVAILABLE')
 })
+
+test('malformed scanner response is a scan failure', async () => {
+  await withScanner('stream: UNKNOWN', async (port) => {
+    assert.equal(await createClamAvScanner({ host: '127.0.0.1', port, timeoutMs: 500, retries: 0 }).scan(Buffer.from('safe')), 'SCAN_FAILED')
+  })
+})
