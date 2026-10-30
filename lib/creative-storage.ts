@@ -4,6 +4,12 @@ import path from "node:path";
 import { Storage } from "@google-cloud/storage";
 import { hasExpectedCreativeSignature } from "@/lib/creative-validation";
 
+export function creativeStorageReadiness(): { ready: boolean; provider: "gcs" | "local" | "unconfigured"; reason?: string } {
+  if (process.env.GCS_BUCKET_NAME?.trim()) return { ready: true, provider: "gcs" };
+  if (process.env.NODE_ENV !== "production") return { ready: true, provider: "local" };
+  return { ready: false, provider: "unconfigured", reason: "OBJECT_STORAGE_NOT_CONFIGURED" };
+}
+
 export type StoredCreative = { storageKey: string; url: string; checksum: string; size: number };
 
 export async function storeCreative(bytes: Buffer, fileName: string, mimeType: string): Promise<StoredCreative> {
