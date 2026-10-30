@@ -17,6 +17,21 @@ export const config = {
   accessTtlSeconds: Number(process.env.ACCESS_TOKEN_TTL_SECONDS ?? 900),
   refreshTtlSeconds: Number(process.env.REFRESH_TOKEN_TTL_SECONDS ?? 2592000),
   otpTtlSeconds: Number(process.env.OTP_TTL_SECONDS ?? 300),
+  otpProvider: process.env.OTP_PROVIDER?.trim().toLowerCase() ?? 'webhook',
+  otpDeliveryUrl: process.env.OORO_OTP_DELIVERY_URL ?? '',
+  otpDeliveryToken: process.env.OORO_OTP_DELIVERY_TOKEN ?? '',
+  msg91AuthKey: process.env.MSG91_AUTH_KEY ?? '',
+  msg91TemplateId: process.env.MSG91_TEMPLATE_ID ?? '',
+  msg91SenderId: process.env.MSG91_SENDER_ID ?? '',
+  msg91DeliveryUrl: process.env.MSG91_DELIVERY_URL ?? 'https://control.msg91.com/api/v5/otp',
+  whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
+  whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
+  whatsappBusinessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID ?? '',
+  whatsappOtpTemplateName: process.env.WHATSAPP_OTP_TEMPLATE_NAME ?? '',
+  whatsappOtpTemplateLanguage: process.env.WHATSAPP_OTP_TEMPLATE_LANGUAGE ?? 'en_US',
+  whatsappGraphApiVersion: process.env.WHATSAPP_GRAPH_API_VERSION ?? '',
+  whatsappAppSecret: process.env.WHATSAPP_APP_SECRET ?? '',
+  whatsappWebhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ?? '',
   devMockOtpEnabled: bool(process.env.DEV_MOCK_OTP_ENABLED, true),
   devMockOtp: process.env.DEV_MOCK_OTP ?? '000000',
   stagingOtpTestMode: bool(process.env.OORO_STAGING_OTP_TEST_MODE),
@@ -60,6 +75,10 @@ export const config = {
   documentStorageUploadTtlSeconds: Math.min(900, Math.max(60, Number(process.env.DOCUMENT_STORAGE_UPLOAD_TTL_SECONDS ?? 600))),
   documentStorageReadTtlSeconds: Math.min(300, Math.max(30, Number(process.env.DOCUMENT_STORAGE_READ_TTL_SECONDS ?? 120))),
   documentScanMode: process.env.DOCUMENT_SCAN_MODE?.trim().toLowerCase() ?? 'local-dev',
+  documentScannerHost: process.env.DOCUMENT_SCANNER_HOST?.trim() ?? '',
+  documentScannerPort: Number(process.env.DOCUMENT_SCANNER_PORT ?? 3310),
+  documentScannerTimeoutMs: Math.min(30_000, Math.max(1_000, Number(process.env.DOCUMENT_SCANNER_TIMEOUT_MS ?? 10_000))),
+  documentScannerRetries: Math.min(2, Math.max(0, Number(process.env.DOCUMENT_SCANNER_RETRIES ?? 1))),
   corsOrigins: process.env.NODE_ENV === 'production'
     ? [...defaultCorsOrigins, ...list(process.env.CORS_ORIGINS)]
     : [...developmentCorsOrigins, ...list(process.env.CORS_ORIGINS)],
@@ -77,6 +96,10 @@ if (config.nodeEnv === 'production' && (!productionDatabaseUrl || /(?:^|[@:/])(?
 if (config.nodeEnv === 'production') {
   if (config.jwtSecret === 'development-only-change-me' || config.jwtSecret.length < 32) throw new Error('JWT_SECRET must be configured in production')
   if (config.devMockOtpEnabled) throw new Error('DEV_MOCK_OTP_ENABLED must be false in production')
+  if (!['msg91', 'webhook', 'whatsapp_cloud'].includes(config.otpProvider)) throw new Error('OTP_PROVIDER must be msg91, webhook, or whatsapp_cloud')
+  if (config.otpProvider === 'msg91' && (!config.msg91AuthKey || !config.msg91TemplateId)) throw new Error('MSG91_AUTH_KEY and MSG91_TEMPLATE_ID must be configured in production')
+  if (config.otpProvider === 'webhook' && (!config.otpDeliveryUrl.startsWith('https://') || !config.otpDeliveryToken)) throw new Error('OORO_OTP_DELIVERY_URL and OORO_OTP_DELIVERY_TOKEN must be configured in production')
+  if (config.otpProvider === 'whatsapp_cloud' && (!config.whatsappAccessToken || !config.whatsappPhoneNumberId || !config.whatsappBusinessAccountId || !config.whatsappOtpTemplateName || !config.whatsappOtpTemplateLanguage || !/^v\d+\.\d+$/.test(config.whatsappGraphApiVersion))) throw new Error('WhatsApp Cloud OTP configuration is incomplete')
   if (!config.emailProviderApiKey) throw new Error('EMAIL_PROVIDER_API_KEY must be configured in production')
   if (!config.adminWebBaseUrl.startsWith('https://')) throw new Error('ADMIN_WEB_BASE_URL must use HTTPS in production')
   if (config.deviceOsStorageMode !== 's3') throw new Error('DEVICEOS_STORAGE_MODE must be s3 in production')

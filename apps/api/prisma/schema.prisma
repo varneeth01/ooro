@@ -78,12 +78,19 @@ model OtpChallenge {
   id         String    @id @default(uuid()) @db.Uuid
   phone      String
   codeHash   String
+  provider   String?
+  providerMessageId String?
+  deliveryStatus String @default("PENDING")
+  deliveryErrorCode String?
+  deliveryUpdatedAt DateTime?
   expiresAt  DateTime
   consumedAt DateTime?
   attempts   Int       @default(0)
   createdAt  DateTime  @default(now())
 
   @@index([phone, expiresAt])
+  @@index([providerMessageId])
+  @@index([deliveryStatus, createdAt])
 }
 
 model Driver {
@@ -143,6 +150,7 @@ model KycDocument {
   storageKey           String
   maskedDocumentNumber String?
   status               String    @default("PENDING")
+  scanStatus           String    @default("PENDING")
   submittedAt          DateTime  @default(now())
   verifiedAt           DateTime?
   verifiedBy           String?
@@ -263,6 +271,7 @@ model DocumentUploadSession {
   sizeBytes     Int
   sha256        String
   status        String    @default("ISSUED")
+  scanOutcome   String?
   expiresAt     DateTime
   completedAt   DateTime?
   createdAt     DateTime  @default(now())

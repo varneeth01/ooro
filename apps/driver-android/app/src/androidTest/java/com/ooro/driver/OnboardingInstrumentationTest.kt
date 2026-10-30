@@ -9,11 +9,15 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import android.view.inputmethod.InputMethodManager
@@ -111,6 +115,14 @@ class OnboardingInstrumentationTest {
         composeRule.onNodeWithText("Model").performTextInput("Driver Cab")
         hideKeyboard()
         composeRule.onNode(hasText("Save vehicle").and(hasClickAction())).assertIsEnabled().performClick()
+        waitForText("Which display are you using?")
+        composeRule.onNode(hasText("Company-Owned Display").and(hasClickAction())).performClick()
+        waitForText("Connect an OORO display")
+        composeRule.onNode(hasText("Continue without pairing").and(hasClickAction())).performClick()
+        waitForText("Connect your ride tools.")
+        val toggles = composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ToggleableState))
+        repeat(toggles.fetchSemanticsNodes().size) { toggles.get(it).performClick() }
+        composeRule.onNode(hasText("Continue to payment setup").and(hasClickAction())).assertIsEnabled().performTouchInput { click() }
         waitForText("Payout beneficiary")
         composeRule.onNodeWithText("Account or IFSC details").performTextInput("TESTBANK123456")
         hideKeyboard()
@@ -145,6 +157,8 @@ class OnboardingInstrumentationTest {
         waitForText("Connect an OORO display")
         composeRule.onNode(hasText("Continue without pairing").and(hasClickAction())).performClick()
         waitForText("Connect your ride tools.")
+        val toggles = composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ToggleableState))
+        repeat(toggles.fetchSemanticsNodes().size) { toggles.get(it).performClick() }
         composeRule.onNode(hasText("Continue to payment setup").and(hasClickAction())).assertIsEnabled().performScrollTo().performClick()
         waitForText("Payout beneficiary")
     }
@@ -155,12 +169,9 @@ class OnboardingInstrumentationTest {
         composeRule.onNode(hasText("Rides").and(hasClickAction())).performClick()
         waitForText("Ride activity")
         composeRule.onNode(hasText("Earnings").and(hasClickAction())).performClick()
-        waitForText("Earnings and payouts")
+        waitForText("Earnings & payouts")
         composeRule.onNode(hasText("Profile").and(hasClickAction())).performClick()
-        composeRule.waitUntil(10_000) {
-            runCatching { composeRule.onNodeWithTag("driver-profile-screen").assertIsDisplayed(); true }.getOrDefault(false)
-        }
-        composeRule.onNodeWithTag("driver-profile-screen").assertIsDisplayed()
+        waitForText("Driver profile")
         composeRule.onNode(hasText("Log out").and(hasClickAction())).performClick()
         waitForText("Drive with confidence.")
     }
