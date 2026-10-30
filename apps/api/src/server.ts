@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { z } from 'zod'
-import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { config } from './config.js'
 import { prisma } from './prisma.js'
 import { ApiError, forbidden, notFound, unauthorized } from './errors.js'
@@ -155,12 +155,20 @@ app.post('/api/webhooks/razorpay', async (request, reply) => { const signature =
 
 app.post('/api/auth/request-otp', async (request, reply) => {
   const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
+  const latest = await prisma.otpChallenge.findFirst({ where: { phone }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+  if (latest && Date.now() - latest.createdAt.getTime() < 30_000) throw new ApiError('OTP_RESEND_COOLDOWN', 'Please wait before requesting another code', 429)
   const recent = await prisma.otpChallenge.count({where:{phone,createdAt:{gte:new Date(Date.now()-60000)}}}); if(recent>=3) throw new ApiError('OTP_RATE_LIMIT','Please wait before requesting another code',429)
   const stagingTestPhone = config.stagingOtpTestMode && phone === config.stagingOtpTestPhone
   const code = stagingTestPhone ? config.stagingOtpTestCode : config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
   const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
-  await deliverOtp(phone, code)
-  await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })
+  const challenge = await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt, provider: stagingTestPhone ? 'staging_test' : config.otpProvider } })
+  try {
+    const delivery = await deliverOtp(phone, code)
+    await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { provider: delivery.provider, providerMessageId: delivery.messageId, deliveryStatus: delivery.status, deliveryUpdatedAt: new Date() } })
+  } catch (error) {
+    await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { deliveryStatus: 'FAILED', deliveryErrorCode: error instanceof ApiError ? error.code : 'OTP_DELIVERY_UNAVAILABLE', deliveryUpdatedAt: new Date() } }).catch(() => undefined)
+    throw error
+  }
   return ok(request, { expiresAt, ...(config.nodeEnv !== 'production' && config.devMockOtpEnabled ? { devOtp: code } : {}) }, reply)
 })
 
@@ -177,6 +185,28 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
   const tokens = await issueTokens(user.id, user.role, driver.id)
   return ok(request, { ...tokens, user: { id: user.id, phone: user.phone, role: user.role }, driver: { id: driver.id, onboardingStatus: driver.onboardingStatus } }, reply)
+})
+
+app.get('/api/webhooks/whatsapp', async (request, reply) => {
+  const query = request.query as { 'hub.mode'?: string; 'hub.verify_token'?: string; 'hub.challenge'?: string }
+  if (query['hub.mode'] !== 'subscribe' || !config.whatsappWebhookVerifyToken || query['hub.verify_token'] !== config.whatsappWebhookVerifyToken) throw unauthorized('Webhook verification failed')
+  return reply.type('text/plain').send(query['hub.challenge'] ?? '')
+})
+app.post('/api/webhooks/whatsapp', async (request, reply) => {
+  const signature = request.headers['x-hub-signature-256']
+  const raw = String((request as any).rawBody ?? '')
+  if (!config.whatsappAppSecret || typeof signature !== 'string' || !signature.startsWith('sha256=')) throw unauthorized('Webhook signature required')
+  const expected = Buffer.from(`sha256=${createHmac('sha256', config.whatsappAppSecret).update(raw).digest('hex')}`)
+  const received = Buffer.from(signature)
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) throw unauthorized('Webhook signature invalid')
+  const payload = request.body as any
+  const statuses = (payload?.entry ?? []).flatMap((entry: any) => (entry?.changes ?? []).flatMap((change: any) => change?.value?.statuses ?? []))
+  for (const status of statuses) {
+    const state = status?.status === 'delivered' ? 'DELIVERED' : status?.status === 'read' ? 'READ' : status?.status === 'failed' ? 'FAILED' : status?.status === 'sent' ? 'SENT' : null
+    if (!state || typeof status?.id !== 'string') continue
+    await prisma.otpChallenge.updateMany({ where: { provider: 'whatsapp_cloud', providerMessageId: status.id }, data: { deliveryStatus: state, deliveryErrorCode: status?.errors?.[0]?.code ? String(status.errors[0].code) : undefined, deliveryUpdatedAt: new Date() } })
+  }
+  return ok(request, { received: true }, reply)
 })
 
 app.post('/api/auth/admin/login', async (request, reply) => {
@@ -1022,6 +1052,21 @@ app.get('/api/admin/drivers/:driverId/review', async (request, reply) => {
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, include: { user: true, documents: { select: { id: true, documentType: true, status: true, maskedDocumentNumber: true, rejectionReason: true, expiresAt: true, submittedAt: true, verifiedAt: true, verifiedBy: true } }, vehicles: { include: { displays: true } }, consents: { include: { agreementVersion: true } }, integrations: true } })
   if (!driver) throw notFound('Driver not found')
   return ok(request, asJson(driver), reply)
+})
+app.get('/api/admin/otp/provider-health', async (request, reply) => {
+  await requirePermission(request, 'admin:read')
+  const since = new Date(Date.now() - 24 * 60 * 60_000)
+  const [recent, statuses, failures] = await Promise.all([
+    prisma.otpChallenge.count({ where: { createdAt: { gte: since } } }),
+    prisma.otpChallenge.groupBy({ by: ['deliveryStatus'], where: { createdAt: { gte: since } }, _count: { _all: true } }),
+    prisma.otpChallenge.groupBy({ by: ['deliveryErrorCode'], where: { createdAt: { gte: since }, deliveryStatus: 'FAILED', deliveryErrorCode: { not: null } }, _count: { _all: true } }),
+  ])
+  const completeness = config.otpProvider === 'whatsapp_cloud'
+    ? { accessToken: Boolean(config.whatsappAccessToken), phoneNumberId: Boolean(config.whatsappPhoneNumberId), businessAccountId: Boolean(config.whatsappBusinessAccountId), templateName: Boolean(config.whatsappOtpTemplateName), templateLanguage: Boolean(config.whatsappOtpTemplateLanguage), graphApiVersion: /^v\d+\.\d+$/.test(config.whatsappGraphApiVersion) }
+    : config.otpProvider === 'msg91'
+      ? { authKey: Boolean(config.msg91AuthKey), templateId: Boolean(config.msg91TemplateId) }
+      : { deliveryUrl: config.otpDeliveryUrl.startsWith('https://'), deliveryToken: Boolean(config.otpDeliveryToken) }
+  return ok(request, { activeProvider: config.otpProvider, configurationComplete: Object.values(completeness).every(Boolean), configuration: completeness, window: '24h', recentRequests: recent, statuses: Object.fromEntries(statuses.map((row) => [row.deliveryStatus, row._count._all])), failureCodes: Object.fromEntries(failures.map((row) => [row.deliveryErrorCode ?? 'UNKNOWN', row._count._all])), rateLimitPolicy: { requestsPerMinute: 3, verificationAttempts: 5, otpTtlSeconds: config.otpTtlSeconds } }, reply)
 })
 app.get('/api/admin/drivers/:driverId/documents/:documentId/access', async (request, reply) => {
   const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']); const { driverId, documentId } = request.params as { driverId: string; documentId: string }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 
@@ -29,11 +30,13 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
     private val _message = MutableStateFlow<String?>(null); val message: StateFlow<String?> = _message
     private val _savedPhone = MutableStateFlow(""); val savedPhone: StateFlow<String> = _savedPhone
     private val _authLoading = MutableStateFlow(false); val authLoading: StateFlow<Boolean> = _authLoading
+    private val _otpResendSeconds = MutableStateFlow(0); val otpResendSeconds: StateFlow<Int> = _otpResendSeconds
     private val _profile = MutableStateFlow<DriverProfile?>(null); val profile: StateFlow<DriverProfile?> = _profile
     private val _dashboard = MutableStateFlow(DashboardState()); val dashboard: StateFlow<DashboardState> = _dashboard
     private val _agreements = MutableStateFlow<List<AgreementSummary>>(emptyList()); val agreements: StateFlow<List<AgreementSummary>> = _agreements
     private var phone = ""
     private var uploadJob: Job? = null
+    private var otpCountdownJob: Job? = null
     private val eventListener: (NormalizedRideEvent) -> Unit = { if (it.provider != "SYSTEM" && _dashboard.value.dutySession != null) handleRideEvent(it) }
     init {
         NormalizedRideEventBus.subscribe(eventListener)
@@ -60,7 +63,8 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
             }
         }
     }
-    fun requestOtp(phoneNumber: String) { phone = phoneNumber; _savedPhone.value = phoneNumber; viewModelScope.launch { _authLoading.value = true; runCatching { api.requestOtp(phoneNumber) }.onSuccess { _mode.value = AppMode.OTP }.onFailure { _message.value = it.message ?: "Unable to request OTP" }; _authLoading.value = false } }
+    fun requestOtp(phoneNumber: String) { if (_otpResendSeconds.value > 0 || _authLoading.value) return; phone = phoneNumber; _savedPhone.value = phoneNumber; viewModelScope.launch { _authLoading.value = true; _message.value = null; runCatching { api.requestOtp(phoneNumber) }.onSuccess { _mode.value = AppMode.OTP; _message.value = "WhatsApp verification code sent. Check your WhatsApp messages."; startOtpCountdown() }.onFailure { _message.value = it.message ?: "Unable to send WhatsApp verification code. Confirm WhatsApp is active for this number and try again." }; _authLoading.value = false } }
+    private fun startOtpCountdown() { otpCountdownJob?.cancel(); otpCountdownJob = viewModelScope.launch { _otpResendSeconds.value = 30; while (_otpResendSeconds.value > 0) { delay(1000); _otpResendSeconds.value -= 1 } } }
     fun verifyOtp(otp: String) { viewModelScope.launch { _authLoading.value = true; runCatching { api.verifyOtp(phone, otp) }.onSuccess { response -> sessionStore.save(Session(response.accessToken, response.refreshToken, response.driverId)); _profile.value = response.profile; val saved = database.driverState().current(); val restored = runCatching { OnboardingStep.valueOf(saved?.onboardingStep ?: OnboardingStep.DRIVER_TYPE.name) }.getOrDefault(OnboardingStep.DRIVER_TYPE); database.driverState().save(DriverStateEntity(driverId = response.driverId, phone = phone, onboardingStep = restored.name)); _step.value = restored; _mode.value = if (restored == OnboardingStep.COMPLETE) AppMode.DASHBOARD else AppMode.ONBOARDING }.onFailure { _message.value = it.message ?: "Unable to verify OTP" }; _authLoading.value = false } }
     fun chooseDriverType(type: DriverType) { if (type == DriverType.FLEET_OWNER) _mode.value = AppMode.FLEET_INQUIRY else advance(OnboardingStep.PROFILE) }
     fun advance(next: OnboardingStep) { _step.value = next; viewModelScope.launch { database.driverState().save(DriverStateEntity(driverId = sessionStore.get()?.driverId, phone = phone, onboardingStep = next.name, driverType = "INDIVIDUAL")) } }
@@ -127,6 +131,6 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
     fun clearMessage() { _message.value = null }
     fun simulate(event: RideEventType) { if (!BuildConfig.ALLOW_DEBUG_SIMULATION) return; handleRideEvent(NormalizedRideEvent(provider = "DEBUG", eventType = event, confidence = 1.0)) }
     private fun handleRideEvent(event: NormalizedRideEvent) { val current = _dashboard.value.activeRide; val machine = RideStateMachine(); val next = if (current == null) { RideCandidate(provider = event.provider, state = runCatching { machine.reduce(RideState.IDLE, event.eventType) }.getOrDefault(RideState.IDLE)) } else current.copy(state = runCatching { machine.reduce(current.state, event.eventType) }.getOrDefault(current.state), pickupAt = if (event.eventType == RideEventType.PASSENGER_PICKED_UP) event.timestamp else current.pickupAt, completedAt = if (event.eventType == RideEventType.RIDE_COMPLETED) event.timestamp else current.completedAt); _dashboard.value = _dashboard.value.copy(activeRide = next, display = when (next.state) { RideState.ACTIVE_VERIFIED -> _dashboard.value.display?.copy(state = DisplayState.ACTIVE_PLAYBACK); RideState.CANCELLED, RideState.COMPLETED -> _dashboard.value.display?.copy(state = DisplayState.ENDING_SESSION); else -> _dashboard.value.display }); viewModelScope.launch { database.rides().save(RideEntity(next.id, next.provider, next.state.name, next.createdAt.toString(), next.pickupAt?.toString(), next.completedAt?.toString(), next.verification?.score, next.verification?.status?.name, next.verifiedAdSeconds)); database.rides().addEvent(RideEventEntity(eventId = event.eventId, rideId = next.id, provider = event.provider, type = event.eventType.name, timestamp = event.timestamp.toString(), confidence = event.confidence, sourcePackage = event.sourcePackage, evidence = event.evidence.name, diagnosticCode = event.diagnosticCode)) } }
-    override fun onCleared() { NormalizedRideEventBus.unsubscribe(eventListener); super.onCleared() }
+    override fun onCleared() { NormalizedRideEventBus.unsubscribe(eventListener); otpCountdownJob?.cancel(); super.onCleared() }
     companion object { fun factory(context: Context) = object : ViewModelProvider.Factory { override fun <T : ViewModel> create(modelClass: Class<T>): T { val db = DriverDatabase.get(context); val store = SecureSessionStore(context); val mockPrefs = context.getSharedPreferences("driver_mock", Context.MODE_PRIVATE); val api = if (BuildConfig.USE_MOCK_BACKEND) MockDriverApi(scenario = { mockPrefs.getString("scenario", "APPROVED") ?: "APPROVED" }, submittedProvider = { mockPrefs.getBoolean("submitted", false) }, markSubmitted = { mockPrefs.edit().putBoolean("submitted", true).apply() }) else HttpDriverApi(BuildConfig.API_BASE_URL) { store.get()?.accessToken }; return DriverAppViewModel(db, store, api, context) as T } } }
 }

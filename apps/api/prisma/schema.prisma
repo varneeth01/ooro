@@ -78,12 +78,19 @@ model OtpChallenge {
   id         String    @id @default(uuid()) @db.Uuid
   phone      String
   codeHash   String
+  provider   String?
+  providerMessageId String?
+  deliveryStatus String @default("PENDING")
+  deliveryErrorCode String?
+  deliveryUpdatedAt DateTime?
   expiresAt  DateTime
   consumedAt DateTime?
   attempts   Int       @default(0)
   createdAt  DateTime  @default(now())
 
   @@index([phone, expiresAt])
+  @@index([providerMessageId])
+  @@index([deliveryStatus, createdAt])
 }
 
 model Driver {
