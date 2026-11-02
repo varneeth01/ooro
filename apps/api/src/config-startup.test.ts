@@ -55,6 +55,18 @@ test('production starts with the existing webhook OTP provider when WhatsApp var
   assert.equal(result.status, 0, result.stderr)
 })
 
+test('production starts with Email and Google driver auth configured and no WhatsApp variables', () => {
+  const result = loadConfig({
+    OTP_PROVIDER: 'webhook',
+    OORO_OTP_DELIVERY_URL: 'https://otp-gateway.example.test/send',
+    OORO_OTP_DELIVERY_TOKEN: 'existing-webhook-token',
+    DRIVER_AUTH_EMAIL_ENABLED: 'true',
+    DRIVER_AUTH_GOOGLE_ENABLED: 'true',
+    GOOGLE_WEB_CLIENT_ID: '123456789.apps.googleusercontent.com',
+  })
+  assert.equal(result.status, 0, result.stderr)
+})
+
 test('production fails closed when WhatsApp is selected without required delivery credentials', () => {
   const result = loadConfig({ OTP_PROVIDER: 'whatsapp_cloud' })
   assert.notEqual(result.status, 0)

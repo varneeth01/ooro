@@ -38,6 +38,8 @@ import { getDriverActivationEligibility } from './domain/driver-activation.js'
 import { transitionDriverOnboarding } from './domain/driver-onboarding.js'
 import { privateDocumentStorage } from './domain/document-storage.js'
 import { documentScanner } from './domain/document-scanner.js'
+import { driverEmailOtpHash, normalizeDriverEmail, verifyGoogleIdToken } from './domain/driver-auth.js'
+import { sendDriverEmailOtp } from './domain/transactional-email.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -97,6 +99,7 @@ const driverFrom = async (auth: { driverId?: string }) => {
   return driver
 }
 const hashOtp = (phone: string, code: string) => createHash('sha256').update(`${phone}:${code}`).digest('hex')
+const driverAuthResponse = (user: { id: string; phone: string | null; email: string | null; name: string | null }, driver: { id: string; onboardingStatus: string }, tokens: { accessToken: string; refreshToken: string }) => ({ ...tokens, user: { id: user.id, phone: user.phone, email: user.email, name: user.name, role: 'DRIVER' }, driver: { id: driver.id, onboardingStatus: driver.onboardingStatus } })
 const generatePairingCode = () => { const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; const bytes = randomBytes(6); return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('') }
 const authStoreError = (error: unknown) => {
   if (error instanceof ApiError) return error
@@ -153,7 +156,145 @@ app.get('/api/public/campaign-orders/:orderNumber', async (request, reply) => { 
 app.get('/api/public/campaign-orders/:orderNumber/receipt', async (request, reply) => { const { orderNumber } = request.params as { orderNumber: string }; const accessToken = String((request.query as { accessToken?: string }).accessToken ?? request.headers['x-order-access-token'] ?? ''); const order = await findGuestOrder(orderNumber); if (!order || !accessToken || hashSecret(accessToken) !== order.receiptAccessTokenHash) throw unauthorized('Secure receipt access required'); if (order.status !== 'PAID' && order.status !== 'FULFILLED') throw new ApiError('RECEIPT_NOT_READY', 'Receipt is not available', 409); return reply.type('application/pdf').header('Content-Disposition', `attachment; filename="${order.receiptNumber ?? order.orderNumber}.pdf"`).send(receiptPdf(order)) })
 app.post('/api/webhooks/razorpay', async (request, reply) => { const signature = request.headers['x-razorpay-signature']; if (typeof signature !== 'string' || !verifyWebhookSignature(String((request as any).rawBody ?? ''), signature)) throw new ApiError('INVALID_WEBHOOK_SIGNATURE', 'Webhook signature could not be verified', 400); const payload = request.body as { event?: string; payload?: { payment?: { entity?: { id?: string; order_id?: string } }; order?: { entity?: { id?: string } } } }; const eventId = String(request.headers['x-razorpay-event-id'] ?? `${payload.event}-${payload.payload?.payment?.entity?.id ?? payload.payload?.order?.entity?.id ?? randomSecret(8)}`); const existing = await RazorpayWebhookEventModel.findOne({ eventId }); if (existing) return ok(request, { received: true, duplicate: true }, reply); const event = await RazorpayWebhookEventModel.create({ eventId, eventType: payload.event ?? 'unknown', status: 'PROCESSED', processedAt: new Date() }); const payment = payload.payload?.payment?.entity; const orderId = payment?.order_id ?? payload.payload?.order?.entity?.id; if ((payload.event === 'payment.captured' || payload.event === 'order.paid') && orderId) { const paid = await markOrderPaid(orderId, payment?.id ?? ''); if (paid?.order && paid.order.emailDeliveryStatus === 'PENDING') { try { await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: await sendOrderConfirmation(paid.order) }) } catch (error) { await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: 'FAILED', emailLastError: error instanceof Error ? error.message : 'Email failed' }) } } } else if (payload.event === 'payment.failed' && orderId) await markOrderFailed(orderId); return ok(request, { received: true, eventId: event.eventId }, reply) })
 
+app.get('/api/driver/auth/config', async (request, reply) => {
+  return ok(request, { emailEnabled: config.driverAuthEmailEnabled, googleEnabled: config.driverAuthGoogleEnabled, phoneEnabled: config.driverAuthPhoneEnabled, googleWebClientId: config.driverAuthGoogleEnabled ? config.googleWebClientId : undefined }, reply)
+})
+
+const genericDriverEmailResponse = { message: 'If this email can be used for OORO Driver, a verification code will be sent.' }
+app.post('/api/driver/auth/email/request-otp', async (request, reply) => {
+  if (!config.driverAuthEmailEnabled) throw notFound('Email authentication is unavailable')
+  const email = normalizeDriverEmail(bodyOf(request, z.object({ email: z.string().email().max(254) })).email)
+  const now = new Date()
+  const existing = await prisma.user.findUnique({ where: { email }, include: { driver: true, authIdentities: { where: { provider: 'email' }, select: { driverId: true } } } })
+  const driverId = existing?.authIdentities[0]?.driverId
+  const [latest, emailCount, ipCount, accountCount] = await Promise.all([
+    prisma.driverEmailOtpChallenge.findFirst({ where: { email, consumedAt: null }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
+    prisma.driverEmailOtpChallenge.count({ where: { email, createdAt: { gte: new Date(now.getTime() - 60 * 60_000) } } }),
+    prisma.driverEmailOtpChallenge.count({ where: { requestedIp: request.ip, createdAt: { gte: new Date(now.getTime() - 60 * 60_000) } } }),
+    driverId ? prisma.driverEmailOtpChallenge.count({ where: { driverId, createdAt: { gte: new Date(now.getTime() - 60 * 60_000) } } }) : Promise.resolve(0),
+  ])
+  const eligible = !existing || Boolean(driverId)
+  const rateLimited = Boolean(latest && now.getTime() - latest.createdAt.getTime() < 30_000) || emailCount >= 5 || ipCount >= 20 || accountCount >= 5
+  if (eligible && !rateLimited) {
+    await prisma.driverEmailOtpChallenge.updateMany({ where: { email, consumedAt: null }, data: { consumedAt: now } })
+    const code = String(randomInt(100000, 1000000))
+    const challenge = await prisma.driverEmailOtpChallenge.create({ data: { email, codeHash: driverEmailOtpHash(email, code), expiresAt: new Date(now.getTime() + 5 * 60_000), requestedIp: request.ip, driverId } })
+    try {
+      await sendDriverEmailOtp(email, code)
+    } catch (error) {
+      request.log.error({ err: error, event: 'driver_email_otp_delivery_failed' }, 'driver email OTP delivery failed')
+      await prisma.driverEmailOtpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } }).catch(() => undefined)
+    }
+  }
+  return reply.code(202).send(response(request, genericDriverEmailResponse))
+})
+
+app.post('/api/driver/auth/email/verify-otp', async (request, reply) => {
+  if (!config.driverAuthEmailEnabled) throw notFound('Email authentication is unavailable')
+  const input = bodyOf(request, z.object({ email: z.string().email().max(254), code: z.string().regex(/^\d{6}$/) }))
+  const email = normalizeDriverEmail(input.email)
+  const now = new Date()
+  const challenge = await prisma.driverEmailOtpChallenge.findFirst({ where: { email, consumedAt: null, expiresAt: { gt: now }, attempts: { lt: 5 } }, orderBy: { createdAt: 'desc' } })
+  if (!challenge) throw unauthorized('Invalid or expired verification code')
+  const counted = await prisma.driverEmailOtpChallenge.updateMany({ where: { id: challenge.id, consumedAt: null, expiresAt: { gt: now }, attempts: { lt: 5 } }, data: { attempts: { increment: 1 } } })
+  if (counted.count !== 1 || driverEmailOtpHash(email, input.code) !== challenge.codeHash) {
+    if (challenge.attempts + 1 >= 5) await prisma.driverEmailOtpChallenge.updateMany({ where: { id: challenge.id, consumedAt: null }, data: { consumedAt: now } })
+    throw unauthorized('Invalid or expired verification code')
+  }
+  const consumed = await prisma.driverEmailOtpChallenge.updateMany({ where: { id: challenge.id, consumedAt: null, attempts: { lte: 5 } }, data: { consumedAt: now } })
+  if (consumed.count !== 1) throw unauthorized('Invalid or expired verification code')
+  let user = await prisma.user.findUnique({ where: { email }, include: { driver: true, authIdentities: { where: { provider: 'email' } } } })
+  if (user && !user.authIdentities.length) throw unauthorized('Invalid or expired verification code')
+  if (user && !user.driver) throw unauthorized('Invalid or expired verification code')
+  if (!user) {
+    user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: { phone: null, email, emailVerifiedAt: now, role: 'DRIVER', accountStatus: 'PENDING', driver: { create: {} } }, include: { driver: true, authIdentities: true } })
+      if (!created.driver) throw new Error('Driver creation failed')
+      await tx.driverAuthIdentity.create({ data: { driverId: created.driver.id, userId: created.id, provider: 'email', subject: email, email, verifiedAt: now } })
+      return created
+    })
+  } else {
+    if (user.accountStatus === 'SUSPENDED' || user.accountStatus === 'CLOSED') throw forbidden('Driver account is restricted')
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: user.emailVerifiedAt ?? now } })
+  }
+  const driver = user.driver!
+  const tokens = await issueTokens(user.id, user.role, driver.id, { userAgent: request.headers['user-agent'], ipAddress: request.ip })
+  return ok(request, driverAuthResponse(user, driver, tokens), reply)
+})
+
+app.post('/api/driver/auth/google', async (request, reply) => {
+  if (!config.driverAuthGoogleEnabled) throw notFound('Google authentication is unavailable')
+  const { idToken } = bodyOf(request, z.object({ idToken: z.string().min(20).max(16_384) }))
+  let verified: { subject: string; email: string }
+  try { verified = await verifyGoogleIdToken(idToken) } catch (error) { request.log.warn({ event: 'driver_google_token_rejected', reason: error instanceof Error ? error.message : 'verification_failed' }, 'driver Google token rejected'); throw unauthorized('Google authentication could not be verified') }
+  let identity = await prisma.driverAuthIdentity.findUnique({ where: { provider_subject: { provider: 'google', subject: verified.subject } }, include: { user: true, driver: true } })
+  if (!identity) {
+    const emailOwner = await prisma.user.findUnique({ where: { email: verified.email }, select: { id: true } })
+    if (emailOwner) throw new ApiError('GOOGLE_ACCOUNT_LINK_REQUIRED', 'This Google account must be linked from the authenticated driver account', 409)
+    try {
+      identity = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({ data: { phone: null, email: verified.email, emailVerifiedAt: new Date(), role: 'DRIVER', accountStatus: 'PENDING', driver: { create: {} } }, include: { driver: true } })
+        if (!user.driver) throw new Error('Driver creation failed')
+        return tx.driverAuthIdentity.create({ data: { driverId: user.driver.id, userId: user.id, provider: 'google', subject: verified.subject, email: verified.email, verifiedAt: new Date() }, include: { user: true, driver: true } })
+      })
+    } catch (error) {
+      const raced = await prisma.driverAuthIdentity.findUnique({ where: { provider_subject: { provider: 'google', subject: verified.subject } }, include: { user: true, driver: true } })
+      if (!raced) throw error
+      identity = raced
+    }
+  }
+  if (identity.user.accountStatus === 'SUSPENDED' || identity.user.accountStatus === 'CLOSED') throw forbidden('Driver account is restricted')
+  const tokens = await issueTokens(identity.user.id, identity.user.role, identity.driver.id, { userAgent: request.headers['user-agent'], ipAddress: request.ip })
+  return ok(request, driverAuthResponse(identity.user, identity.driver, tokens), reply)
+})
+
+app.post('/api/driver/auth/google/link', async (request, reply) => {
+  if (!config.driverAuthGoogleEnabled) throw notFound('Google authentication is unavailable')
+  const auth = await requireAuth(request); const driver = await driverFrom(auth)
+  const { idToken } = bodyOf(request, z.object({ idToken: z.string().min(20).max(16_384) }))
+  let verified: { subject: string; email: string }
+  try { verified = await verifyGoogleIdToken(idToken) } catch { throw unauthorized('Google account could not be verified') }
+  const existing = await prisma.driverAuthIdentity.findUnique({ where: { provider_subject: { provider: 'google', subject: verified.subject } }, select: { driverId: true } })
+  if (existing && existing.driverId !== driver.id) throw new ApiError('GOOGLE_ACCOUNT_ALREADY_LINKED', 'This Google account is already linked to another driver', 409)
+  const emailOwner = await prisma.user.findUnique({ where: { email: verified.email }, select: { id: true } })
+  if (emailOwner && emailOwner.id !== auth.userId) throw new ApiError('GOOGLE_ACCOUNT_LINK_REQUIRED', 'This verified email belongs to another OORO account', 409)
+  if (!existing) await prisma.driverAuthIdentity.create({ data: { driverId: driver.id, userId: auth.userId, provider: 'google', subject: verified.subject, email: verified.email, verifiedAt: new Date() } })
+  await prisma.user.update({ where: { id: auth.userId }, data: { ...(driver.user.email ? {} : { email: verified.email }), emailVerifiedAt: new Date() } })
+  return ok(request, { linked: true, provider: 'google' }, reply)
+})
+
+app.post('/api/driver/auth/email/link/request-otp', async (request, reply) => {
+  if (!config.driverAuthEmailEnabled) throw notFound('Email authentication is unavailable')
+  const auth = await requireAuth(request); const driver = await driverFrom(auth)
+  const email = normalizeDriverEmail(bodyOf(request, z.object({ email: z.string().email().max(254) })).email)
+  const owner = await prisma.user.findUnique({ where: { email }, select: { id: true } })
+  if (owner && owner.id !== auth.userId) throw new ApiError('EMAIL_ACCOUNT_LINK_REQUIRED', 'This email belongs to another OORO account', 409)
+  const now = new Date()
+  const latest = await prisma.driverEmailOtpChallenge.findFirst({ where: { email, driverId: driver.id, consumedAt: null }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+  if (latest && now.getTime() - latest.createdAt.getTime() < 30_000) throw new ApiError('OTP_RESEND_COOLDOWN', 'Please wait before requesting another code', 429)
+  const code = String(randomInt(100000, 1000000))
+  await prisma.driverEmailOtpChallenge.updateMany({ where: { email, driverId: driver.id, consumedAt: null }, data: { consumedAt: now } })
+  const challenge = await prisma.driverEmailOtpChallenge.create({ data: { email, codeHash: driverEmailOtpHash(email, code), expiresAt: new Date(now.getTime() + 5 * 60_000), requestedIp: request.ip, driverId: driver.id } })
+  try { await sendDriverEmailOtp(email, code) } catch (error) { request.log.error({ err: error, event: 'driver_email_link_delivery_failed' }, 'driver email link delivery failed'); await prisma.driverEmailOtpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } }).catch(() => undefined) }
+  return reply.code(202).send(response(request, { message: 'If this email can be linked to your OORO Driver account, a verification code has been sent.' }))
+})
+
+app.post('/api/driver/auth/email/link/verify-otp', async (request, reply) => {
+  if (!config.driverAuthEmailEnabled) throw notFound('Email authentication is unavailable')
+  const auth = await requireAuth(request); const driver = await driverFrom(auth)
+  const input = bodyOf(request, z.object({ email: z.string().email().max(254), code: z.string().regex(/^\d{6}$/) })); const email = normalizeDriverEmail(input.email); const now = new Date()
+  const challenge = await prisma.driverEmailOtpChallenge.findFirst({ where: { email, driverId: driver.id, consumedAt: null, expiresAt: { gt: now }, attempts: { lt: 5 } }, orderBy: { createdAt: 'desc' } })
+  if (!challenge) throw unauthorized('Invalid or expired verification code')
+  const counted = await prisma.driverEmailOtpChallenge.updateMany({ where: { id: challenge.id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: now } }, data: { attempts: { increment: 1 } } })
+  if (counted.count !== 1 || driverEmailOtpHash(email, input.code) !== challenge.codeHash) { if (challenge.attempts + 1 >= 5) await prisma.driverEmailOtpChallenge.updateMany({ where: { id: challenge.id, consumedAt: null }, data: { consumedAt: now } }); throw unauthorized('Invalid or expired verification code') }
+  const consumed = await prisma.driverEmailOtpChallenge.updateMany({ where: { id: challenge.id, consumedAt: null, attempts: { lte: 5 } }, data: { consumedAt: now } }); if (consumed.count !== 1) throw unauthorized('Invalid or expired verification code')
+  const owner = await prisma.user.findUnique({ where: { email }, select: { id: true } }); if (owner && owner.id !== auth.userId) throw new ApiError('EMAIL_ACCOUNT_LINK_REQUIRED', 'This email belongs to another OORO account', 409)
+  await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: auth.userId }, data: { email, emailVerifiedAt: now } }); await tx.driverAuthIdentity.upsert({ where: { driverId_provider: { driverId: driver.id, provider: 'email' } }, update: { subject: email, email, verifiedAt: now }, create: { driverId: driver.id, userId: auth.userId, provider: 'email', subject: email, email, verifiedAt: now } }) })
+  return ok(request, { linked: true, provider: 'email' }, reply)
+})
+
 app.post('/api/auth/request-otp', async (request, reply) => {
+  if (!config.driverAuthPhoneEnabled) throw notFound('Phone authentication is unavailable')
   const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
   const latest = await prisma.otpChallenge.findFirst({ where: { phone }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
   if (latest && Date.now() - latest.createdAt.getTime() < 30_000) throw new ApiError('OTP_RESEND_COOLDOWN', 'Please wait before requesting another code', 429)
@@ -173,6 +314,7 @@ app.post('/api/auth/request-otp', async (request, reply) => {
 })
 
 app.post('/api/auth/verify-otp', async (request, reply) => {
+  if (!config.driverAuthPhoneEnabled) throw notFound('Phone authentication is unavailable')
   const { phone, code, name } = bodyOf(request, z.object({ phone: z.string().min(7), code: z.string().length(6), name: z.string().min(1).optional() }))
   const challenge = await prisma.otpChallenge.findFirst({ where: { phone, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
   if(challenge) await prisma.otpChallenge.update({where:{id:challenge.id},data:{attempts:{increment:1}}})
@@ -180,7 +322,7 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   const consumed = await prisma.otpChallenge.updateMany({ where: { id: challenge.id, consumedAt:null, attempts:{lte:5} }, data: { consumedAt: new Date() } }); if(consumed.count!==1) throw unauthorized('Code already used or too many attempts')
   const existingUser = await prisma.user.findUnique({ where: { phone }, select: { role: true } })
   if (existingUser && existingUser.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
-  const user = await prisma.user.upsert({ where: { phone }, update: name ? { name } : {}, create: { phone, name, role: 'DRIVER', accountStatus: 'PENDING' } })
+  const user = await prisma.user.upsert({ where: { phone }, update: { ...(name ? { name } : {}), phoneVerifiedAt: new Date() }, create: { phone, phoneVerifiedAt: new Date(), name, role: 'DRIVER', accountStatus: 'PENDING' } })
   if (user.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
   const driver = await prisma.driver.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
   const tokens = await issueTokens(user.id, user.role, driver.id)
@@ -268,8 +410,8 @@ app.get('/api/auth/session', async (request, reply) => { const auth = await requ
 app.get('/api/drivers/me', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, asJson(driver), reply) })
 app.patch('/api/drivers/me', async (request, reply) => {
   const auth = await requireAuth(request); const driver = await driverFrom(auth)
-  const input = bodyOf(request, z.object({ name: z.string().min(1).optional(), email: z.string().email().optional(), city: z.string().optional(), preferredLanguage: z.string().optional(), dateOfBirth: z.coerce.date().optional(), profilePhotoUrl: z.string().url().optional(), emergencyContact: z.record(z.string(), z.string()).optional() }))
-  const updated = await prisma.$transaction(async (tx) => { if (input.name !== undefined || input.email !== undefined) await tx.user.update({ where: { id: driver.userId }, data: { ...(input.name !== undefined ? { name: input.name } : {}), ...(input.email !== undefined ? { email: input.email } : {}) } }); return tx.driver.update({ where: { id: driver.id }, data: { city: input.city, preferredLanguage: input.preferredLanguage, dateOfBirth: input.dateOfBirth, profilePhotoUrl: input.profilePhotoUrl, emergencyContact: input.emergencyContact as any } }) })
+  const input = bodyOf(request, z.object({ name: z.string().min(1).optional(), email: z.string().email().nullable().optional(), phone: z.string().min(7).max(20).nullable().optional(), city: z.string().optional(), preferredLanguage: z.string().optional(), dateOfBirth: z.coerce.date().optional(), profilePhotoUrl: z.string().url().optional(), emergencyContact: z.record(z.string(), z.string()).optional() }))
+  const updated = await prisma.$transaction(async (tx) => { if (input.name !== undefined || input.email !== undefined || input.phone !== undefined) await tx.user.update({ where: { id: driver.userId }, data: { ...(input.name !== undefined ? { name: input.name } : {}), ...(input.email !== undefined ? { email: input.email, emailVerifiedAt: input.email === driver.user.email ? driver.user.emailVerifiedAt : null } : {}), ...(input.phone !== undefined ? { phone: input.phone, phoneVerifiedAt: input.phone === driver.user.phone ? driver.user.phoneVerifiedAt : null } : {}) } }); return tx.driver.update({ where: { id: driver.id }, data: { city: input.city, preferredLanguage: input.preferredLanguage, dateOfBirth: input.dateOfBirth, profilePhotoUrl: input.profilePhotoUrl, emergencyContact: input.emergencyContact as any } }) })
   return ok(request, asJson(updated), reply)
 })
 app.get('/api/drivers/me/status', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const docs = await prisma.kycDocument.findMany({ where: { driverId: d.id } }); return ok(request, { onboardingStatus: d.onboardingStatus, accountStatus: d.user.accountStatus, kyc: docs.map((x) => ({ id: x.id, type: x.documentType, status: x.status })) }, reply) })
@@ -289,7 +431,7 @@ app.get('/api/driver/dashboard', async (request, reply) => {
     prisma.driverConsent.findMany({ where: { driverId: d.id }, select: { agreementVersionId: true, acceptedAt: true, revokedAt: true, agreementVersion: { select: { type: true, version: true, contentHash: true, required: true } } }, orderBy: { acceptedAt: 'desc' } }),
   ])
   const sum = (status?: string) => earnings.filter((entry) => !status || entry.status === status).reduce((total, entry) => total + entry.amountMinor, 0n)
-  return ok(request, asJson({ profile: { id: d.id, name: d.user.name, phone: d.user.phone, email: d.user.email, city: d.city, preferredLanguage: d.preferredLanguage, profilePhotoUrl: d.profilePhotoUrl, onboardingStatus: d.onboardingStatus, accountStatus: d.user.accountStatus }, vehicles, duty, dutyHistory, devices, permissions, integrations, rides, earnings: { availableMinor: sum('AVAILABLE'), pendingMinor: sum('PENDING'), settledMinor: sum('SETTLED'), lifetimeMinor: sum(), currency: 'INR', entries: earnings }, payouts, beneficiaries, consents }), reply)
+  return ok(request, asJson({ profile: { id: d.id, name: d.user.name, phone: d.user.phone, phoneVerified: Boolean(d.user.phoneVerifiedAt), email: d.user.email, emailVerified: Boolean(d.user.emailVerifiedAt), city: d.city, preferredLanguage: d.preferredLanguage, profilePhotoUrl: d.profilePhotoUrl, onboardingStatus: d.onboardingStatus, accountStatus: d.user.accountStatus }, vehicles, duty, dutyHistory, devices, permissions, integrations, rides, earnings: { availableMinor: sum('AVAILABLE'), pendingMinor: sum('PENDING'), settledMinor: sum('SETTLED'), lifetimeMinor: sum(), currency: 'INR', entries: earnings }, payouts, beneficiaries, consents }), reply)
 })
 app.get('/api/drivers/me/onboarding', async (request, reply) => {
   const auth = await requireAuth(request); const d = await driverFrom(auth)

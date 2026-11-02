@@ -47,6 +47,10 @@ export const config = {
   emailFrom: process.env.EMAIL_FROM ?? 'OORO <hello@ooro.in>',
   emailProviderApiKey: process.env.EMAIL_PROVIDER_API_KEY ?? '',
   adminWebBaseUrl: (process.env.ADMIN_WEB_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
+  driverAuthEmailEnabled: bool(process.env.DRIVER_AUTH_EMAIL_ENABLED, true),
+  driverAuthGoogleEnabled: bool(process.env.DRIVER_AUTH_GOOGLE_ENABLED),
+  driverAuthPhoneEnabled: bool(process.env.DRIVER_AUTH_PHONE_ENABLED, true),
+  googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID ?? '',
   adminPasswordResetTtlSeconds: Number(process.env.ADMIN_PASSWORD_RESET_TTL_SECONDS ?? 600),
   adminPasswordSetupTtlSeconds: Number(process.env.ADMIN_PASSWORD_SETUP_TTL_SECONDS ?? 86400),
   adminLoginWindowSeconds: Number(process.env.ADMIN_LOGIN_WINDOW_SECONDS ?? 900),
@@ -101,6 +105,7 @@ if (config.nodeEnv === 'production') {
   if (config.otpProvider === 'webhook' && (!config.otpDeliveryUrl.startsWith('https://') || !config.otpDeliveryToken)) throw new Error('OORO_OTP_DELIVERY_URL and OORO_OTP_DELIVERY_TOKEN must be configured in production')
   if (config.otpProvider === 'whatsapp_cloud' && (!config.whatsappAccessToken || !config.whatsappPhoneNumberId || !config.whatsappBusinessAccountId || !config.whatsappOtpTemplateName || !config.whatsappOtpTemplateLanguage || !/^v\d+\.\d+$/.test(config.whatsappGraphApiVersion))) throw new Error('WhatsApp Cloud OTP configuration is incomplete')
   if (!config.emailProviderApiKey) throw new Error('EMAIL_PROVIDER_API_KEY must be configured in production')
+  if (config.driverAuthGoogleEnabled && !config.googleWebClientId) throw new Error('GOOGLE_WEB_CLIENT_ID must be configured when Google driver authentication is enabled')
   if (!config.adminWebBaseUrl.startsWith('https://')) throw new Error('ADMIN_WEB_BASE_URL must use HTTPS in production')
   if (config.deviceOsStorageMode !== 's3') throw new Error('DEVICEOS_STORAGE_MODE must be s3 in production')
   if (config.documentStorageMode !== 's3') throw new Error('DOCUMENT_STORAGE_MODE must be s3 in production')
