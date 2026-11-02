@@ -10,8 +10,10 @@ datasource db {
 
 model User {
   id                          String     @id @default(uuid()) @db.Uuid
-  phone                       String     @unique
+  phone                       String?    @unique
+  phoneVerifiedAt             DateTime?
   email                       String?    @unique
+  emailVerifiedAt             DateTime?
   name                        String?
   role                        String     @default("DRIVER")
   accountStatus               String     @default("PENDING")
@@ -27,6 +29,7 @@ model User {
   updatedAt                   DateTime   @updatedAt
   sessions                    Session[]
   driver                      Driver?
+  authIdentities              DriverAuthIdentity[]
   auditLogs                   AuditLog[]
   adminInvitationsCreated     AdminInvitation[] @relation("AdminInvitationCreator")
 }
@@ -78,12 +81,56 @@ model OtpChallenge {
   id         String    @id @default(uuid()) @db.Uuid
   phone      String
   codeHash   String
+  provider   String?
+  providerMessageId String?
+  deliveryStatus String @default("PENDING")
+  deliveryErrorCode String?
+  deliveryUpdatedAt DateTime?
   expiresAt  DateTime
   consumedAt DateTime?
   attempts   Int       @default(0)
   createdAt  DateTime  @default(now())
 
   @@index([phone, expiresAt])
+  @@index([providerMessageId])
+  @@index([deliveryStatus, createdAt])
+}
+
+model DriverEmailOtpChallenge {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String
+  codeHash      String
+  expiresAt     DateTime
+  attempts      Int       @default(0)
+  consumedAt    DateTime?
+  requestedIp   String?
+  driverId      String?   @db.Uuid
+  createdAt     DateTime  @default(now())
+
+  driver        Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt])
+  @@index([requestedIp, createdAt])
+  @@index([driverId, createdAt])
+}
+
+model DriverAuthIdentity {
+  id            String    @id @default(uuid()) @db.Uuid
+  driverId      String    @db.Uuid
+  provider      String
+  subject       String
+  email         String?
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  driver        Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String    @db.Uuid
+
+  @@unique([provider, subject])
+  @@unique([driverId, provider])
+  @@index([userId, provider])
 }
 
 model Driver {
@@ -97,6 +144,8 @@ model Driver {
   profilePhotoUrl   String?
   emergencyContact  Json?
   user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authIdentities    DriverAuthIdentity[]
+  emailChallenges   DriverEmailOtpChallenge[]
   documents         KycDocument[]
   vehicles          Vehicle[]
   integrations      MobilityIntegration[]
@@ -143,6 +192,7 @@ model KycDocument {
   storageKey           String
   maskedDocumentNumber String?
   status               String    @default("PENDING")
+  scanStatus           String    @default("PENDING")
   submittedAt          DateTime  @default(now())
   verifiedAt           DateTime?
   verifiedBy           String?
@@ -263,6 +313,7 @@ model DocumentUploadSession {
   sizeBytes     Int
   sha256        String
   status        String    @default("ISSUED")
+  scanOutcome   String?
   expiresAt     DateTime
   completedAt   DateTime?
   createdAt     DateTime  @default(now())

@@ -26,6 +26,7 @@ export function AdminSubnav({ children }: { children?: ReactNode }) {
     ["Screens", "/admin/screens"],
     ["Live map", "/admin/map"],
     ["Device Health", "/admin/device-health"],
+    ["Drivers", "/admin/drivers"],
     ["Orders", "/admin/orders"],
     ["Operations", "/admin/operations"],
   ] as const;

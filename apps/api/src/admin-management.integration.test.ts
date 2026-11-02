@@ -25,11 +25,11 @@ test('Phase 2: Super Admin directory, invitation, lifecycle and immediately revo
   // OTP for an administrator's phone must not return an administrator access token.
   const otpCode = '123456'
   await prisma.otpChallenge.create({ data: {
-    phone: primary.phone,
+    phone: primary.phone!,
     codeHash: createHash('sha256').update(`${primary.phone}:${otpCode}`).digest('hex'),
     expiresAt: new Date(Date.now() + 120000),
   } })
-  const otpAttempt = await app.inject({ method: 'POST', url: '/api/auth/verify-otp', payload: { phone: primary.phone, code: otpCode } })
+  const otpAttempt = await app.inject({ method: 'POST', url: '/api/auth/verify-otp', payload: { phone: primary.phone!, code: otpCode } })
   assert.equal(otpAttempt.statusCode, 401, otpAttempt.body)
   assert.equal(await prisma.driver.count({ where: { userId: primary.id } }), 0)
 
