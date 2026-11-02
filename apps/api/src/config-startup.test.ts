@@ -67,6 +67,19 @@ test('production starts with Email and Google driver auth configured and no What
   assert.equal(result.status, 0, result.stderr)
 })
 
+test('production starts with phone auth disabled and no legacy OTP provider variables', () => {
+  const result = loadConfig({
+    OTP_PROVIDER: undefined,
+    OORO_OTP_DELIVERY_URL: undefined,
+    OORO_OTP_DELIVERY_TOKEN: undefined,
+    DRIVER_AUTH_PHONE_ENABLED: 'false',
+    DRIVER_AUTH_EMAIL_ENABLED: 'true',
+    DRIVER_AUTH_GOOGLE_ENABLED: 'true',
+    GOOGLE_WEB_CLIENT_ID: '123456789.apps.googleusercontent.com',
+  })
+  assert.equal(result.status, 0, result.stderr)
+})
+
 test('production fails closed when WhatsApp is selected without required delivery credentials', () => {
   const result = loadConfig({ OTP_PROVIDER: 'whatsapp_cloud' })
   assert.notEqual(result.status, 0)

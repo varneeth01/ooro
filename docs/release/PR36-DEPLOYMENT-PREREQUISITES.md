@@ -5,6 +5,12 @@ PR #36 does not require WhatsApp variables when production uses the existing
 the selected provider, and no OTP is returned or accepted without a real
 provider delivery in production.
 
+If `DRIVER_AUTH_PHONE_ENABLED=false` and no other active phone-auth consumer
+uses the legacy adapter, `OTP_PROVIDER`, `OORO_OTP_DELIVERY_URL`, and
+`OORO_OTP_DELIVERY_TOKEN` may be omitted. The legacy phone endpoints reject
+requests in that mode. The default remains `DRIVER_AUTH_PHONE_ENABLED=true`,
+so existing SMS/webhook deployments retain their current prerequisite set.
+
 Before deploying with `OTP_PROVIDER=webhook`, retain:
 
 - `OORO_OTP_DELIVERY_URL` using `https://`
@@ -34,9 +40,12 @@ also configure `WHATSAPP_APP_SECRET` and
 returns an unauthorized response and does not process the request.
 
 Apply the additive Prisma migrations with `prisma migrate deploy` against the
-intended database before starting the new API. The OTP migration adds nullable
-provider/message fields, defaulted delivery status, and indexes; it does not
-alter or delete existing sessions, Driver, Display, Admin, or DeviceOS records.
+intended staging database before starting the new API. PR #36 adds
+`20261102090000_driver_email_google_auth`; the companion
+`20261102091000_deviceos_application_flags` repairs two additive DeviceOS
+columns required by the existing runtime. Take a backup/snapshot first and
+verify `prisma migrate status` afterward. These migrations do not alter or
+delete existing sessions, Driver, Display, Admin, or DeviceOS records.
 
 Deployment remains an operator-controlled action. Do not merge or redeploy
 production from this review, and do not place credentials in source control.

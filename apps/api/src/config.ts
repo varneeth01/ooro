@@ -100,10 +100,12 @@ if (config.nodeEnv === 'production' && (!productionDatabaseUrl || /(?:^|[@:/])(?
 if (config.nodeEnv === 'production') {
   if (config.jwtSecret === 'development-only-change-me' || config.jwtSecret.length < 32) throw new Error('JWT_SECRET must be configured in production')
   if (config.devMockOtpEnabled) throw new Error('DEV_MOCK_OTP_ENABLED must be false in production')
-  if (!['msg91', 'webhook', 'whatsapp_cloud'].includes(config.otpProvider)) throw new Error('OTP_PROVIDER must be msg91, webhook, or whatsapp_cloud')
-  if (config.otpProvider === 'msg91' && (!config.msg91AuthKey || !config.msg91TemplateId)) throw new Error('MSG91_AUTH_KEY and MSG91_TEMPLATE_ID must be configured in production')
-  if (config.otpProvider === 'webhook' && (!config.otpDeliveryUrl.startsWith('https://') || !config.otpDeliveryToken)) throw new Error('OORO_OTP_DELIVERY_URL and OORO_OTP_DELIVERY_TOKEN must be configured in production')
-  if (config.otpProvider === 'whatsapp_cloud' && (!config.whatsappAccessToken || !config.whatsappPhoneNumberId || !config.whatsappBusinessAccountId || !config.whatsappOtpTemplateName || !config.whatsappOtpTemplateLanguage || !/^v\d+\.\d+$/.test(config.whatsappGraphApiVersion))) throw new Error('WhatsApp Cloud OTP configuration is incomplete')
+  if (config.driverAuthPhoneEnabled) {
+    if (!['msg91', 'webhook', 'whatsapp_cloud'].includes(config.otpProvider)) throw new Error('OTP_PROVIDER must be msg91, webhook, or whatsapp_cloud')
+    if (config.otpProvider === 'msg91' && (!config.msg91AuthKey || !config.msg91TemplateId)) throw new Error('MSG91_AUTH_KEY and MSG91_TEMPLATE_ID must be configured in production')
+    if (config.otpProvider === 'webhook' && (!config.otpDeliveryUrl.startsWith('https://') || !config.otpDeliveryToken)) throw new Error('OORO_OTP_DELIVERY_URL and OORO_OTP_DELIVERY_TOKEN must be configured in production')
+    if (config.otpProvider === 'whatsapp_cloud' && (!config.whatsappAccessToken || !config.whatsappPhoneNumberId || !config.whatsappBusinessAccountId || !config.whatsappOtpTemplateName || !config.whatsappOtpTemplateLanguage || !/^v\d+\.\d+$/.test(config.whatsappGraphApiVersion))) throw new Error('WhatsApp Cloud OTP configuration is incomplete')
+  }
   if (!config.emailProviderApiKey) throw new Error('EMAIL_PROVIDER_API_KEY must be configured in production')
   if (config.driverAuthGoogleEnabled && !config.googleWebClientId) throw new Error('GOOGLE_WEB_CLIENT_ID must be configured when Google driver authentication is enabled')
   if (!config.adminWebBaseUrl.startsWith('https://')) throw new Error('ADMIN_WEB_BASE_URL must use HTTPS in production')

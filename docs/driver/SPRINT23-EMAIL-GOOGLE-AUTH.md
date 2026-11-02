@@ -73,7 +73,14 @@ verification.
 `20261102090000_driver_email_google_auth` is additive. It makes the legacy phone
 column nullable for email/Google-first drivers, adds verification timestamps,
 creates `DriverEmailOtpChallenge`, and creates `DriverAuthIdentity` with unique
-provider/subject and driver/provider constraints. Existing User, Session,
-Driver, Vehicle, Display, Admin, DeviceOS, duty, earning, payout, and KYC rows
-are preserved. Apply only through the normal controlled release migration job;
-do not run it against production as part of local validation.
+provider/subject and driver/provider constraints. The companion
+`20261102091000_deviceos_application_flags` migration repairs two additive
+DeviceOS columns that are already required by the schema/runtime. Both preserve
+existing User, Session, Driver, Vehicle, Display, Admin, DeviceOS, duty,
+earning, payout, and KYC rows.
+
+For staging, take a database backup/snapshot, point `DATABASE_URL` only at the
+staging database, run `pnpm --filter @ooro/api exec prisma migrate deploy`,
+verify `prisma migrate status`, then restart the staging API and run the
+auth/DeviceOS smoke checks. Do not run this against production as part of local
+validation; production remains an operator-controlled migration.
