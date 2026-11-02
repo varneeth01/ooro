@@ -39,7 +39,7 @@ export function Founders() {
 }
 
 export function FinalCta() {
-  return <section id="waitlist" className="bg-[#dfff00] text-black"><div className="container-ooro grid gap-9 py-16 sm:py-20 lg:grid-cols-[1fr_auto] lg:items-end"><div><h2 className="landing-display max-w-4xl text-4xl font-semibold leading-[.98] tracking-[-.04em] sm:text-6xl">Ready to put your brand in motion?</h2><p className="mt-5 max-w-xl text-base leading-7 text-black/70">Share your target areas, dates and campaign goals. OORO will review availability and the next operational step.</p></div><a className="inline-flex min-h-12 w-fit items-center gap-5 rounded-xl bg-black px-6 py-4 text-sm font-semibold text-white transition hover:bg-[#272a28] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black" href="/advertise">Plan a campaign <ChevronRight size={17}/></a></div></section>;
+  return <section id="waitlist" className="border-y border-white/10 bg-[#111413] text-white"><div className="container-ooro grid gap-7 py-12 sm:py-16 lg:grid-cols-[1fr_auto] lg:items-center"><div><h2 className="landing-display max-w-3xl text-4xl font-semibold leading-[1] tracking-[-.04em] sm:text-5xl lg:text-6xl">Ready to put your brand in motion?</h2><p className="mt-4 max-w-xl text-base leading-7 text-neutral-300">Share your target areas, dates and campaign goals. OORO will review availability and the next operational step.</p></div><a className="inline-flex min-h-12 w-fit items-center gap-3 rounded-xl bg-[#dfff00] px-6 py-3 text-sm font-semibold text-black transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#dfff00]" href="/advertise">Plan a campaign <ChevronRight size={17}/></a></div></section>;
 }
 
 export function Cities() {
