@@ -10,7 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: lastUpdated,
       changeFrequency: "weekly",
       priority: 1,
-      images: [`${siteUrl}/ooro-auto-screen.svg`],
+      images: [`${siteUrl}/ooro-social-preview.png`],
     },
     {
       url: `${siteUrl}/about`,

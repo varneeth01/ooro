@@ -46,6 +46,6 @@ export function ImmersiveShowcase(){
 }
 function StoryCopy({index,progress,title,body}:{index:number;progress:ReturnType<typeof useSpring>;title:string;body:string}){
  const start=index/3,stop=(index+1)/3;
- const opacity=useTransform(progress,[Math.max(0,start-.04),Math.min(start+.08,stop),Math.max(start+.12,stop-.08),Math.min(1,stop+.04)],[index===0?1:.36,1,1,index===2?1:.36]);
+ const opacity=useTransform(progress,[Math.max(0,start-.04),Math.min(start+.08,stop),Math.max(start+.12,stop-.08),Math.min(1,stop+.04)],[index===0?1:.82,1,1,index===2?1:.82]);
  return <motion.div style={{opacity}} className="border-l border-[#abb6a0] pl-5"><p className="text-xs font-semibold text-[#596944]">{String(index+1).padStart(2,"0")} / 03</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h3><p className="mt-2 max-w-md text-sm leading-6 text-neutral-600">{body}</p></motion.div>;
 }

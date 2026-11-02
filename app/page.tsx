@@ -30,13 +30,13 @@ export const metadata: Metadata = {
     description: "Reach people through digital screens inside everyday auto and cab journeys, with location-led planning and playback reporting where available.",
     url: "/",
     type: "website",
-    images: [{ url: "/ooro-auto-screen.svg", width: 1200, height: 900, alt: "OORO in-auto digital advertising screen concept" }],
+    images: [{ url: "/ooro-social-preview.png", width: 1200, height: 630, alt: "OORO advertising that moves through Bengaluru" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "OORO | Advertising that moves through Bengaluru",
     description: "Plan location-led campaigns across OORO screens inside autos and cabs.",
-    images: ["/ooro-auto-screen.svg"],
+    images: ["/ooro-social-preview.png"],
   },
 };
 
