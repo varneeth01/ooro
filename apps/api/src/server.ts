@@ -259,7 +259,7 @@ app.post('/api/driver/auth/google/link', async (request, reply) => {
   const emailOwner = await prisma.user.findUnique({ where: { email: verified.email }, select: { id: true } })
   if (emailOwner && emailOwner.id !== auth.userId) throw new ApiError('GOOGLE_ACCOUNT_LINK_REQUIRED', 'This verified email belongs to another OORO account', 409)
   if (!existing) await prisma.driverAuthIdentity.create({ data: { driverId: driver.id, userId: auth.userId, provider: 'google', subject: verified.subject, email: verified.email, verifiedAt: new Date() } })
-  await prisma.user.update({ where: { id: auth.userId }, data: { ...(driver.user.email ? {} : { email: verified.email }), emailVerifiedAt: new Date() } })
+  await prisma.user.update({ where: { id: auth.userId }, data: { ...(driver.user.email ? {} : { email: verified.email }), ...(!driver.user.email || normalizeDriverEmail(driver.user.email) === verified.email ? { emailVerifiedAt: new Date() } : {}) } })
   return ok(request, { linked: true, provider: 'google' }, reply)
 })
 
