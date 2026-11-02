@@ -16,6 +16,9 @@ importers:
 
   .:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1152.0
+        version: 3.1152.0
       '@google-cloud/storage':
         specifier: ^7.16.0
         version: 7.22.0
