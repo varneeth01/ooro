@@ -13,7 +13,10 @@ export interface Screen {
   screenType: ScreenType; city: string; area: string; createdAt: string; pairedAt?: string; pairingStatus: PairingStatus;
   vehicleIdentifier?: string | null; latitude?: number | null; longitude?: number | null; lastLocationAt?: string | null; lastHeartbeatAt?: string | null;
   connectivity?: ConnectivityStatus;
-  currentCampaignId?: string | null; currentCreativeId?: string | null; playbackState?: string | null; manifestVersion?: number | null; networkType?: string | null; appVersion?: string | null;
+  currentCampaignId?: string | null; currentCampaignName?: string | null; currentCreativeId?: string | null; currentCreativeName?: string | null;
+  currentCreativeUrl?: string | null; currentCreativeMimeType?: string | null; currentCreativeFileName?: string | null;
+  playbackState?: string | null; playbackStartedAt?: string | null; playbackPositionMs?: number | null; expectedDurationMs?: number | null;
+  manifestVersion?: number | null; networkType?: string | null; appVersion?: string | null;
 }
 export interface DeviceHeartbeat {
   id: string; screenId: string; deviceId: string; timestamp: string; appVersion: string; appVersionCode?: number;
