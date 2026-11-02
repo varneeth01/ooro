@@ -2,13 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --background: #f7f7f4; --foreground: #090909; --black: #090909; --white: #ffffff; --brand-yellow: #dfff00; --muted: #71716d; --line: #deded9; --accent: var(--brand-yellow); --z-map: 0; --z-map-controls: 10; --z-navbar: 50; --z-dropdown: 100; --z-backdrop: 900; --z-modal: 1000; --z-toast: 1100; }
+:root { --background: #f5f6f1; --foreground: #090b0a; --black: #090b0a; --white: #ffffff; --brand-yellow: #dfff00; --muted: #686c66; --line: #d8dbd2; --surface-dark: #080a09; --surface-titanium: #171a18; --accent: var(--brand-yellow); --z-map: 0; --z-map-controls: 10; --z-navbar: 50; --z-dropdown: 100; --z-backdrop: 900; --z-modal: 1000; --z-toast: 1100; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, input { font: inherit; }
 ::selection { background: var(--brand-yellow); color: var(--black); }
+* { scrollbar-color: #687100 #111412; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #111412; }
+::-webkit-scrollbar-thumb { border: 2px solid #111412; border-radius: 10px; background: #687100; }
 .container-ooro { width: min(100% - 40px, 1280px); margin-inline: auto; }
 .section-sm { padding-block: 96px; }
 .section-md { padding-block: 128px; }
@@ -16,7 +20,8 @@ button, input { font: inherit; }
 .hero-ambient { background: radial-gradient(circle at 78% 35%, rgba(223,255,0,.11), transparent 28%), #090909; }
 .glass { background: rgba(10,10,10,.58); backdrop-filter: blur(18px) saturate(120%); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 18px 50px rgba(0,0,0,.16); }
 .site-grid { background-image: linear-gradient(to right, rgba(10,10,10,.055) 1px, transparent 1px), linear-gradient(to bottom, rgba(10,10,10,.055) 1px, transparent 1px); background-size: 72px 72px; }
-.display { letter-spacing: -.065em; line-height: .95; }
+.display { letter-spacing: -.04em; line-height: .95; }
+.landing-display { font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif; font-stretch: condensed; }
 .eyebrow { letter-spacing: .08em; text-transform: uppercase; font-size: 11px; font-weight: 600; }
 .app-eyebrow { color: #85857f; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 .hairline { border-color: var(--line); }
@@ -24,6 +29,9 @@ button, input { font: inherit; }
 :where(a, button, input, textarea, select):focus-visible { outline-offset: 3px; }
 :where(#solutions, #features, #experience, #bengaluru) { scroll-margin-top: 112px; }
 :where(button, a) { -webkit-tap-highlight-color: transparent; }
+summary::-webkit-details-marker { display: none; }
+.ooro-route-sweep { left: -8%; animation: ooro-route-sweep 6.5s cubic-bezier(.16,1,.3,1) infinite; box-shadow: 0 0 18px rgba(223,255,0,.55); }
+@keyframes ooro-route-sweep { 0%, 12% { left: -8%; opacity: 0; } 22% { opacity: 1; } 68% { opacity: .85; } 82%, 100% { left: 108%; opacity: 0; } }
 @media (prefers-contrast: more) { .text-neutral-400, .text-neutral-500 { color: #747474; } }
 .map-section { position: relative; isolation: isolate; z-index: var(--z-map); overflow: hidden; }
 .unlock-backdrop { position: fixed; inset: 0; z-index: var(--z-backdrop); pointer-events: auto; }
@@ -35,4 +43,4 @@ button, input { font: inherit; }
 @media (min-width: 768px) { .container-ooro { width: min(100% - 64px, 1280px); } }
 @media (max-width: 700px) { .site-grid { background-size: 42px 42px; } .display { letter-spacing: -.055em; } .section-sm { padding-block: 72px; } .section-md { padding-block: 88px; } .section-lg { padding-block: 112px; } }
 
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } .ooro-route-sweep { display: none; } }
