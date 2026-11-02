@@ -19,6 +19,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
 enum class AppMode { LOGIN, OTP, ONBOARDING, FLEET_INQUIRY, DASHBOARD }
 enum class OnboardingStep { DRIVER_TYPE, PROFILE, KYC, VEHICLE, DISPLAY_OWNERSHIP, PAIR_DISPLAY, PERMISSIONS, PAYMENT, TERMS, APPLICATION_STATUS, COMPLETE }
@@ -31,6 +36,8 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
     private val _savedPhone = MutableStateFlow(""); val savedPhone: StateFlow<String> = _savedPhone
     private val _authLoading = MutableStateFlow(false); val authLoading: StateFlow<Boolean> = _authLoading
     private val _otpResendSeconds = MutableStateFlow(0); val otpResendSeconds: StateFlow<Int> = _otpResendSeconds
+    private val _email = MutableStateFlow(""); val email: StateFlow<String> = _email
+    private val _googleEnabled = MutableStateFlow(false); val googleEnabled: StateFlow<Boolean> = _googleEnabled
     private val _profile = MutableStateFlow<DriverProfile?>(null); val profile: StateFlow<DriverProfile?> = _profile
     private val _dashboard = MutableStateFlow(DashboardState()); val dashboard: StateFlow<DashboardState> = _dashboard
     private val _agreements = MutableStateFlow<List<AgreementSummary>>(emptyList()); val agreements: StateFlow<List<AgreementSummary>> = _agreements
@@ -41,6 +48,7 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
     init {
         NormalizedRideEventBus.subscribe(eventListener)
         viewModelScope.launch {
+            runCatching { api.driverAuthConfig() }.onSuccess { authConfig -> _googleEnabled.value = authConfig.googleEnabled && !authConfig.googleWebClientId.isNullOrBlank() }
             database.driverState().current()?.let { saved ->
                 phone = saved.phone.orEmpty()
                 _savedPhone.value = phone
@@ -58,14 +66,25 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
                 } else {
                     sessionStore.clear()
                     _mode.value = AppMode.LOGIN
-                    _message.value = "Your session expired. Please verify your phone again."
+                    _message.value = "Your session expired. Please sign in again."
                 }
             }
         }
     }
     fun requestOtp(phoneNumber: String) { if (_otpResendSeconds.value > 0 || _authLoading.value) return; phone = phoneNumber; _savedPhone.value = phoneNumber; viewModelScope.launch { _authLoading.value = true; _message.value = null; runCatching { api.requestOtp(phoneNumber) }.onSuccess { _mode.value = AppMode.OTP; _message.value = "WhatsApp verification code sent. Check your WhatsApp messages."; startOtpCountdown() }.onFailure { _message.value = it.message ?: "Unable to send WhatsApp verification code. Confirm WhatsApp is active for this number and try again." }; _authLoading.value = false } }
+    fun requestEmailOtp(emailAddress: String) { val normalized = emailAddress.trim(); if (_otpResendSeconds.value > 0 || _authLoading.value || !normalized.contains("@")) return; _email.value = normalized; viewModelScope.launch { _authLoading.value = true; _message.value = null; runCatching { api.requestEmailOtp(normalized) }.onSuccess { _mode.value = AppMode.OTP; _message.value = "If this email can be used for OORO Driver, a verification code has been sent."; startOtpCountdown() }.onFailure { _message.value = it.message ?: "Unable to send a verification code. Please try again." }; _authLoading.value = false } }
+    fun verifyEmailOtp(otp: String) { val address = _email.value; if (address.isBlank()) return; viewModelScope.launch { _authLoading.value = true; _message.value = null; runCatching { api.verifyEmailOtp(address, otp) }.onSuccess { completeAuthentication(it, "") }.onFailure { _message.value = it.message ?: "That code is invalid or expired." }; _authLoading.value = false } }
+    fun signInWithGoogle() { if (_authLoading.value) return; viewModelScope.launch { _authLoading.value = true; _message.value = null; runCatching {
+        val authConfig = api.driverAuthConfig(); val clientId = authConfig.googleWebClientId?.takeIf { authConfig.googleEnabled && it.isNotBlank() } ?: error("Google sign-in is not available")
+        val option = GetGoogleIdOption.Builder().setServerClientId(clientId).setFilterByAuthorizedAccounts(false).setAutoSelectEnabled(false).build()
+        val credential = CredentialManager.create(context).getCredential(context, GetCredentialRequest.Builder().addCredentialOption(option).build()).credential
+        val googleCredential = credential as? CustomCredential
+        if (googleCredential?.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) error("Google sign-in was cancelled")
+        api.authenticateGoogle(GoogleIdTokenCredential.createFrom(googleCredential.data).idToken)
+    }.onSuccess { completeAuthentication(it, "") }.onFailure { _message.value = it.message ?: "Google sign-in could not be completed." }; _authLoading.value = false } }
+    private fun completeAuthentication(response: SessionResponse, authenticatedPhone: String) { viewModelScope.launch { sessionStore.save(Session(response.accessToken, response.refreshToken, response.driverId)); _profile.value = response.profile; phone = authenticatedPhone; _savedPhone.value = authenticatedPhone; val saved = database.driverState().current(); val restored = runCatching { OnboardingStep.valueOf(saved?.onboardingStep ?: OnboardingStep.DRIVER_TYPE.name) }.getOrDefault(OnboardingStep.DRIVER_TYPE); database.driverState().save(DriverStateEntity(driverId = response.driverId, phone = authenticatedPhone, onboardingStep = restored.name)); _step.value = restored; _mode.value = if (restored == OnboardingStep.COMPLETE) AppMode.DASHBOARD else AppMode.ONBOARDING } }
     private fun startOtpCountdown() { otpCountdownJob?.cancel(); otpCountdownJob = viewModelScope.launch { _otpResendSeconds.value = 30; while (_otpResendSeconds.value > 0) { delay(1000); _otpResendSeconds.value -= 1 } } }
-    fun verifyOtp(otp: String) { viewModelScope.launch { _authLoading.value = true; runCatching { api.verifyOtp(phone, otp) }.onSuccess { response -> sessionStore.save(Session(response.accessToken, response.refreshToken, response.driverId)); _profile.value = response.profile; val saved = database.driverState().current(); val restored = runCatching { OnboardingStep.valueOf(saved?.onboardingStep ?: OnboardingStep.DRIVER_TYPE.name) }.getOrDefault(OnboardingStep.DRIVER_TYPE); database.driverState().save(DriverStateEntity(driverId = response.driverId, phone = phone, onboardingStep = restored.name)); _step.value = restored; _mode.value = if (restored == OnboardingStep.COMPLETE) AppMode.DASHBOARD else AppMode.ONBOARDING }.onFailure { _message.value = it.message ?: "Unable to verify OTP" }; _authLoading.value = false } }
+    fun verifyOtp(otp: String) { viewModelScope.launch { _authLoading.value = true; runCatching { api.verifyOtp(phone, otp) }.onSuccess { response -> completeAuthentication(response, phone) }.onFailure { _message.value = it.message ?: "Unable to verify OTP" }; _authLoading.value = false } }
     fun chooseDriverType(type: DriverType) { if (type == DriverType.FLEET_OWNER) _mode.value = AppMode.FLEET_INQUIRY else advance(OnboardingStep.PROFILE) }
     fun advance(next: OnboardingStep) { _step.value = next; viewModelScope.launch { database.driverState().save(DriverStateEntity(driverId = sessionStore.get()?.driverId, phone = phone, onboardingStep = next.name, driverType = "INDIVIDUAL")) } }
     fun pairDisplay(code: String, vehicleId: String = "vehicle-demo") { viewModelScope.launch { val driverId = sessionStore.get()?.driverId ?: return@launch; runCatching { api.pairDisplay(code, driverId, vehicleId) }.onSuccess { binding -> database.driverState().save(DriverStateEntity(driverId = driverId, phone = phone, onboardingStep = OnboardingStep.PERMISSIONS.name, kycStatus = "VERIFIED", driverType = "INDIVIDUAL")); _dashboard.value = _dashboard.value.copy(display = binding); _step.value = OnboardingStep.PERMISSIONS }.onFailure { _message.value = it.message ?: "Display pairing failed" } } }
@@ -81,7 +100,7 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
     fun submitOnboarding() { viewModelScope.launch { runCatching { api.submitOnboarding() }.onSuccess { database.driverState().save(DriverStateEntity(driverId = sessionStore.get()?.driverId, phone = phone, onboardingStep = OnboardingStep.APPLICATION_STATUS.name, driverType = "INDIVIDUAL")); _step.value = OnboardingStep.APPLICATION_STATUS; _message.value = "Application submitted for review" }.onFailure { _message.value = it.message ?: "Application could not be submitted" } } }
     fun saveBeneficiary(type: String, value: String) { viewModelScope.launch { runCatching { api.createBeneficiary(type, value.trim()) }.onSuccess { advance(OnboardingStep.TERMS); _message.value = "Beneficiary submitted for verification" }.onFailure { _message.value = it.message ?: "Bank details could not be saved" } } }
     fun saveVehicle(type: String, registrationNumber: String, manufacturer: String, model: String) { viewModelScope.launch { runCatching { api.createVehicle(type, registrationNumber.trim(), manufacturer.trim(), model.trim()) }.onSuccess { advance(OnboardingStep.DISPLAY_OWNERSHIP) }.onFailure { _message.value = it.message ?: "Vehicle could not be saved" } } }
-    fun saveProfile(name: String, email: String, city: String, language: String) { viewModelScope.launch { runCatching { api.updateProfile(name.trim(), email.trim().ifBlank { null }, city.trim(), language) }.onSuccess { _profile.value = _profile.value?.copy(fullName = name.trim(), email = email.trim().ifBlank { null }, city = city.trim(), language = language); advance(OnboardingStep.KYC) }.onFailure { _message.value = it.message ?: "Profile could not be saved" } } }
+    fun saveProfile(name: String, email: String, phoneNumber: String, city: String, language: String) { viewModelScope.launch { runCatching { api.updateProfile(name.trim(), email.trim().ifBlank { null }, phoneNumber.trim().ifBlank { null }, city.trim(), language) }.onSuccess { _profile.value = _profile.value?.copy(fullName = name.trim(), email = email.trim().ifBlank { null }, phone = phoneNumber.trim(), city = city.trim(), language = language); advance(OnboardingStep.KYC) }.onFailure { _message.value = it.message ?: "Profile could not be saved" } } }
     fun uploadDocument(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String) { uploadDocument(resolver, uri, documentType, contentType, 0, false) }
     fun uploadDocument(resolver: ContentResolver, uri: Uri, documentType: String, contentType: String, rotationDegrees: Int, cropSquare: Boolean) { uploadJob?.cancel(); uploadJob = viewModelScope.launch { _dashboard.value = _dashboard.value.copy(uploadProgress = 5, uploadError = null); _message.value = "Uploading securely…"; runCatching { if (BuildConfig.USE_MOCK_BACKEND && uri.toString().startsWith("content://ooro.synthetic/")) byteArrayOf(1, 2, 3) else if (contentType.startsWith("image/")) DocumentImageProcessor.process(resolver, uri, rotationDegrees, cropSquare) else resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Unable to read selected document") }.mapCatching { bytes -> _dashboard.value = _dashboard.value.copy(uploadProgress = 35); api.uploadDocument(documentType, if (contentType.startsWith("image/")) "image/jpeg" else contentType, bytes) { progress -> _dashboard.value = _dashboard.value.copy(uploadProgress = progress) } }.onSuccess { _dashboard.value = _dashboard.value.copy(uploadProgress = null); _message.value = "Document submitted for review" }.onFailure { _dashboard.value = _dashboard.value.copy(uploadProgress = null, uploadError = it.message ?: "Document upload failed"); _message.value = it.message ?: "Document upload failed" } } }
     fun cancelDocumentUpload() { uploadJob?.cancel(); uploadJob = null; _dashboard.value = _dashboard.value.copy(uploadProgress = null, uploadError = "Upload cancelled"); _message.value = "Upload cancelled" }
@@ -110,6 +129,7 @@ class DriverAppViewModel(private val database: DriverDatabase, private val sessi
         if (!BuildConfig.USE_MOCK_BACKEND) return
         phone = phoneNumber
         _savedPhone.value = phoneNumber
+        _email.value = "demo.driver@example.test"
         _mode.value = AppMode.OTP
     }
     fun seedSyntheticAuthenticatedScenario(scenario: String) {

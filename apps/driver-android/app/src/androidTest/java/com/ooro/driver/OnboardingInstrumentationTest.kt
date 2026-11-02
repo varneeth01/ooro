@@ -56,20 +56,20 @@ class OnboardingInstrumentationTest {
 
     @Test fun loginScreenIsAccessible() {
         composeRule.onNodeWithText("Drive with confidence.").assertIsDisplayed()
-        composeRule.onNodeWithText("Mobile number").assertIsDisplayed()
+        composeRule.onNodeWithText("Email address").assertIsDisplayed()
     }
 
     @Test fun validPhoneEnablesSecureOtpSubmission() {
-        composeRule.onNode(hasSetTextAction()).performTextInput("9876543210")
+        composeRule.onNode(hasSetTextAction()).performTextInput("driver@example.test")
         composeRule.waitForIdle()
-        composeRule.onNode(hasText("Continue securely").and(hasClickAction())).assertIsEnabled()
+        composeRule.onNode(hasText("Continue with Email").and(hasClickAction())).assertIsEnabled()
     }
 
     @Test fun processRecreationRetainsSafeLoginSurface() {
         composeRule.onNodeWithText("Drive with confidence.").assertIsDisplayed()
         composeRule.activityRule.scenario.recreate()
         composeRule.onNodeWithText("Drive with confidence.").assertIsDisplayed()
-        composeRule.onNodeWithText("Mobile number").assertIsDisplayed()
+        composeRule.onNodeWithText("Email address").assertIsDisplayed()
     }
 
     @Test fun notificationAccessSettingsAreResolvableWithoutGrantingAccess() {
@@ -88,7 +88,7 @@ class OnboardingInstrumentationTest {
 
     @Test fun invalidOtpShowsActionableError() {
         composeRule.activityRule.scenario.onActivity { it.seedSyntheticOtp("9876543210") }
-        waitForText("Verification code")
+        waitForText("Six-digit verification code")
         composeRule.onNode(hasSetTextAction()).performTextInput("111111")
         composeRule.onNode(hasText("Verify & continue").and(hasClickAction())).performClick()
         waitForText("Use 000000 in debug mode")
@@ -180,7 +180,7 @@ class OnboardingInstrumentationTest {
         waitForText("Drive with confidence.")
         composeRule.onNode(hasSetTextAction()).performTextInput("9876543210")
         composeRule.onNode(hasText("Continue securely").and(hasClickAction())).performClick()
-        waitForText("Verification code")
+        waitForText("Six-digit verification code")
     }
 
     private fun authenticateForScenario(scenario: String) {

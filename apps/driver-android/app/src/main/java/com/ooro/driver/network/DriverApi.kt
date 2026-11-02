@@ -16,6 +16,10 @@ import java.security.MessageDigest
 import android.util.Base64
 
 interface DriverApi {
+    suspend fun driverAuthConfig(): DriverAuthConfig
+    suspend fun requestEmailOtp(email: String)
+    suspend fun verifyEmailOtp(email: String, otp: String): SessionResponse
+    suspend fun authenticateGoogle(idToken: String): SessionResponse
     suspend fun requestOtp(phone: String)
     suspend fun verifyOtp(phone: String, otp: String): SessionResponse
     suspend fun refreshSession(session: Session): Session
@@ -32,7 +36,7 @@ interface DriverApi {
     suspend fun sendDutyLocations(sessionId: String, samples: List<DutyLocationSample>)
     suspend fun setMobilityProvider(provider: String, enabled: Boolean)
     suspend fun setPermission(permission: String, granted: Boolean)
-    suspend fun updateProfile(name: String, email: String?, city: String, language: String)
+    suspend fun updateProfile(name: String, email: String?, phone: String?, city: String, language: String)
     suspend fun uploadDocument(documentType: String, contentType: String, content: ByteArray, onProgress: (Int) -> Unit = {}): String
     suspend fun requiredAgreements(): List<AgreementSummary>
     suspend fun acceptAgreement(versionId: String): AgreementSummary
@@ -52,6 +56,7 @@ data class RideTimelineItem(val id: String, val provider: String, val state: Str
 data class PayoutHistoryItem(val id: String, val amountMinor: Long, val status: String, val createdAt: Instant, val method: String)
 data class DriverDashboardSnapshot(val name: String, val onboardingStatus: String, val accountStatus: String, val city: String?, val vehicleLabel: String?, val vehicleStatus: String?, val displayLabel: String?, val displayState: String?, val duty: DutySessionSummary?, val lastLocationAt: Instant?, val lastEventAt: Instant?, val notificationState: String, val locationState: String, val availableMinor: Long, val pendingMinor: Long, val settledMinor: Long, val rides: List<RideTimelineItem>, val payouts: List<PayoutHistoryItem>, val beneficiaryStatus: String?, val permissions: Map<String, Boolean>)
 data class SessionResponse(val accessToken: String, val refreshToken: String, val driverId: String, val profile: DriverProfile)
+data class DriverAuthConfig(val emailEnabled: Boolean, val googleEnabled: Boolean, val phoneEnabled: Boolean, val googleWebClientId: String?)
 data class PayoutResponse(val id: String, val status: PayoutStatus)
 
 class MockDriverApi(
@@ -59,6 +64,10 @@ class MockDriverApi(
     private val markSubmitted: () -> Unit = {},
     private val scenario: () -> String = { "APPROVED" }
 ) : DriverApi {
+    override suspend fun driverAuthConfig() = DriverAuthConfig(true, false, true, null)
+    override suspend fun requestEmailOtp(email: String) = Unit
+    override suspend fun verifyEmailOtp(email: String, otp: String): SessionResponse { require(otp == "000000") { "Use 000000 in debug mode" }; return SessionResponse("demo-access", "demo-refresh", "demo-driver", DriverProfile("demo-driver", "OORO Demo Driver", "", email, "Bengaluru", driverType = DriverType.INDIVIDUAL, kycStatus = VerificationStatus.VERIFIED)) }
+    override suspend fun authenticateGoogle(idToken: String): SessionResponse = verifyEmailOtp("google.driver@example.test", "000000")
     override suspend fun requestOtp(phone: String) = Unit
     override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { require(otp == "000000") { "Use 000000 in debug mode" }; return SessionResponse("demo-access", "demo-refresh", "demo-driver", DriverProfile("demo-driver", "OORO Demo Driver", phone, "driver@example.test", "Bengaluru", driverType = DriverType.INDIVIDUAL, kycStatus = VerificationStatus.VERIFIED)) }
     override suspend fun refreshSession(session: Session) = session
@@ -78,7 +87,7 @@ class MockDriverApi(
     override suspend fun sendDutyLocations(sessionId: String, samples: List<DutyLocationSample>) = Unit
     override suspend fun setMobilityProvider(provider: String, enabled: Boolean) = Unit
     override suspend fun setPermission(permission: String, granted: Boolean) = Unit
-    override suspend fun updateProfile(name: String, email: String?, city: String, language: String) = Unit
+    override suspend fun updateProfile(name: String, email: String?, phone: String?, city: String, language: String) = Unit
     override suspend fun uploadDocument(documentType: String, contentType: String, content: ByteArray, onProgress: (Int) -> Unit) = "demo-document"
     override suspend fun requiredAgreements() = listOf(AgreementSummary("demo-agreement", "DRIVER_PARTICIPATION", "1.0", contentHash = "development-manual-review"))
     override suspend fun acceptAgreement(versionId: String) = AgreementSummary(versionId, "DRIVER_PARTICIPATION", "1.0", contentHash = "development-manual-review", accepted = true)
@@ -111,6 +120,11 @@ class HttpDriverApi(private val baseUrl: String, private val token: () -> String
         }
         connection.inputStream.bufferedReader().use { it.readText() }
     }
+    override suspend fun driverAuthConfig(): DriverAuthConfig { val row = data(request("/api/driver/auth/config", "GET")); return DriverAuthConfig(row.optBoolean("emailEnabled"), row.optBoolean("googleEnabled"), row.optBoolean("phoneEnabled"), row.optString("googleWebClientId").takeIf { it.isNotBlank() }) }
+    override suspend fun requestEmailOtp(email: String) { request("/api/driver/auth/email/request-otp", "POST", JSONObject().put("email", email.trim()).toString()) }
+    override suspend fun verifyEmailOtp(email: String, otp: String): SessionResponse { val response = data(request("/api/driver/auth/email/verify-otp", "POST", JSONObject().put("email", email.trim()).put("code", otp).toString())); return sessionResponse(response, null) }
+    override suspend fun authenticateGoogle(idToken: String): SessionResponse { val response = data(request("/api/driver/auth/google", "POST", JSONObject().put("idToken", idToken).toString())); return sessionResponse(response, null) }
+    private fun sessionResponse(response: JSONObject, fallbackPhone: String?): SessionResponse { val driver = response.optJSONObject("driver") ?: JSONObject(); val user = response.optJSONObject("user") ?: JSONObject(); val id = driver.optString("id", user.optString("id")); return SessionResponse(response.getString("accessToken"), response.getString("refreshToken"), id, DriverProfile(id, user.optString("name", ""), user.optString("phone").takeIf { it.isNotBlank() } ?: fallbackPhone ?: "", user.optString("email").takeIf { it.isNotBlank() })) }
     override suspend fun requestOtp(phone: String) { request("/api/auth/request-otp", "POST", JSONObject().put("phone", phone).toString()) }
     override suspend fun verifyOtp(phone: String, otp: String): SessionResponse { val response = data(request("/api/auth/verify-otp", "POST", JSONObject().put("phone", phone).put("code", otp).toString())); val driver = response.optJSONObject("driver") ?: JSONObject(); val user = response.optJSONObject("user") ?: JSONObject(); val id = driver.optString("id", user.optString("id")); return SessionResponse(response.getString("accessToken"), response.getString("refreshToken"), id, DriverProfile(id, user.optString("name", ""), phone, user.optString("email").takeIf { it.isNotBlank() })) }
     override suspend fun refreshSession(session: Session): Session { val response = data(request("/api/auth/refresh", "POST", JSONObject().put("refreshToken", session.refreshToken).toString())); return session.copy(accessToken = response.getString("accessToken"), refreshToken = response.getString("refreshToken")) }
@@ -127,7 +141,7 @@ class HttpDriverApi(private val baseUrl: String, private val token: () -> String
     override suspend fun sendDutyLocations(sessionId: String, samples: List<DutyLocationSample>) { request("/api/driver/duty-sessions/$sessionId/locations", "POST", JSONObject().put("points", samples.map { JSONObject().put("id", it.id).put("timestamp", it.timestamp.toString()).put("latitude", it.latitude).put("longitude", it.longitude).put("accuracy", it.accuracyMeters).put("speed", it.speedMps).put("bearing", it.bearing) }).toString()) }
     override suspend fun setMobilityProvider(provider: String, enabled: Boolean) { request("/api/driver/mobility/providers/$provider", "PATCH", JSONObject().put("enabled", enabled).put("parserVersion", 1).toString()) }
     override suspend fun setPermission(permission: String, granted: Boolean) { request("/api/driver/permissions", "PATCH", JSONObject().put("permission", permission).put("granted", granted).put("source", "ANDROID").toString()) }
-    override suspend fun updateProfile(name: String, email: String?, city: String, language: String) { request("/api/drivers/me", "PATCH", JSONObject().put("name", name).put("email", email ?: JSONObject.NULL).put("city", city).put("preferredLanguage", language).toString()) }
+    override suspend fun updateProfile(name: String, email: String?, phone: String?, city: String, language: String) { request("/api/drivers/me", "PATCH", JSONObject().put("name", name).put("email", email ?: JSONObject.NULL).put("phone", phone ?: JSONObject.NULL).put("city", city).put("preferredLanguage", language).toString()) }
     override suspend fun uploadDocument(documentType: String, contentType: String, content: ByteArray, onProgress: (Int) -> Unit): String {
         require(content.size in 1..10 * 1024 * 1024) { "Document must be between 1 byte and 10 MB" }
         val digest = MessageDigest.getInstance("SHA-256").digest(content).joinToString("") { "%02x".format(it) }
