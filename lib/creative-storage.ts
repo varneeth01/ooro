@@ -18,7 +18,9 @@ export async function storeCreative(bytes: Buffer, fileName: string, mimeType: s
   const safeName = fileName.replace(/[^A-Za-z0-9._-]/g, "_").slice(-120) || "creative";
   const storageKey = `${checksum}-${safeName}`;
   const bucketName = process.env.GCS_BUCKET_NAME?.trim();
-  const configuredBase = (process.env.PUBLIC_ASSET_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/\/$/, "");
+  // The site origin does not automatically serve objects written to GCS.
+  // Override only with a CDN/origin that actually resolves /uploads/* to the bucket.
+  const configuredBase = (process.env.PUBLIC_ASSET_BASE_URL || "").trim().replace(/\/$/, "");
   if (process.env.NODE_ENV === "production" && configuredBase && !/^https:\/\//i.test(configuredBase)) throw new Error("PUBLIC_ASSET_BASE_URL_MUST_BE_HTTPS");
 
   if (bucketName) {
