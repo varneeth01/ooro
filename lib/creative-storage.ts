@@ -1,10 +1,10 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { hasExpectedCreativeSignature } from "@/lib/creative-validation";
 
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
-const hmac = (key: string | Buffer, value: string) => createHmac("sha256", key).update(value).digest();
 const r2Config = () => ({
   account: process.env.R2_ACCOUNT_ID?.trim() || "",
   bucket: process.env.R2_BUCKET_NAME?.trim() || "",
@@ -28,36 +28,33 @@ export function creativeStorageReadiness(): { ready: boolean; provider: "r2" | "
 
 export type StoredCreative = { storageKey: string; url: string; checksum: string; size: number };
 
-// R2 supports S3 SigV4; use native crypto to avoid changing OORO's frozen pnpm lockfile.
+// Use the S3 SDK signer so canonical URI encoding, signed headers, and R2's
+// region handling follow the SigV4 implementation maintained by AWS.
 async function putR2(config: ReturnType<typeof r2Config>, objectPath: string, bytes: Buffer, mimeType: string) {
   const host = `${config.account}.r2.cloudflarestorage.com`;
-  const keyPath = `/${encodeURIComponent(config.bucket)}/${objectPath.split("/").map(encodeURIComponent).join("/")}`;
-  const now = new Date();
-  const date = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const day = date.slice(0, 8);
-  const payloadHash = digest(bytes);
-  const headers = `content-type:${mimeType}\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${date}\n`;
-  const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
-  const canonical = ["PUT", keyPath, "", headers, signedHeaders, payloadHash].join("\n");
-  const scope = `${day}/auto/s3/aws4_request`;
-  const stringToSign = ["AWS4-HMAC-SHA256", date, scope, digest(canonical)].join("\n");
-  const dateKey = hmac("AWS4" + config.secretKey, day);
-  const regionKey = hmac(dateKey, "auto");
-  const serviceKey = hmac(regionKey, "s3");
-  const signingKey = hmac(serviceKey, "aws4_request");
-  const signature = createHmac("sha256", signingKey).update(stringToSign).digest("hex");
-  const response = await fetch(`https://${host}${keyPath}`, {
-    method: "PUT",
-    headers: {
-      "content-type": mimeType,
-      "x-amz-content-sha256": payloadHash,
-      "x-amz-date": date,
-      authorization: `AWS4-HMAC-SHA256 Credential=${config.accessKey}/${scope},SignedHeaders=${signedHeaders},Signature=${signature}`,
-    },
-    body: new Uint8Array(bytes),
-    cache: "no-store",
+  const client = new S3Client({
+    region: "auto",
+    endpoint: `https://${host}`,
+    forcePathStyle: true,
+    credentials: { accessKeyId: config.accessKey, secretAccessKey: config.secretKey },
   });
-  if (!response.ok) throw new Error(`R2_UPLOAD_FAILED_${response.status}`);
+  try {
+    await client.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectPath,
+      Body: bytes,
+      ContentType: mimeType,
+      CacheControl: "public, max-age=31536000, immutable",
+      Metadata: { sha256: digest(bytes) },
+    }));
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+    const name = (error as { name?: unknown })?.name;
+    const safeName = typeof name === "string" && /^[A-Za-z0-9_]{1,48}$/.test(name) ? name : "NETWORK";
+    throw new Error(status ? `R2_UPLOAD_FAILED_${status}` : `R2_UPLOAD_FAILED_${safeName}`);
+  } finally {
+    client.destroy();
+  }
 }
 
 export async function storeCreative(bytes: Buffer, fileName: string, mimeType: string): Promise<StoredCreative> {
