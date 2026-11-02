@@ -19,11 +19,18 @@ const publicMediaOrigin = (base: string) => {
   } catch { return false; }
 };
 
-export function creativeStorageReadiness(): { ready: boolean; provider: "r2" | "local" | "unconfigured"; reason?: string } {
+export function creativeStorageReadiness(): { ready: boolean; provider: "r2" | "local" | "unconfigured"; reason?: string; missing?: string[] } {
   const config = r2Config();
-  if ([config.account, config.bucket, config.accessKey, config.secretKey].every(Boolean) && publicMediaOrigin(config.publicBase)) return { ready: true, provider: "r2" };
-  if (process.env.NODE_ENV !== "production" && ![config.account, config.bucket, config.accessKey, config.secretKey].some(Boolean)) return { ready: true, provider: "local" };
-  return { ready: false, provider: "unconfigured", reason: "R2_STORAGE_OR_MEDIA_ORIGIN_NOT_CONFIGURED" };
+  const missing = [
+    !config.account && "R2_ACCOUNT_ID",
+    !config.bucket && "R2_BUCKET_NAME",
+    !config.accessKey && "R2_ACCESS_KEY_ID",
+    !config.secretKey && "R2_SECRET_ACCESS_KEY",
+    !publicMediaOrigin(config.publicBase) && "PUBLIC_ASSET_BASE_URL (valid HTTPS origin)",
+  ].filter((value): value is string => typeof value === "string");
+  if (!missing.length) return { ready: true, provider: "r2" };
+  if (process.env.NODE_ENV !== "production" && ![config.account, config.bucket, config.accessKey, config.secretKey, config.publicBase].some(Boolean)) return { ready: true, provider: "local" };
+  return { ready: false, provider: "unconfigured", reason: "R2_STORAGE_OR_MEDIA_ORIGIN_NOT_CONFIGURED", missing };
 }
 
 export type StoredCreative = { storageKey: string; url: string; checksum: string; size: number };
