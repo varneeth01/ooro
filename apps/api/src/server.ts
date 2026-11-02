@@ -1018,7 +1018,32 @@ app.post('/api/admin/documents/cleanup', async (request, reply) => {
   return ok(request, { expired: expired.length, deleted }, reply)
 })
 app.get('/api/admin/vehicles', async (request, reply) => { await requirePermission(request, 'device:read'); return ok(request, await prisma.vehicle.findMany({ include: { driver: { include: { user: true } }, displays: true } }), reply) })
-app.get('/api/admin/displays', async (request, reply) => { await requireRoles(request, adminRoles); const rows = await prisma.display.findMany({ select: { id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: {city:true} }, vehicleId: true, state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true, lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true, currentPlaybackState: true, vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } }, createdAt: true, updatedAt: true, heartbeats: { select: { occurredAt: true, receivedAt: true, networkType: true }, orderBy: { receivedAt: 'desc' }, take: 1 } } }); return ok(request, asJson(rows.map((display) => ({ ...display, connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? display.heartbeats[0]?.receivedAt, new Date(), config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds) }))), reply) })
+app.get('/api/admin/displays', async (request, reply) => {
+  await requirePermission(request, 'device:read')
+  const rows = await prisma.display.findMany({
+    select: {
+      id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: { city: true } }, vehicleId: true,
+      state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true,
+      lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true,
+      currentPlaybackState: true, currentPlaybackStartedAt: true, currentPlaybackPositionMs: true, currentExpectedDurationMs: true,
+      vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } },
+      createdAt: true, updatedAt: true,
+      heartbeats: { select: { occurredAt: true, receivedAt: true, networkType: true }, orderBy: { receivedAt: 'desc' }, take: 1 },
+    },
+  })
+  const uuid = (value?: string | null) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
+  const creativeIds = [...new Set(rows.map((display) => display.currentCreativeId).filter((id): id is string => uuid(id)))]
+  const creatives = creativeIds.length ? await prisma.creative.findMany({
+    where: { id: { in: creativeIds } },
+    select: { id: true, name: true, campaign: { select: { id: true, name: true } }, asset: { select: { url: true, mimeType: true, fileName: true } } },
+  }) : []
+  const creativeById = new Map(creatives.map((creative) => [creative.id, creative]))
+  return ok(request, asJson(rows.map((display) => ({
+    ...display,
+    connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? display.heartbeats[0]?.receivedAt, new Date(), config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds),
+    currentCreative: display.currentCreativeId ? creativeById.get(display.currentCreativeId) ?? null : null,
+  }))), reply)
+})
 app.get('/api/admin/displays/:displayId/live-state', async (request, reply) => {
   await requireRoles(request, adminRoles)
   const { displayId } = request.params as { displayId: string }
