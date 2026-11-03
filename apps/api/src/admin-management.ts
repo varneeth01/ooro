@@ -49,11 +49,13 @@ export function registerAdminManagement(app: FastifyInstance) {
 
   app.get('/api/admin/users/invitations',async(request,reply)=>{
     await requirePermission(request,'admin-users:manage')
-    const rows=await prisma.adminInvitation.findMany({
-      orderBy:{createdAt:'desc'},take:100,
+    const q=z.object({skip:z.coerce.number().int().min(0).max(100000).default(0),take:z.coerce.number().int().min(1).max(100).default(25)}).parse(request.query)
+    const now=new Date()
+    const [items,total,pendingTotal]=await Promise.all([prisma.adminInvitation.findMany({
+      orderBy:{createdAt:'desc'},skip:q.skip,take:q.take,
       select:{id:true,email:true,name:true,role:true,expiresAt:true,acceptedAt:true,revokedAt:true,createdAt:true,createdById:true},
-    })
-    return reply.send(response(request,rows))
+    }),prisma.adminInvitation.count(),prisma.adminInvitation.count({where:{acceptedAt:null,revokedAt:null,expiresAt:{gt:now}}})])
+    return reply.send(response(request,{items,total,pendingTotal,skip:q.skip,take:q.take}))
   })
 
   app.post('/api/admin/users/invitations',async(request,reply)=>{
