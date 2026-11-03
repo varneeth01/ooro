@@ -19,7 +19,15 @@ export function registerOperations(app: FastifyInstance) {
  })
  for (const action of ['check','publish']) app.post(`/api/admin/scheduler/${action}`,async(request,reply)=>{
   const actor=await requirePermission(request,'campaign:schedule'); const parsed=scheduleInput.safeParse(request.body)
-  if(!parsed.success) throw new ApiError('VALIDATION_ERROR',parsed.error.issues.map(i=>i.message).join('; '),422)
+  if(!parsed.success) {
+   const details=parsed.error.issues.map(issue=>{
+    const field=issue.path.join('.')
+    if(field==='rules.days') return 'Choose at least one day of the week.'
+    if(field==='rules.creativeIds') return 'Add at least one approved creative to the playlist.'
+    return `${field ? `${field}: ` : ''}${issue.message}`
+   })
+   throw new ApiError('VALIDATION_ERROR',details.join(' '),422)
+  }
   return reply.send(response(request,await saveSchedule(parsed.data,actor,request.id,action==='check')))
  })
  app.post('/api/admin/screen-groups',async(request,reply)=>{

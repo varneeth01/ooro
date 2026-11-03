@@ -72,11 +72,17 @@ export function OperationsScheduler({ canOverrideInventory = false }: { canOverr
   useEffect(() => { void load(); }, [load]);
 
   const selected = data?.campaigns.find((campaign) => campaign.id === campaignId);
+  const hasTarget = target.all || target.screenIds.length > 0 || target.groupIds.length > 0 || target.vehicleIds.length > 0 || !!(target.routeId || target.depotId || target.city?.trim() || target.area?.trim() || target.vehicleType?.trim() || target.tags.length || target.geofence);
+  const checkBlocker = !campaignId ? "Choose a campaign first." : !selected?.creatives.some((creative) => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !start || !end || start >= end ? "Set a valid start and end time." : !rules.days.length ? "Choose at least one day of the week." : !rules.creativeIds.length ? "Add at least one approved creative to the playback sequence." : !hasTarget ? "Choose at least one screen or targeting filter." : null;
   const publishBlocker = !campaignId ? "Choose a campaign first." : !selected?.creatives.some((creative) => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !rules.creativeIds.length ? "Add an approved creative to the playback sequence." : !report ? "Check availability before publishing." : !report.canPublish ? "Resolve the availability conflicts before publishing." : null;
   const payload = useMemo(() => ({ campaignId, revision, startsAt: `${start}:00+05:30`, endsAt: `${end}:00+05:30`, timezone: "Asia/Kolkata", priority, exclusive, rules, target, ...(overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}) }), [campaignId, revision, start, end, priority, exclusive, rules, target, overrideReason]);
   useEffect(() => { setReport(null); }, [payload]);
 
   async function submit(action: "check" | "publish") {
+    if (checkBlocker) {
+      setError(checkBlocker);
+      return;
+    }
     if (action === "publish" && !window.confirm("Publish this schedule and queue a manifest refresh for affected screens?")) return;
     setBusy(true);
     setError("");
@@ -244,7 +250,8 @@ export function OperationsScheduler({ canOverrideInventory = false }: { canOverr
           {report.conflicts.length ? <ul className="mt-4 space-y-2">{report.conflicts.map((conflict, index) => <li key={`${conflict.code}-${index}`} className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><span>{conflict.message}{conflict.screenId ? ` · ${conflict.screenId}` : ""}</span></li>)}</ul> : <p className="mt-3 flex items-center gap-2 text-sm text-[#465719]"><Check size={15} />No blocking conflicts detected.</p>}</div>}
 
         {publishBlocker && <p role="status" className="mt-4 rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-700">{publishBlocker}</p>}
-        <div className="mt-5 flex flex-col-reverse gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-neutral-500">{busy ? "Saving schedule…" : revision > 0 ? `Updating revision ${revision}` : "Your schedule is saved when published."}</p><div className="flex flex-col gap-2 sm:flex-row"><button type="button" disabled={busy || !campaignId} onClick={() => void submit("check")} className={buttonClass}>{busy ? <RefreshCw size={15} className="animate-spin" /> : <CalendarDays size={15} />}{busy ? "Checking…" : "Check availability"}</button><button type="button" disabled={busy || !!publishBlocker} onClick={() => void submit("publish")} className={primaryClass}>{busy ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}{busy ? "Publishing…" : "Publish schedule"}</button></div></div>
+        {checkBlocker && <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Before checking availability: {checkBlocker}</p>}
+        <div className="mt-5 flex flex-col-reverse gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-neutral-500">{busy ? "Saving schedule…" : revision > 0 ? `Updating revision ${revision}` : "Your schedule is saved when published."}</p><div className="flex flex-col gap-2 sm:flex-row"><button type="button" disabled={busy || !!checkBlocker} onClick={() => void submit("check")} className={buttonClass}>{busy ? <RefreshCw size={15} className="animate-spin" /> : <CalendarDays size={15} />}{busy ? "Checking…" : "Check availability"}</button><button type="button" disabled={busy || !!publishBlocker || !!checkBlocker} onClick={() => void submit("publish")} className={primaryClass}>{busy ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}{busy ? "Publishing…" : "Publish schedule"}</button></div></div>
       </SectionCard>
     </>}
   </div>;
