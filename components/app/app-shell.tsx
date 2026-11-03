@@ -35,7 +35,7 @@ const customerGroups = (type?: string): readonly NavGroup[] => {
 const adminNavigation: ReadonlyArray<readonly [string, ReadonlyArray<readonly [string, string, AdminPermission]>]> = [
   ["WORKSPACE", [["Overview", "/admin", "admin:read"]]],
   ["CAMPAIGNS", [["Campaigns", "/admin/campaigns", "campaign:read"], ["Creative library", "/admin/creatives", "campaign:read"], ["Schedule delivery", "/admin/operations/scheduler", "campaign:schedule"], ["Proof of play", "/admin/proof-of-play", "campaign:read"]]],
-  ["SCREENS & FLEET", [["Screens", "/admin/screens", "device:read"], ["Screen groups", "/admin/screen-groups", "device:read"], ["Vehicles & routes", "/admin/network", "device:read"], ["Device health", "/admin/device-health", "device:read"], ["DeviceOS", "/admin/deviceos", "device:read"], ["Live map", "/admin/map", "device:read"], ["Inventory", "/admin/inventory", "campaign:read"]]],
+  ["SCREENS & FLEET", [["Screens", "/admin/screens", "device:read"], ["Screen groups", "/admin/screen-groups", "device:read"], ["Vehicles & routes", "/admin/network", "device:read"], ["Drivers", "/admin/drivers", "driver:read"], ["Device health", "/admin/device-health", "device:read"], ["DeviceOS", "/admin/deviceos", "device:read"], ["Live map", "/admin/map", "device:read"], ["Inventory", "/admin/inventory", "campaign:read"]]],
   ["COMMERCIAL", [["Orders", "/admin/orders", "finance:read"], ["Agencies", "/admin/agencies", "admin:write"], ["Forecast settings", "/admin/forecast", "admin:write"]]],
   ["OPERATIONS", [["Operations center", "/admin/operations", "operations:write"], ["Verification", "/admin/verifications", "verification:read"]]],
   ["ADMINISTRATION", [["Manage team access", "/admin/users", "admin-users:manage"]]],
