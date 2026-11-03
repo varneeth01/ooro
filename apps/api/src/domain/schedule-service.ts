@@ -23,13 +23,22 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     if (target.screenIds.length) explicit.push({ id: { in: target.screenIds } })
     if (target.groupIds.length) explicit.push({ groups: { some: { groupId: { in: target.groupIds } } } })
     if (target.vehicleIds.length) explicit.push({ vehicleId: { in: target.vehicleIds } })
+    const city = target.city?.trim()
+    const area = target.area?.trim()
+    const vehicleType = target.vehicleType?.trim()
     const displays = (await tx.display.findMany({ where: {
       ...(explicit.length && !target.all ? { OR: explicit } : {}),
       ...(target.tags.length ? { tags: { hasSome: target.tags } } : {}),
-      ...((target.routeId || target.depotId || target.city || target.area || target.vehicleType) ? { vehicle: { is: { routeId: target.routeId, depotId: target.depotId, city: target.city, area: target.area, type: target.vehicleType } } } : {}),
+      ...((target.routeId || target.depotId || city || area || vehicleType) ? { vehicle: { is: {
+        routeId: target.routeId,
+        depotId: target.depotId,
+        ...(city ? { city: { equals: city, mode: 'insensitive' as const } } : {}),
+        ...(area ? { area: { equals: area, mode: 'insensitive' as const } } : {}),
+        ...(vehicleType ? { type: { equals: vehicleType, mode: 'insensitive' as const } } : {}),
+      } } } : {}),
     }, include: { inventoryConfig: true }, take: 1001 })).filter(d => !target.geofence || (d.lastLatitude !== null && d.lastLongitude !== null && distanceKm(target.geofence.latitude,target.geofence.longitude,d.lastLatitude,d.lastLongitude) <= target.geofence.radiusKm))
     if (!displays.length || displays.length > 1000) warn('TARGET_SIZE','Choose between 1 and 1000 screens')
-    for (const id of target.screenIds) if (!displays.some(d => d.id === id)) warn('TARGET_MISSING','Selected screen does not match targeting or no longer exists',id)
+    for (const id of target.screenIds) if (!displays.some(d => d.id === id)) warn('TARGET_MISSING','Selected screen is excluded by the current filters or no longer exists. Clear or adjust the filters to include it.',id)
     const ids = displays.map(d => d.id)
     const others = await tx.adSchedule.findMany({ where: { campaignId: { not: campaign.id }, status: 'PUBLISHED', startsAt: { lt: input.endsAt }, endsAt: { gt: input.startsAt }, campaign: { assignments: { some: { displayId: { in: ids }, active: true } } } } })
     for (const other of others) if ((input.exclusive || other.exclusive || input.priority === 'EMERGENCY') && rulesOverlap(input.rules,scheduleRules.parse(other.rules))) warn('EXCLUSIVE_CONFLICT',`Overlaps campaign ${other.campaignId}`,undefined,true)
