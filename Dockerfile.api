@@ -9,9 +9,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/deviceos-api/package.json apps/deviceos-api/package.json
 COPY packages/api-contracts/package.json packages/api-contracts/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
 RUN pnpm install --frozen-lockfile --prod=false
@@ -30,6 +32,7 @@ ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
 
 RUN corepack enable
+RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 libssl3 && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app ./
 
 EXPOSE 8080
