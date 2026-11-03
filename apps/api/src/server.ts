@@ -37,6 +37,7 @@ import { MOBILITY_EVENT_TYPES, MOBILITY_PROVIDERS, classifyEvidence, isApprovedN
 import { getDriverActivationEligibility } from './domain/driver-activation.js'
 import { transitionDriverOnboarding } from './domain/driver-onboarding.js'
 import { privateDocumentStorage } from './domain/document-storage.js'
+import { normalizeIndianPhone } from './domain/phone.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -957,7 +958,25 @@ app.post('/api/admin/displays', async (request, reply) => {
   await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_CREATED', entityType: 'Display', entityId: display.id, after: { city: input.city, area: input.area, notes: input.notes } as any, requestId: request.id } })
   return ok(request, { displayId: display.id, pairingCode: code, expiresAt, display }, reply)
 })
-app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true } })), reply) })
+app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true, documents: { select: { id: true, documentType: true, status: true, rejectionReason: true } } }, orderBy: { createdAt: 'desc' } })), reply) })
+app.post('/api/admin/drivers', async (request, reply) => {
+  const actor = await requireRoles(request, ['SUPER_ADMIN'])
+  const input = bodyOf(request, z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(7).max(20), city: z.string().trim().max(120).optional() }))
+  const phone = normalizeIndianPhone(input.phone)
+  if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid 10-digit Indian mobile number', 422)
+  const existing = await prisma.user.findUnique({ where: { phone }, include: { driver: true } })
+  if (existing && existing.role !== 'DRIVER') throw new ApiError('PHONE_IN_USE', 'This phone number belongs to a non-driver account', 409)
+  if (existing?.driver) throw new ApiError('DRIVER_ALREADY_EXISTS', 'A driver profile already exists for this phone number', 409)
+  const created = await prisma.$transaction(async tx => {
+    const user = existing
+      ? await tx.user.update({ where: { id: existing.id }, data: { name: existing.name || input.name } })
+      : await tx.user.create({ data: { phone, name: input.name, role: 'DRIVER', accountStatus: 'PENDING' } })
+    const driver = await tx.driver.create({ data: { userId: user.id, city: input.city || null, onboardingStatus: 'PROFILE' } })
+    await tx.auditLog.create({ data: { actorId: actor.userId, actorRole: actor.role, action: 'DRIVER_PROFILE_CREATED', entityType: 'Driver', entityId: driver.id, after: { onboardingStatus: driver.onboardingStatus, city: driver.city }, requestId: request.id } })
+    return { id: driver.id, name: user.name, phone: user.phone, city: driver.city, onboardingStatus: driver.onboardingStatus, accountStatus: user.accountStatus }
+  })
+  return reply.code(201).send(response(request, created))
+})
 app.get('/api/admin/drivers/:driverId/review', async (request, reply) => {
   await requireRoles(request, adminRoles); const { driverId } = request.params as { driverId: string }
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, include: { user: true, documents: { select: { id: true, documentType: true, status: true, maskedDocumentNumber: true, rejectionReason: true, expiresAt: true, submittedAt: true, verifiedAt: true, verifiedBy: true } }, vehicles: { include: { displays: true } }, consents: { include: { agreementVersion: true } }, integrations: true } })
