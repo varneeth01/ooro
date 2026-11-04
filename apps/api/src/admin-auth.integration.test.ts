@@ -49,6 +49,23 @@ test('admin email/password workflow, generic failures, session revocation, and s
     const response = await app.inject({ method: 'POST', url: `/api/admin/displays/${randomUUID()}/commands`, headers: { authorization: `Bearer ${roleTokens.get(role)}` }, payload: { commandType: 'HEALTH_CHECK' } })
     assert.equal(response.statusCode, 403, `${role} must be denied device writes`)
   }
+  const privilegedDeviceOsWrites = [
+    ['/api/admin/deviceos/applications', { packageName: 'com.example.test', displayName: 'Test' }],
+    [`/api/admin/deviceos/applications/${randomUUID()}/allowlist`, { allowed: true }],
+    [`/api/admin/deviceos/applications/${randomUUID()}/releases`, { apkBase64: 'not-used' }],
+    [`/api/admin/deviceos/releases/${randomUUID()}/approve`, {}],
+    ['/api/admin/deviceos/deployments', {}],
+    [`/api/admin/deviceos/deployments/${randomUUID()}/pause`, { reason: 'test' }],
+    [`/api/admin/deviceos/deployments/${randomUUID()}/resume`, {}],
+  ] as const
+  for (const [url, payload] of privilegedDeviceOsWrites) {
+    assert.equal((await app.inject({ method: 'POST', url, payload })).statusCode, 401, `Unauthenticated request must be denied: ${url}`)
+    for (const role of ['ADMIN', 'OPERATIONS']) {
+      const response = await app.inject({ method: 'POST', url, headers: { authorization: `Bearer ${roleTokens.get(role)}` }, payload })
+      assert.equal(response.statusCode, 403, `${role} must not perform privileged DeviceOS mutation: ${url}`)
+      assert.equal(response.json().data, null)
+    }
+  }
   assert.equal((await app.inject({ method: 'GET', url: '/api/admin/earnings', headers: { authorization: `Bearer ${roleTokens.get('FINANCE')}` } })).statusCode, 200)
   for (const role of ['OPERATIONS', 'SUPPORT']) assert.equal((await app.inject({ method: 'GET', url: '/api/admin/earnings', headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 403, `${role} must not read finance data`)
   const readCases = [

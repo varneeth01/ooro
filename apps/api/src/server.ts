@@ -26,7 +26,7 @@ import { receiptPdf } from './domain/receipt.js'
 import { boundedLocationLimit, shouldRecordDisplayLocation, validDisplayLocation } from './domain/display-location.js'
 import { getDisplayConnectivity } from './domain/display-health.js'
 import { canonicalProofId, canonicalProofStatus, proofIdentityBelongsToDisplay } from './domain/proof-policy.js'
-import { adminRoles, deviceOsWriteRoles } from './domain/admin-auth.js'
+import { adminRoles, deviceOsDeploymentRoles, deviceOsReleaseRoles, deviceOsWriteRoles } from './domain/admin-auth.js'
 import { asDeviceOsJson } from './domain/deviceos-http.js'
 import { assertSigningCertificateContinuity, decodeApkBase64, inspectApk } from './domain/apk-release.js'
 import { deviceOsStorage, parseDeviceOsRange, sliceDeviceOsContent, verifyLocalDownloadSignature } from './domain/deviceos-storage.js'
@@ -575,7 +575,7 @@ app.get('/api/admin/deviceos/applications', async (request, reply) => {
 })
 
 app.post('/api/admin/deviceos/applications', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160), critical: z.boolean().optional(), remoteUninstallAllowed: z.boolean().optional() }))
   let application
   try {
@@ -589,7 +589,7 @@ app.post('/api/admin/deviceos/applications', async (request, reply) => {
 })
 
 app.post('/api/admin/deviceos/applications/:applicationId/allowlist', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const { applicationId } = request.params as { applicationId: string }
   const input = bodyOf(request, z.object({ allowed: z.boolean() }))
   const application = await prisma.managedApplication.findUnique({ where: { id: applicationId } })
@@ -611,7 +611,7 @@ app.get('/api/admin/deviceos/applications/:applicationId/releases', async (reque
 })
 
 app.post('/api/admin/deviceos/applications/:applicationId/releases', { bodyLimit: deviceOsUploadBodyLimit }, async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const { applicationId } = request.params as { applicationId: string }
   const application = await prisma.managedApplication.findUnique({ where: { id: applicationId } })
   if (!application) throw notFound('Managed application not found')
@@ -643,7 +643,7 @@ app.post('/api/admin/deviceos/applications/:applicationId/releases', { bodyLimit
 })
 
 app.post('/api/admin/deviceos/releases/:releaseId/approve', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const { releaseId } = request.params as { releaseId: string }
   const release = await prisma.applicationRelease.findUnique({ where: { id: releaseId } })
   if (!release) throw notFound('Application release not found')
@@ -730,7 +730,7 @@ app.post('/api/deviceos/targets/:targetId/events', async (request, reply) => {
 })
 
 app.post('/api/admin/deviceos/deployments', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const input = bodyOf(request, z.object({
     name: z.string().trim().min(1).max(160),
     applicationId: z.string().uuid(),
@@ -781,14 +781,14 @@ app.get('/api/admin/deviceos/deployments/:campaignId', async (request, reply) =>
 })
 
 app.post('/api/admin/deviceos/deployments/:campaignId/pause', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const { campaignId } = request.params as { campaignId: string }
   const input = bodyOf(request, z.object({ reason: z.string().trim().min(1).max(500) }))
   return ok(request, asDeviceOsJson(await pauseDeviceOsCampaign(prisma, campaignId, input.reason, auth.userId, auth.role)), reply)
 })
 
 app.post('/api/admin/deviceos/deployments/:campaignId/resume', async (request, reply) => {
-  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const { campaignId } = request.params as { campaignId: string }
   return ok(request, asDeviceOsJson(await resumeDeviceOsCampaign(prisma, campaignId, auth.userId, auth.role)), reply)
 })
