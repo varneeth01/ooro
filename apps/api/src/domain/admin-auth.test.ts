@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canAdmin, canWriteDeviceOs, isAdminRole } from './admin-auth.js'
+import { canAdmin, canWriteDeviceOs, deviceOsDeploymentRoles, deviceOsReleaseRoles, isAdminRole } from './admin-auth.js'
 
 test('admin authorization accepts only canonical admin roles', () => {
   for (const role of ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE']) assert.equal(isAdminRole(role), true)
@@ -10,6 +10,19 @@ test('admin authorization accepts only canonical admin roles', () => {
 test('DeviceOS mutations require operational admin roles', () => {
   for (const role of ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']) assert.equal(canWriteDeviceOs(role), true)
   for (const role of ['SUPPORT', 'FINANCE', 'DRIVER', undefined]) assert.equal(canWriteDeviceOs(role), false)
+})
+
+test('APK release and deployment mutations are restricted to authenticated SUPER_ADMIN role', () => {
+  for (const roles of [deviceOsReleaseRoles, deviceOsDeploymentRoles]) {
+    assert.deepEqual(roles, ['SUPER_ADMIN'])
+    for (const role of ['ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE', 'DRIVER', undefined, null]) {
+      assert.equal(role != null && roles.includes(role), false, `${String(role)} must not manage APK releases or deployments`)
+    }
+    assert.equal(roles.includes('SUPER_ADMIN'), true)
+  }
+  // Existing non-release DeviceOS operations keep their broader policy.
+  assert.equal(canWriteDeviceOs('ADMIN'), true)
+  assert.equal(canWriteDeviceOs('OPERATIONS'), true)
 })
 
 test('campaign mutations deny finance, support and non-admin roles', () => {
