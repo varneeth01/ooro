@@ -49,6 +49,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     companion object {
         const val SCHEDULED_HEARTBEAT = "scheduledHeartbeat"
         private val workerMutex = Mutex()
+        internal const val MAX_STALE_PROOF_BATCHES_PER_RUN = 5
     }
 
     override suspend fun doWork(): Result = workerMutex.withLock { doWorkLocked() }
@@ -82,21 +83,27 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             var rows = db.proofDao().pending(50)
             var uploadRows: List<ProofEntity> = emptyList()
             var staleCount = 0
+            var staleBatches = 0
             while (rows.isNotEmpty() && uploadRows.isEmpty()) {
-                val staleRows = rows.filter { row ->
-                    val payload = JSONObject(row.payload)
-                    payload.optString("screenId") != credentials.screenId || payload.optString("deviceId") != credentials.deviceId
-                }
+                val batch = classifyProofRows(rows, credentials.screenId, credentials.deviceId)
+                val staleRows = batch.staleRows
                 if (staleRows.isNotEmpty()) {
+                    staleBatches++
                     staleCount += staleRows.size
                     db.proofDao().delete(staleRows.map { it.eventId })
                     Log.w("OoroScreen", "proof worker quarantined stale rows=${staleRows.size} expectedScreen=${credentials.screenId} expectedDevice=${credentials.deviceId}")
                 }
-                uploadRows = rows.filterNot { row -> staleRows.any { stale -> stale.eventId == row.eventId } }
-                if (uploadRows.isEmpty()) rows = db.proofDao().pending(50)
+                uploadRows = batch.uploadRows
+                if (uploadRows.isEmpty()) {
+                    val remaining = db.proofDao().pendingCount()
+                    rows = if (shouldContinueStaleProofScan(uploadRows.size, remaining, staleBatches, MAX_STALE_PROOF_BATCHES_PER_RUN)) {
+                        db.proofDao().pending(50)
+                    } else emptyList()
+                }
             }
             if (uploadRows.isEmpty()) {
-                Log.i("OoroScreen", "proof worker completed after quarantining stale rows=$staleCount")
+                val remaining = db.proofDao().pendingCount()
+                Log.i("OoroScreen", "proof worker stale scan finished batches=$staleBatches quarantined=$staleCount remaining=$remaining limitReached=${staleBatches >= MAX_STALE_PROOF_BATCHES_PER_RUN}")
                 return Result.success()
             }
             Log.i("OoroScreen", "proof worker selected rows=${uploadRows.size} stale=$staleCount attempt=$attempt")
@@ -116,7 +123,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 db.proofDao().delete(acknowledgedIds.toList())
             }
             Log.i("OoroScreen", "proof local acknowledgment deleted=${acknowledgedIds.size} remaining=${db.proofDao().pendingCount()} attempt=$attempt")
-            if (acknowledgedIds.size < events.size) {
+            if (shouldRetryProofBatch(events.size, acknowledgedIds.size)) {
                 Log.w("OoroScreen", "proof upload partial acknowledgment accepted=${upload.accepted} acknowledged=${acknowledgedIds.size} selected=${events.size}; retaining unacknowledged rows")
                 return Result.retry()
             }
@@ -144,3 +151,19 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
 internal fun shouldRunWorkerNetworkCheck(isScheduledHeartbeat: Boolean, pendingProofCount: Int): Boolean =
     isScheduledHeartbeat || pendingProofCount > 0
+
+internal data class ProofBatchClassification(val uploadRows: List<ProofEntity>, val staleRows: List<ProofEntity>)
+
+internal fun classifyProofRows(rows: List<ProofEntity>, expectedScreenId: String, expectedDeviceId: String): ProofBatchClassification {
+    val (uploadRows, staleRows) = rows.partition { row ->
+        val payload = JSONObject(row.payload)
+        payload.optString("screenId") == expectedScreenId && payload.optString("deviceId") == expectedDeviceId
+    }
+    return ProofBatchClassification(uploadRows, staleRows)
+}
+
+internal fun shouldContinueStaleProofScan(uploadCount: Int, pendingCount: Int, scannedBatches: Int, maxBatches: Int): Boolean =
+    uploadCount == 0 && pendingCount > 0 && scannedBatches < maxBatches
+
+internal fun shouldRetryProofBatch(selectedCount: Int, acknowledgedCount: Int): Boolean =
+    acknowledgedCount < selectedCount

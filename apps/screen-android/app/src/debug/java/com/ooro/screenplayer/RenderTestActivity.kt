@@ -88,6 +88,7 @@ class RenderTestActivity : ComponentActivity() {
     }
 
     private fun startBoundedDiagnostics() {
+        RuntimeDiagnostics.enable()
         val counterStart = RuntimeDiagnostics.capture()
         val pssBeforeKb = Debug.getPss()
         val startedAt = SystemClock.elapsedRealtime()
@@ -116,6 +117,7 @@ class RenderTestActivity : ComponentActivity() {
                 if (delta > 0) "$name:$delta" else null
             }.sortedByDescending { entry -> entry.substringAfter(':').toLongOrNull() ?: 0L }.take(12)
             Log.i("OoroPerfDiag", "sampleMs=$elapsed pssBeforeKb=$pssBeforeKb pssAfterKb=$pssAfterKb frames=${frameCount.get()} slowFrames=${slowFrames.get()} dropped=${droppedFrames.get()} threadCpuTicks=${threadDeltas.joinToString(",")} counters=${RuntimeDiagnostics.formatDelta(counterStart)}")
+            RuntimeDiagnostics.disable()
         }
     }
 
@@ -141,6 +143,7 @@ class RenderTestActivity : ComponentActivity() {
     }.onFailure { Log.e("OoroRenderTest", "could not prepare local preview assets", it) }.isSuccess
 
     override fun onDestroy() {
+        RuntimeDiagnostics.disable()
         frameListener?.let(window::removeOnFrameMetricsAvailableListener)
         frameListener = null
         if (::previewDirectory.isInitialized) previewDirectory.deleteRecursively()
