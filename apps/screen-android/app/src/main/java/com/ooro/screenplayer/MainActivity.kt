@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,6 +57,7 @@ import com.ooro.screenplayer.player.Media3CreativePlayer
 import com.ooro.screenplayer.player.CreativeScaleBehavior
 import com.ooro.screenplayer.player.creativeScaleBehavior
 import com.ooro.screenplayer.player.decodeCreativeImage
+import com.ooro.screenplayer.player.fittedContentBounds
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -64,6 +66,7 @@ import org.maplibre.android.tile.TileOperation
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
+import kotlinx.coroutines.flow.flowOf
 
 class MainActivity : ComponentActivity() {
     private val vm: ScreenViewModel by viewModels { ScreenViewModel.factory(applicationContext) }
@@ -105,6 +108,12 @@ class MainActivity : ComponentActivity() {
 
 private val Yellow = Color(0xFFF5C400)
 private val Panel = Color(0xFF121820)
+internal data class PlayerPreviewConfig(
+    val itemId: String,
+    val assetPaths: Map<String, String>,
+    val navigation: NavigationState = NavigationState(),
+    val onMapHealth: (Boolean, String?) -> Unit = { _, _ -> }
+)
 internal fun backendEnvironment(): String = when {
     BuildConfig.USE_MOCK_BACKEND -> "LOCAL MOCK"
     BuildConfig.API_BASE_URL.startsWith("http://127.0.0.1") || BuildConfig.API_BASE_URL.startsWith("http://localhost") -> "LOCAL TEST BACKEND"
@@ -167,23 +176,39 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     if (confirmRepair) AlertDialog(onDismissRequest = { confirmRepair = false }, title = { Text("Repair this device?") }, text = { Text("Use this if Reconnect does not work. This keeps the existing screen identity and history, and may require a new pairing code.") }, confirmButton = { TextButton(onClick = { confirmRepair = false; vm.beginRepair() }) { Text("Continue Repair") } }, dismissButton = { TextButton(onClick = { confirmRepair = false }) { Text("Cancel") } })
 }
 
-@Composable private fun Player(vm: ScreenViewModel, manifest: DeviceManifest) {
+@Composable internal fun Player(vm: ScreenViewModel?, manifest: DeviceManifest, preview: PlayerPreviewConfig? = null) {
     var taps by remember { mutableIntStateOf(0) }
-    val playbackOffset by vm.playbackOffset.collectAsState()
-    val scheduledItem = remember(manifest, playbackOffset) { vm.currentItem(manifest, playbackOffset) }
-    val presentationItem by vm.currentCreative.collectAsState()
-    val item = scheduledItem
-    Box(Modifier.fillMaxSize().background(Color.Black).clickable { taps++; if (taps >= 7) vm.showAdmin() }) {
-        if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize()) {
-            Column(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat())) {
-                Box(Modifier.weight(manifest.layoutConfig.safeAdHeight.toFloat())) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }
-                NewsTicker(manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()))
+    val playbackOffset by (vm?.playbackOffset ?: flowOf(0)).collectAsState(initial = 0)
+    val presentationItem by (vm?.currentCreative ?: flowOf<ManifestItem?>(null)).collectAsState(initial = null)
+    val navigation by (vm?.navigation ?: flowOf(NavigationState())).collectAsState(initial = NavigationState())
+    val scheduledItem = remember(manifest, playbackOffset, vm) { vm?.currentItem(manifest, playbackOffset) }
+    val item = preview?.let { state -> manifest.items.firstOrNull { it.id == state.itemId } } ?: scheduledItem
+    val displayedOffer = if (preview != null) item else presentationItem ?: item
+    val nav = preview?.navigation ?: navigation
+    val rootModifier = if (preview == null) Modifier.fillMaxSize().background(Color.Black).clickable {
+        taps++
+        if (taps >= 7) { taps = 0; vm?.showAdmin() }
+    } else Modifier.fillMaxSize().background(Color.Black).clipToBounds()
+    val mapHealth: (Boolean, String?) -> Unit = preview?.onMapHealth ?: { rendered, error ->
+        vm?.reportMapHealth(rendered, error)
+        Unit
+    }
+
+    Box(rootModifier) {
+        if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize().clipToBounds()) {
+            Column(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat()).fillMaxHeight().clipToBounds()) {
+                Box(Modifier.weight(manifest.layoutConfig.safeAdHeight.toFloat()).fillMaxWidth().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
+                NewsTicker(manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()).fillMaxWidth().clipToBounds())
             }
-            Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat())) {
-                    Box(Modifier.weight(manifest.layoutConfig.safeQrHeight.toFloat())) { OfferPanel(presentationItem, Modifier.fillMaxSize()) }
-                Box(Modifier.weight((100 - manifest.layoutConfig.safeQrHeight).toFloat())) { NavigationPanel(vm, Modifier.fillMaxSize()) }
+            Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat()).fillMaxHeight().clipToBounds()) {
+                Box(Modifier.weight(manifest.layoutConfig.safeQrHeight.toFloat()).fillMaxWidth().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
+                Box(Modifier.weight((100 - manifest.layoutConfig.safeQrHeight).toFloat()).fillMaxWidth().clipToBounds()) { NavigationPanel(nav, Modifier.fillMaxSize(), mapHealth) }
             }
-        } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize()) { Box(Modifier.weight(3f)) { PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset) }; Column(Modifier.weight(1f)) { NavigationPanel(vm, Modifier.weight(1f)); OfferPanel(item, Modifier.weight(1f)) } } else PrimaryAdRegion(vm, manifest, Modifier.fillMaxSize(), item, playbackOffset)
+        } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize().clipToBounds()) {
+            Box(Modifier.weight(2f).fillMaxHeight().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
+            Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) { NavigationPanel(nav, Modifier.fillMaxSize(), mapHealth) }
+            Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
+        } else PrimaryAdRegion(vm, Modifier.fillMaxSize().clipToBounds(), item, playbackOffset, preview)
     }
 }
 
@@ -192,9 +217,11 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     val message = announcements.joinToString("   •   ") { it.text.trim() }.ifBlank { "OORO" }
     val offset = remember(message) { Animatable(0f) }
     val density = androidx.compose.ui.platform.LocalDensity.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
     val estimatedWidth = with(density) { (message.length * 9).dp.toPx() }
-    LaunchedEffect(message, news.scrollSpeed, estimatedWidth) {
-        if (announcements.isEmpty()) { offset.snapTo(0f); return@LaunchedEffect }
+    LaunchedEffect(message, news.scrollSpeed, estimatedWidth, lifecycleState) {
+        if (announcements.isEmpty() || lifecycleState != Lifecycle.State.RESUMED) { offset.snapTo(0f); return@LaunchedEffect }
         val segment = estimatedWidth.coerceAtLeast(with(density) { 160.dp.toPx() })
         val duration = (segment / news.scrollSpeed.coerceIn(10, 120) * 1000).toInt().coerceIn(8_000, 45_000)
         while (true) {
@@ -212,9 +239,16 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     }
 }
 
-@Composable private fun PrimaryAdRegion(vm: ScreenViewModel, manifest: DeviceManifest, modifier: Modifier, selectedItem: ManifestItem? = vm.currentItem(manifest), playbackKey: Int = 0) {
-    val item = selectedItem; var path by remember(item?.id, playbackKey) { mutableStateOf<String?>(null) }; LaunchedEffect(item?.id, playbackKey) { path = item?.let { vm.localFile(it) } }
-    Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+@Composable private fun PrimaryAdRegion(vm: ScreenViewModel?, modifier: Modifier, selectedItem: ManifestItem?, playbackKey: Int = 0, preview: PlayerPreviewConfig? = null) {
+    val item = selectedItem
+    var path by remember(item?.id, playbackKey, preview) { mutableStateOf<String?>(null) }
+    LaunchedEffect(item?.id, playbackKey, preview?.itemId, preview?.assetPaths) {
+        path = item?.let { preview?.assetPaths?.get(it.id) ?: vm?.localFile(it) }
+    }
+    val measuredBounds = if (preview == null) Modifier else Modifier.onSizeChanged { size ->
+        Log.i("OoroRenderTest", "region creativeId=${item?.creativeId} boundsPx=${size.width}x${size.height} fit=${item?.fitMode}")
+    }
+    Box(modifier.background(Color.Black).clipToBounds().then(measuredBounds), contentAlignment = Alignment.Center) {
         if (item == null || path == null) Text("OORO\nContent will resume shortly", color = Color.White, fontSize = 24.sp)
         else if (item.type == CreativeType.IMAGE) {
             if (path != null) BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
@@ -236,31 +270,67 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
                 DisposableEffect(bitmap) { onDispose { bitmap?.takeUnless(Bitmap::isRecycled)?.recycle() } }
                 LaunchedEffect(item.id, playbackKey, path, widthPx, heightPx) {
                     val loaded = snapshotFlow { bitmapState.value to doneState.value }.first { it.first != null || it.second }
-                    vm.creativeStarted(item)
-                    if (loaded.first == null) vm.creativeFinished(item, 0, false, "IMAGE_DECODE_FAILED")
-                    else { kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm.creativeFinished(item, item.durationSeconds * 1000L, true) }
+                    if (preview == null) {
+                        vm?.creativeStarted(item)
+                        if (loaded.first == null) vm?.creativeFinished(item, 0, false, "IMAGE_DECODE_FAILED")
+                        else { kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm?.creativeFinished(item, item.durationSeconds * 1000L, true) }
+                    }
                 }
-                if (bitmap != null) Image(bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize().clipToBounds(), contentScale = item.fitMode.toContentScale())
+                if (bitmap != null) Image(
+                    bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize().clipToBounds().then(
+                        if (preview == null) Modifier else Modifier.onSizeChanged { bounds ->
+                            val content = fittedContentBounds(bitmap.width, bitmap.height, bounds.width, bounds.height)
+                            Log.i("OoroRenderTest", "image creativeId=${item.creativeId} sourcePx=${bitmap.width}x${bitmap.height} mediaPx=${content.width}x${content.height} viewportPx=${bounds.width}x${bounds.height} fit=${item.fitMode}")
+                        }
+                    ), contentScale = item.fitMode.toContentScale()
+                )
                 else Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("Preparing advertisement…", color = Color.White) }
             } else Text("Preparing advertisement…", color = Color.White)
         }
         else {
             val context = LocalContext.current
-            val creative = remember(item.id, playbackKey) {
+            val lifecycleOwner = LocalLifecycleOwner.current
+            val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+            var videoSize by remember(item.id, playbackKey) { mutableStateOf(androidx.media3.common.VideoSize.UNKNOWN) }
+            var videoViewport by remember(item.id, playbackKey) { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+            val creative = remember(item.id, playbackKey, preview != null) {
                 Log.i("OoroScreen", "media player created creativeId=${item.creativeId} itemId=${item.id} key=$playbackKey")
-                Media3CreativePlayer(context.applicationContext, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) })
+                Media3CreativePlayer(
+                    context.applicationContext,
+                    onStarted = { if (preview == null) vm?.creativeStarted(item) },
+                    onCompleted = { ms -> if (preview == null) vm?.creativeFinished(item, ms, true) },
+                    onFailed = { e -> if (preview == null) vm?.creativeFinished(item, creativeDuration(item), false, e.message) },
+                    onPosition = { position -> if (preview == null) vm?.creativePosition(item, position) },
+                    onVideoSize = { size -> videoSize = size },
+                    repeatOne = preview != null
+                )
+            }
+            LaunchedEffect(videoSize, videoViewport, preview) {
+                if (preview != null && videoSize.width > 0 && videoSize.height > 0 && videoViewport.width > 0 && videoViewport.height > 0) {
+                    val rotation = Math.floorMod(videoSize.unappliedRotationDegrees, 360)
+                    val aspectWidth = (videoSize.width * videoSize.pixelWidthHeightRatio).toInt().coerceAtLeast(1)
+                    val source = if (rotation == 90 || rotation == 270) videoSize.height to aspectWidth else aspectWidth to videoSize.height
+                    val content = fittedContentBounds(source.first, source.second, videoViewport.width, videoViewport.height)
+                    Log.i("OoroRenderTest", "video creativeId=${item.creativeId} sourcePx=${videoSize.width}x${videoSize.height} rotation=$rotation pixelRatio=${videoSize.pixelWidthHeightRatio} mediaPx=${content.width}x${content.height} viewportPx=${videoViewport.width}x${videoViewport.height} fit=${item.fitMode}")
+                }
+            }
+            LaunchedEffect(lifecycleState, creative) {
+                if (lifecycleState == Lifecycle.State.RESUMED) {
+                    if (creative.player.mediaItemCount > 0 && creative.player.playbackState != androidx.media3.common.Player.STATE_ENDED) creative.player.play()
+                } else creative.player.pause()
             }
             DisposableEffect(path, playbackKey) {
                 creative.play(path!!)
+                if (lifecycleState != Lifecycle.State.RESUMED) creative.player.pause()
                 onDispose {
-                    if (creative.player.isPlaying) vm.creativeFinished(item, creative.player.currentPosition, false, "INTERRUPTED")
+                    if (preview == null && creative.player.isPlaying) vm?.creativeFinished(item, creative.player.currentPosition, false, "INTERRUPTED")
                     creative.close()
                     Log.i("OoroScreen", "media player released creativeId=${item.creativeId} itemId=${item.id} key=$playbackKey")
                 }
             }
             AndroidView(
                 factory = { context -> PlayerView(context).apply { useController = false; resizeMode = item.fitMode.toResizeMode(); Log.i("OoroScreen", "video surface created creativeId=${item.creativeId} itemId=${item.id}") } },
-                modifier = Modifier.fillMaxSize().clipToBounds(),
+                modifier = Modifier.fillMaxSize().clipToBounds().then(if (preview == null) Modifier else Modifier.onSizeChanged { bounds -> videoViewport = bounds }),
                 update = { view ->
                     if (view.player !== creative.player) Log.i("OoroScreen", "video surface rebound creativeId=${item.creativeId} itemId=${item.id}")
                     view.player = creative.player
@@ -275,8 +345,8 @@ private fun FitMode.toContentScale() = when (creativeScaleBehavior(this)) { Crea
 private fun FitMode.toResizeMode() = when (creativeScaleBehavior(this)) { CreativeScaleBehavior.CROP -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM; CreativeScaleBehavior.CONTAIN -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT }
 private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
 
-@Composable private fun NavigationPanel(vm: ScreenViewModel, modifier: Modifier) { val nav by vm.navigation.collectAsState(); Box(modifier.background(Panel).clipToBounds().padding(4.dp)) { if (nav.active) MapPanel(vm, nav, Modifier.fillMaxSize().clipToBounds()) else Box(Modifier.fillMaxSize().background(Panel)); if (nav.active) { Text("▲", color = Yellow, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center)); if ((nav.nextInstruction ?: nav.destinationName) != null) Text(nav.nextInstruction ?: nav.destinationName.orEmpty(), color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xAA121820)).padding(horizontal = 6.dp, vertical = 4.dp)) } } }
-@Composable private fun MapPanel(vm: ScreenViewModel, nav: NavigationState, modifier: Modifier) {
+@Composable private fun NavigationPanel(nav: NavigationState, modifier: Modifier, onMapHealth: (Boolean, String?) -> Unit) { Box(modifier.background(Panel).clipToBounds().padding(4.dp)) { if (nav.active) MapPanel(nav, Modifier.fillMaxSize().clipToBounds(), onMapHealth) else Box(Modifier.fillMaxSize().background(Panel)); if (nav.active) { Text("▲", color = Yellow, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center)); if ((nav.nextInstruction ?: nav.destinationName) != null) Text(nav.nextInstruction ?: nav.destinationName.orEmpty(), color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xAA121820)).padding(horizontal = 6.dp, vertical = 4.dp)) } } }
+@Composable private fun MapPanel(nav: NavigationState, modifier: Modifier, onMapHealth: (Boolean, String?) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     remember(context.applicationContext) {
@@ -312,11 +382,11 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
     val longitude = nav.currentLongitude
     LaunchedEffect(map) {
         if (map == null) return@LaunchedEffect
-        vm.reportMapHealth(false, null)
+        onMapHealth(false, null)
         kotlinx.coroutines.delay(5_000)
         if (!mapLoaded) {
             mapError = mapError ?: "Map tiles unavailable"
-            vm.reportMapHealth(false, mapError)
+            onMapHealth(false, mapError)
         }
     }
     LaunchedEffect(map, latitude, longitude) {
@@ -352,13 +422,13 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
                         TileOperation.LoadFromNetwork, TileOperation.LoadFromCache -> {
                             mapLoaded = true
                             mapError = null
-                            vm.reportMapHealth(true, null)
+                            onMapHealth(true, null)
                             Log.i("OoroScreen", "MAP_TILE_LOADED operation=$operation provider=MapLibre source=OpenStreetMap")
                         }
                         TileOperation.Error -> {
                             mapLoaded = false
                             mapError = reason.take(160).ifBlank { "Map tiles unavailable" }
-                            vm.reportMapHealth(false, mapError)
+                            onMapHealth(false, mapError)
                             Log.w("OoroScreen", "MAP_TILE_ERROR reason=$mapError")
                         }
                         else -> Unit
@@ -367,7 +437,7 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
                 createdMapView.addOnDidFailLoadingMapListener { reason ->
                     mapLoaded = false
                     mapError = reason.take(160).ifBlank { "Map tiles unavailable" }
-                    vm.reportMapHealth(false, mapError)
+                    onMapHealth(false, mapError)
                     Log.w("OoroScreen", "MAP_TILES_UNAVAILABLE reason=$mapError")
                 }
                 createdMapView.getMapAsync { readyMap ->

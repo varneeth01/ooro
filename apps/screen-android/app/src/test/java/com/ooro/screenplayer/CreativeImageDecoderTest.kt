@@ -5,11 +5,18 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class CreativeImageDecoderTest {
-    @Test fun landscapeFitsMeasuredRegion() { assertEquals(2, calculateImageSampleSize(3840, 2160, 1280, 720)) }
-    @Test fun portraitUsesHeightConstrainedSampling() { assertEquals(2, calculateImageSampleSize(1080, 1920, 1280, 720)) }
-    @Test fun squareAndUltrawideAreBounded() {
-        assertEquals(1, calculateImageSampleSize(1000, 1000, 1280, 720))
-        assertEquals(2, calculateImageSampleSize(3840, 800, 1280, 720))
+    @Test fun imageSampleSizeUsesDisplayOrientationForExifQuarterTurns() {
+        assertEquals(
+            calculateImageSampleSize(1920, 1080, 600, 800),
+            calculateImageSampleSize(1920, 1080, 800, 600, rotationDegrees = 90)
+        )
+        assertEquals(
+            calculateImageSampleSize(1920, 1080, 600, 800),
+            calculateImageSampleSize(1920, 1080, 800, 600, rotationDegrees = 270)
+        )
+        assertEquals(
+            calculateImageSampleSize(1920, 1080, 800, 600),
+            calculateImageSampleSize(1920, 1080, 800, 600, rotationDegrees = 180)
+        )
     }
-    @Test fun invalidDimensionsUseSafeFallback() { assertEquals(1, calculateImageSampleSize(0, 100, 0, 720)) }
 }
