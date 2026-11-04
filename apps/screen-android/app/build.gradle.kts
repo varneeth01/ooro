@@ -36,7 +36,7 @@ android { namespace = "com.ooro.screenplayer"; compileSdk = 35
             buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15")
             val syncIntervalSeconds = (project.findProperty("syncIntervalSeconds")?.toString()
                 ?: System.getenv("OORO_SYNC_INTERVAL_SECONDS")
-                ?: "15").toIntOrNull()?.coerceIn(5, 300) ?: 15
+                ?: "90").toIntOrNull()?.coerceIn(5, 300) ?: 90
             buildConfigField("int", "SYNC_INTERVAL_SECONDS", syncIntervalSeconds.toString())
         }
         release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt")); manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"$releaseApiUrl\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEMO_PAIRING", "false"); buildConfigField("String", "REPAIR_ACCESS_CODE", "\"$configuredRepairAccessCode\""); buildConfigField("String", "DEFAULT_TIMEZONE", "\"Asia/Kolkata\""); buildConfigField("int", "HEARTBEAT_INTERVAL_MINUTES", "15"); buildConfigField("int", "SYNC_INTERVAL_SECONDS", "90") }

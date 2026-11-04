@@ -244,8 +244,8 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
                 else -> Unit
             }
         }
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) activeMapView.onStart()
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) activeMapView.onResume()
+        // LifecycleRegistry replays ON_CREATE/ON_START/ON_RESUME for the current
+        // state when the observer is attached. Do not invoke these manually too.
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
