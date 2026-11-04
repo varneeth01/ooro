@@ -1,6 +1,6 @@
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "OPERATIONS" | "SUPPORT" | "FINANCE";
 export type ScreenType = "AUTO_SCREEN" | "CAB_SCREEN" | "RETAIL_SCREEN" | "BILLBOARD_SCREEN" | "OTHER";
-export type PairingStatus = "UNPAIRED" | "PAIRING_CODE_ACTIVE" | "PAIRING" | "PAIRED" | "PAIRING_FAILED" | "PAIRING_EXPIRED";
+export type PairingStatus = "UNPAIRED" | "PAIRING_CODE_ACTIVE" | "PAIRING" | "PAIRED" | "PAIRING_FAILED" | "PAIRING_EXPIRED" | "REMOVAL_PENDING";
 export type ConnectivityStatus = "ONLINE" | "STALE" | "OFFLINE" | "NEVER_CONNECTED";
 export type PlayerStatus = "STARTING" | "SYNCING" | "READY" | "IDLE" | "LOADING" | "PLAYING" | "PAUSED" | "FAILED" | "FALLBACK" | "OFFLINE_PLAYBACK" | "ERROR";
 export type ManifestStatus = "CURRENT" | "DOWNLOADING" | "PENDING_ACTIVATION" | "OUTDATED" | "ERROR";
