@@ -17,6 +17,14 @@ data class AdRegionFraction(val width: Float, val height: Float) {
 }
 
 data class FittedContentBounds(val width: Int, val height: Int)
+data class Sidebar80Geometry(val adWidth: Int, val sidebarWidth: Int, val offerHeight: Int, val navigationHeight: Int, val mediaHeight: Int, val tickerHeight: Int)
+fun usesSidebar80(layout: DisplayLayout, version: Int) = version >= 2 && (layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER)
+fun sidebar80Geometry(width: Int, height: Int, config: LayoutConfig): Sidebar80Geometry {
+    val adWidth = (width * 0.8f).toInt()
+    val ticker = (height * (100 - config.safeAdHeight) / 100f).toInt()
+    val offer = height / 2
+    return Sidebar80Geometry(adWidth, width - adWidth, offer, height - offer, height - ticker, ticker)
+}
 
 /** Pixel bounds for Compose ContentScale.Fit and Media3 RESIZE_MODE_FIT. */
 fun fittedContentBounds(sourceWidth: Int, sourceHeight: Int, regionWidth: Int, regionHeight: Int): FittedContentBounds {
@@ -28,8 +36,9 @@ fun fittedContentBounds(sourceWidth: Int, sourceHeight: Int, regionWidth: Int, r
     )
 }
 
-fun adRegionFraction(layout: DisplayLayout, config: LayoutConfig): AdRegionFraction = when (layout) {
-    DisplayLayout.FOUR_ZONE, DisplayLayout.AD_NAV_OFFER -> AdRegionFraction(config.safePrimaryWidth / 100f, config.safeAdHeight / 100f)
-    DisplayLayout.SPLIT_50_25_25 -> AdRegionFraction(0.5f, 1f)
-    DisplayLayout.FULLSCREEN_AD, DisplayLayout.FULLSCREEN_SERVICE, DisplayLayout.SPECIAL_CAMPAIGN -> AdRegionFraction(1f, 1f)
+fun adRegionFraction(layout: DisplayLayout, config: LayoutConfig, contractVersion: Int = 1): AdRegionFraction = when {
+    usesSidebar80(layout, contractVersion) -> AdRegionFraction(0.8f, config.safeAdHeight / 100f)
+    layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER -> AdRegionFraction(config.safePrimaryWidth / 100f, config.safeAdHeight / 100f)
+    layout == DisplayLayout.SPLIT_50_25_25 -> AdRegionFraction(0.5f, 1f)
+    else -> AdRegionFraction(1f, 1f)
 }

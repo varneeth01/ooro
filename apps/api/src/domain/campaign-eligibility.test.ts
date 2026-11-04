@@ -28,6 +28,7 @@ test('manifest version changes for creative offer and layout changes but not unc
   assert.equal(manifestVersionFor(base), manifestVersionFor(structuredClone(base)))
   assert.notEqual(manifestVersionFor(base), manifestVersionFor({ ...base, items: [{ ...base.items[0], offer: { offerTitle: 'Offer B', qrUrl: 'https://theooro.com/go/token-b' } }] }))
   assert.notEqual(manifestVersionFor(base), manifestVersionFor({ ...base, layout: { type: 'SPLIT_50_25_25' } }))
+  assert.notEqual(manifestVersionFor(base), manifestVersionFor({ ...base, layout: { type: 'AD_NAV_OFFER', contractVersion: 2 } }))
 })
 
 test('QR destinations require HTTPS outside local development', () => {

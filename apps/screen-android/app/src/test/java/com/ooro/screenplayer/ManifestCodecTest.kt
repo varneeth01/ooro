@@ -27,6 +27,14 @@ class ManifestCodecTest {
         assertEquals("https://theooro.com/go/token-b", manifest.items[1].offer.qrUrl)
     }
 
+    @Test fun layoutVersionDefaultsToV1AndV2RoundTrips() {
+        val legacy = ManifestCodec.parse(payload)
+        assertEquals(1, legacy.layoutContractVersion)
+        val v2 = ManifestCodec.parse(payload.replace("\"type\":\"FOUR_ZONE\"", "\"type\":\"FOUR_ZONE\",\"contractVersion\":2"))
+        assertEquals(2, v2.layoutContractVersion)
+        assertEquals(2, ManifestCodec.parse(ManifestCodec.encode(v2)).layoutContractVersion)
+    }
+
     @Test fun acceptsEmptyManifestAndMissingOptionalOfferMetadata() {
         val empty = ManifestCodec.parse("""{"version":0,"screenId":"screen-1","timezone":"UTC","items":[]}""")
         assertTrue(empty.items.isEmpty())

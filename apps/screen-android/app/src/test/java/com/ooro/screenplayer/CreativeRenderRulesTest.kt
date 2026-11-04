@@ -26,6 +26,15 @@ class CreativeRenderRulesTest {
         assertEquals(0.89f, adRegionFraction(DisplayLayout.FOUR_ZONE, config).height, 0f)
         assertEquals(0.5f, adRegionFraction(DisplayLayout.SPLIT_50_25_25, config).width, 0f)
     }
+    @Test fun contractV2Uses1024By720AdsAnd256By720SidebarAt1280By720() {
+        val bounds = com.ooro.screenplayer.player.sidebar80Geometry(1280, 720, LayoutConfig(primaryWidthPercent = 55, adHeightPercent = 89))
+        assertEquals(1024, bounds.adWidth); assertEquals(256, bounds.sidebarWidth)
+        assertEquals(360, bounds.offerHeight); assertEquals(360, bounds.navigationHeight)
+        assertEquals(641, bounds.mediaHeight); assertEquals(79, bounds.tickerHeight)
+        assertEquals(0.8f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 2).width, 0f)
+        assertEquals(0.67f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 1).width, 0f)
+        assertEquals(0.5f, adRegionFraction(DisplayLayout.SPLIT_50_25_25, LayoutConfig(), 2).width, 0f)
+    }
 
     @Test fun fitBoundsContainLandscapePortraitSquareUltrawideAndNonstandardMedia() {
         assertEquals(800 to 450, fittedContentBounds(1920, 1080, 800, 600).let { it.width to it.height })

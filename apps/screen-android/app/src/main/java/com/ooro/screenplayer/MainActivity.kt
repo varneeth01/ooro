@@ -61,6 +61,7 @@ import com.ooro.screenplayer.player.CreativeScaleBehavior
 import com.ooro.screenplayer.player.creativeScaleBehavior
 import com.ooro.screenplayer.player.decodeCreativeImage
 import com.ooro.screenplayer.player.fittedContentBounds
+import com.ooro.screenplayer.player.usesSidebar80
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -210,13 +211,15 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     } else Modifier.fillMaxSize().background(Color.Black).clipToBounds()
     Box(rootModifier) {
         if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize().clipToBounds()) {
-            Column(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat()).fillMaxHeight().clipToBounds()) {
+            val adWidth = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 80 else manifest.layoutConfig.safePrimaryWidth
+            val sidebarSplit = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 50 else manifest.layoutConfig.safeQrHeight
+            Column(Modifier.weight(adWidth.toFloat()).fillMaxHeight().clipToBounds()) {
                 Box(Modifier.weight(manifest.layoutConfig.safeAdHeight.toFloat()).fillMaxWidth().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
                 NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()).fillMaxWidth().clipToBounds())
             }
-            Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat()).fillMaxHeight().clipToBounds()) {
-                Box(Modifier.weight(manifest.layoutConfig.safeQrHeight.toFloat()).fillMaxWidth().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
-                Box(Modifier.weight((100 - manifest.layoutConfig.safeQrHeight).toFloat()).fillMaxWidth().clipToBounds()) { NavigationPanel(vm, preview, Modifier.fillMaxSize()) }
+            Column(Modifier.weight((100 - adWidth).toFloat()).fillMaxHeight().clipToBounds()) {
+                Box(Modifier.weight(sidebarSplit.toFloat()).fillMaxWidth().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
+                Box(Modifier.weight((100 - sidebarSplit).toFloat()).fillMaxWidth().clipToBounds()) { NavigationPanel(vm, preview, Modifier.fillMaxSize()) }
             }
         } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize().clipToBounds()) {
             Box(Modifier.weight(2f).fillMaxHeight().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
