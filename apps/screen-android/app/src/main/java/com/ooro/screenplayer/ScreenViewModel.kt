@@ -66,6 +66,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     private val _verifiedAssetIds = MutableStateFlow<Set<String>>(emptySet())
     val verifiedAssetIds: StateFlow<Set<String>> = _verifiedAssetIds
     private var reconnectJob: Job? = null
+    private var manifestRefreshJob: Job? = null
     private var reconnectAttempt = 0
     @Volatile private var repairMode = false
     private val syncMutex = Mutex()
@@ -91,9 +92,11 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
                                 current?.let { "PLAYING" } ?: "IDLE", current?.startedAt,
                                 if (current != null) playbackPositionMs else null, current?.expectedDurationMs))
                     }.onSuccess {
-                        reconnectAttempt = 0
-                        reconnectJob?.cancel()
-                        reconnectJob = null
+                        if (online) {
+                            reconnectAttempt = 0
+                            reconnectJob?.cancel()
+                            reconnectJob = null
+                        }
                         viewModelScope.launch {
                             if (shouldEnqueueProofSync(db.proofDao().pendingCount())) ProofSyncScheduler.enqueue(context, "heartbeat-with-pending-proofs")
                         }
@@ -111,6 +114,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             active = stored?.let { entity -> runCatching { ManifestCodec.parse(entity.json) }.onFailure { error ->
                 Log.e("OoroScreen", "cached manifest rejected; no cached playlist will be selected", error)
             }.getOrNull() }
+            active?.takeIf { store.credentials() != null }?.let(::scheduleManifestRefresh)
             _verifiedAssetIds.value = active?.let { manifest ->
                 runCatching { assets.verifiedItemIds(manifest.items) }.getOrDefault(emptySet())
             } ?: emptySet()
@@ -123,6 +127,8 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     fun beginRepair() { repairMode = true; _state.value = ScreenState.Setup("Enter a new pairing code. This keeps the existing screen identity and history.", true) }
     fun sync() { viewModelScope.launch { syncMutex.withLock { syncInternal() } } }
     private suspend fun syncInternal() {
+        manifestRefreshJob?.cancel()
+        manifestRefreshJob = null
         val c = store.credentials() ?: run { Log.w("OoroScreen", "sync skipped tokenPresent=false paired=false"); return }
         Log.w("OoroScreen", "sync started displayId=${c.screenId} tokenPresent=true paired=true")
         if (active == null) _state.value = ScreenState.Preparing
@@ -135,9 +141,6 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             else { keepCachedPlayback(c); scheduleReconnect() }
             return
         }
-        reconnectAttempt = 0
-        reconnectJob?.cancel(); reconnectJob = null
-
         // Report liveness before any manifest or asset network work. A slow or
         // unavailable creative must not make a paired display look offline.
         runCatching {
@@ -154,14 +157,19 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
 
         val manifestResult = runCatching {
             val incoming = api.manifest(c)
+            val receivedAt = Instant.now()
+            check(manifestIsAuthorizedAt(incoming, receivedAt)) { "manifest authorization is missing or expired" }
             val required = incoming.items.filter { it.url.isNotBlank() }
             val cachedIds = required.mapNotNull { item -> assets.ensure(item)?.let { item.id } }.toSet()
-            if (!canCommitDownloadedManifest(required.size, cachedIds.size)) error("required assets unavailable")
+            if (!canCommitManifestResponse(incoming, required.size, cachedIds.size, Instant.now())) error("manifest is expired or required assets are unavailable")
             db.manifestDao().put(ManifestEntity(version=incoming.version,timezone=incoming.timezone,validUntil=incoming.validUntil?.toString(),json=ManifestCodec.encode(incoming)))
             active=incoming
             _verifiedAssetIds.value = cachedIds
             assets.cleanup(retainedAssetIds(cachedIds, session?.itemId))
             online=true
+            reconnectAttempt = 0
+            reconnectJob?.cancel(); reconnectJob = null
+            scheduleManifestRefresh(incoming)
             Log.w("OoroScreen", "manifest accepted displayId=${c.screenId} version=${incoming.version} items=${incoming.items.size}")
         }.onFailure { error ->
             online=false
@@ -186,12 +194,26 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
         _diagnostic.value = "Cached playback active · reconnecting"
         if (_state.value !is ScreenState.AuthRecovery && credentials != null) _state.value = ScreenState.Player(active ?: fallback(credentials))
     }
+    private fun scheduleManifestRefresh(manifest: DeviceManifest) {
+        manifestRefreshJob?.cancel()
+        val delayMillis = manifestRefreshDelayMillis(manifest.validUntil, Instant.now()) ?: run {
+            Log.w("OoroScreen", "cached manifest has no future refresh window; startup/reconnect sync remains responsible")
+            return
+        }
+        manifestRefreshJob = viewModelScope.launch {
+            Log.i("OoroScreen", "manifest refresh scheduled before lease expiry delayMs=$delayMillis")
+            if (delayMillis > 0) delay(delayMillis)
+            if (store.credentials() != null) {
+                Log.i("OoroScreen", "manifest refresh lease deadline reached")
+                sync()
+            }
+        }
+    }
     private fun scheduleReconnect() {
         if (reconnectJob?.isActive == true || store.credentials() == null) return
         reconnectJob = viewModelScope.launch {
             reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(8)
-            val base = (1L shl reconnectAttempt).coerceAtMost(300L) * 1_000L
-            delay(base + Random.nextLong(0, 1_000))
+            delay(syncRetryDelayMillis(reconnectAttempt, Random.nextLong(0, 1_000)))
             if (store.credentials() != null) sync()
         }
     }
@@ -205,6 +227,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
         DeviceFailureKind.SERVER_UNAVAILABLE -> "OORO is temporarily unavailable. Please try again."
         DeviceFailureKind.REQUEST_FAILED -> "We couldn't connect this screen to OORO. Please try again."
     }
+
     fun currentItem(manifest: DeviceManifest, offset: Int = _playbackOffset.value, verifiedIds: Set<String> = _verifiedAssetIds.value): ManifestItem? {
         val now = Instant.now()
         if (!manifestIsAuthorizedAt(manifest, now)) return null
@@ -277,7 +300,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     } }
     fun retryQueue() { ProofSyncScheduler.enqueue(context, "diagnostic-retry") }
     private fun fallback(c: DeviceCredentials) = DeviceManifest(0,c.screenId,BuildConfig.DEFAULT_TIMEZONE,emptyList(),null)
-    override fun onCleared() { location.stop(); super.onCleared() }
+    override fun onCleared() { manifestRefreshJob?.cancel(); reconnectJob?.cancel(); location.stop(); super.onCleared() }
     companion object { fun factory(context: Context) = object: ViewModelProvider.Factory { override fun <T:ViewModel> create(type:Class<T>):T = ScreenViewModel(context,DeviceStore(context),ApiProvider(DeviceStore(context)).api,OoroDatabase.get(context),AssetManager(context)) as T } }
 }
 

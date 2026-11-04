@@ -96,6 +96,28 @@ class OfflinePlaybackRulesTest {
         assertFalse(manifestIsAuthorizedAt(manifest(listOf(item("a")), now.minusNanos(1)), now))
     }
 
+    @Test fun manifestRefreshIsScheduledTwoMinutesBeforeTheServerLeaseExpires() {
+        assertEquals(13 * 60_000L, manifestRefreshDelayMillis(now.plusSeconds(15 * 60L), now))
+        assertEquals(0L, manifestRefreshDelayMillis(now.plusSeconds(60), now))
+        assertNull(manifestRefreshDelayMillis(now, now))
+        assertNull(manifestRefreshDelayMillis(null, now))
+    }
+
+    @Test fun manifestReconnectBackoffIsBoundedAndExponential() {
+        assertEquals(2_000L, syncRetryDelayMillis(1, 0))
+        assertEquals(4_999L, syncRetryDelayMillis(2, 999))
+        assertEquals(256_999L, syncRetryDelayMillis(8, 999))
+        assertEquals(256_999L, syncRetryDelayMillis(20, 999))
+    }
+
+    @Test fun refreshedManifestCannotExtendPlaybackPastCampaignOrAllocationEnd() {
+        val item = item("allocated-slot").copy(startAt = now.minusSeconds(60), endAt = now.plusSeconds(600))
+        val refreshed = manifest(listOf(item), now.plusSeconds(900))
+        assertTrue(manifestIsAuthorizedAt(refreshed, now.plusSeconds(599)))
+        assertEquals(item.id, nextVerifiedManifestItem(refreshed, ScheduleEngine(), now.plusSeconds(599), 0, setOf(item.id))?.id)
+        assertNull(nextVerifiedManifestItem(refreshed, ScheduleEngine(), now.plusSeconds(600), 0, setOf(item.id)))
+    }
+
     @Test fun missingExpiryDoesNotCreateAnOfflineGracePeriod() {
         assertFalse(manifestIsAuthorizedAt(manifest(listOf(item("a")), null), now))
         assertNull(nextVerifiedManifestItem(manifest(listOf(item("a")), null), ScheduleEngine(), now, 0, setOf("a")))

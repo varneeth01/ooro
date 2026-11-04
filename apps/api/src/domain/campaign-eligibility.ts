@@ -7,6 +7,13 @@ import { safeDestination } from './qr-destination.js'
 
 export type ManifestReason = 'NO_ASSIGNMENT' | 'DISPLAY_DISABLED' | 'NO_ACTIVE_CAMPAIGN' | 'OUTSIDE_SCHEDULE' | 'NO_ELIGIBLE_CREATIVE'
 export type DisplayManifest = { manifestId: string; version: number; generatedAt: string; expiresAt: string; layout: string | { type: string; contractVersion: number; primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number }; news: { scrollSpeed: number; announcements: Array<{ id: string; text: string; priority: number }> }; items: Array<{ id: string; campaignId: string; creativeId: string; assetId: string; type: string; url: string; checksum: string | null; durationSeconds: number; priority: number; playsPerLoop: number; exclusive?: boolean; sequence?: number; intervalSeconds?: number; scheduleId?: string; startAt: string | null; endAt: string | null; daysOfWeek: number[]; startTime: string | null; endTime: string | null; fitMode: string; qrEnabled: boolean; qrTargetUrl: string | null; qrLabel: string | null; qrVersion: number; offer: Record<string, unknown> }> }
+export const MANIFEST_AUTHORIZATION_LEASE_MS = 15 * 60_000
+export const manifestValidUntil = (now: Date) => new Date(now.getTime() + MANIFEST_AUTHORIZATION_LEASE_MS)
+export function authorizedAllocationWindow(scheduleStart: Date, scheduleEnd: Date, allocationDate: Date, campaignStart: Date | null, campaignEnd: Date | null) {
+  const startAt = new Date(Math.max(scheduleStart.getTime(), allocationDate.getTime(), campaignStart?.getTime() ?? Number.NEGATIVE_INFINITY))
+  const endAt = new Date(Math.min(scheduleEnd.getTime(), allocationDate.getTime() + 86_400_000, campaignEnd?.getTime() ?? Number.POSITIVE_INFINITY))
+  return endAt > startAt ? { startAt, endAt } : null
+}
 // Display manifest versions are persisted in PostgreSQL INT4-backed fields.
 // Seven hex digits keep the deterministic hash-derived version positive and
 // within the signed 32-bit range while retaining stable change detection.
@@ -67,16 +74,15 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
     if (schedule.status !== 'PUBLISHED' || schedule.endsAt <= now) continue
     const rules = scheduleRules.parse(schedule.rules)
     // Only deliver paid/reserved dates. Prefetch remains safe for disconnected players.
-    const allocations = await prisma.inventoryAllocation.findMany({ where: { campaignId: assignment.campaign.id, screenId: displayId, status: { in: ['RESERVED','ACTIVE'] }, date: { gte: new Date(schedule.startsAt.toISOString().slice(0,10)), lte: new Date(Math.min(schedule.endsAt.getTime(),now.getTime()+7*86400000)).toISOString().slice(0,10)+'T00:00:00.000Z' } }, select: {date:true}, distinct:['date'] })
+    const allocations = await prisma.inventoryAllocation.findMany({ where: { campaignId: assignment.campaign.id, screenId: displayId, status: { in: ['RESERVED','ACTIVE'] }, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], date: { gte: new Date(schedule.startsAt.toISOString().slice(0,10)), lte: new Date(Math.min(schedule.endsAt.getTime(),now.getTime()+7*86400000)).toISOString().slice(0,10)+'T00:00:00.000Z' } }, select: {date:true}, distinct:['date'] })
     for (const allocation of allocations) {
-      const start = new Date(Math.max(schedule.startsAt.getTime(), allocation.date.getTime()))
-      const end = new Date(Math.min(schedule.endsAt.getTime(), allocation.date.getTime()+86400000))
-      if (end <= now || end <= start) continue
+      const window = authorizedAllocationWindow(schedule.startsAt, schedule.endsAt, allocation.date, assignment.campaign.startsAt, assignment.campaign.endsAt)
+      if (!window || window.endAt <= now) continue
       for (const [sequence,creativeId] of rules.creativeIds.entries()) {
         const item = campaignItems.find(i=>i.creativeId===creativeId)
         if (!item) continue
         const windows = rules.windows.length ? rules.windows : [{start:null,end:null}]
-        for (const [windowIndex,window] of windows.entries()) scheduledItems.push({...item,id:`${schedule.id}:${allocation.date.toISOString().slice(0,10)}:${sequence}:${windowIndex}`,scheduleId:schedule.id,sequence,exclusive:schedule.exclusive,priority:schedule.priority,daysOfWeek:rules.days,startAt:start.toISOString(),endAt:end.toISOString(),startTime:window.start,endTime:window.end,intervalSeconds:intervalSeconds(rules),playsPerLoop:rules.mode==='WEIGHTED'?rules.value:rules.mode==='SHARE'?Math.max(1,Math.round(28*rules.value/100)):1,durationSeconds:item.type==='IMAGE'?rules.imageDurationSeconds:item.durationSeconds})
+        for (const [windowIndex,windowRule] of windows.entries()) scheduledItems.push({...item,id:`${schedule.id}:${allocation.date.toISOString().slice(0,10)}:${sequence}:${windowIndex}`,scheduleId:schedule.id,sequence,exclusive:schedule.exclusive,priority:schedule.priority,daysOfWeek:rules.days,startAt:window.startAt.toISOString(),endAt:window.endAt.toISOString(),startTime:windowRule.start,endTime:windowRule.end,intervalSeconds:intervalSeconds(rules),playsPerLoop:rules.mode==='WEIGHTED'?rules.value:rules.mode==='SHARE'?Math.max(1,Math.round(28*rules.value/100)):1,durationSeconds:item.type==='IMAGE'?rules.imageDurationSeconds:item.durationSeconds})
       }
     }
   }
@@ -91,6 +97,6 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
   const versionItems = items.map((item) => ({ ...item, offer: Object.fromEntries(Object.entries(item.offer).filter(([key]) => key !== 'scanCount')) }))
   const news = { scrollSpeed: layout.newsScrollSpeed, announcements }
   const digest = createHash('sha256').update(JSON.stringify({ displayId, layout, news, items: versionItems })).digest('hex')
-  return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(), layout, news, items }, reasons }
+  return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout, news, items }, reasons }
 }
-const emptyManifest = (now: Date): DisplayManifest => ({ manifestId: 'manifest-empty', version: 0, generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(), layout: { type: 'FOUR_ZONE', contractVersion: 2, primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42 }, news: { scrollSpeed: 42, announcements: [] }, items: [] })
+const emptyManifest = (now: Date): DisplayManifest => ({ manifestId: 'manifest-empty', version: 0, generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout: { type: 'FOUR_ZONE', contractVersion: 2, primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42 }, news: { scrollSpeed: 42, announcements: [] }, items: [] })

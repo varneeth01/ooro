@@ -87,6 +87,7 @@ class OfflinePersistenceIntegrationTest {
         val reopened = open()
         val persisted = ManifestCodec.parse(reopened.manifestDao().active()!!.json)
         assertNull(nextVerifiedManifestItem(persisted, ScheduleEngine(), Instant.parse("2026-01-01T00:00:00Z"), 0, setOf("i")))
+        assertFalse(canCommitManifestResponse(persisted, requiredCount = 1, verifiedCount = 1, now = Instant.parse("2026-01-01T00:00:00Z")))
     }
 
     @Test fun legitimateEmptyManifestReplacesPreviouslyPlayableManifest() = runBlocking {
@@ -95,7 +96,10 @@ class OfflinePersistenceIntegrationTest {
         val active = DeviceManifest(1, credentials.screenId, "UTC", listOf(item), Instant.parse("2030-01-01T00:00:00Z"))
         database.manifestDao().put(ManifestEntity(version = 1, timezone = "UTC", validUntil = active.validUntil.toString(), json = ManifestCodec.encode(active)))
         val revoked = DeviceManifest(2, credentials.screenId, "UTC", emptyList(), Instant.parse("2030-01-01T00:00:00Z"))
-        database.manifestDao().put(ManifestEntity(version = 2, timezone = "UTC", validUntil = revoked.validUntil.toString(), json = ManifestCodec.encode(revoked)))
+        val api = FakeApi().apply { manifestResponse = revoked }
+        val response = api.manifest(credentials)
+        assertTrue(canCommitManifestResponse(response, requiredCount = 0, verifiedCount = 0, now = Instant.parse("2026-01-01T00:00:00Z")))
+        database.manifestDao().put(ManifestEntity(version = response.version, timezone = "UTC", validUntil = response.validUntil.toString(), json = ManifestCodec.encode(response)))
         database.close(); db = null
         val reopened = open()
         val persisted = ManifestCodec.parse(reopened.manifestDao().active()!!.json)
@@ -106,12 +110,50 @@ class OfflinePersistenceIntegrationTest {
 
     private class FakeApi(var acknowledgements: Set<String> = emptySet(), var failUpload: Boolean = false) : DeviceApi {
         val submittedIds = mutableListOf<List<String>>()
+        var manifestResponse: DeviceManifest? = null
+        var manifestFailure: Throwable? = null
         override suspend fun health() = Unit
         override suspend fun pair(request: PairRequest) = error("unused")
-        override suspend fun manifest(credentials: DeviceCredentials) = error("unused")
+        override suspend fun manifest(credentials: DeviceCredentials): DeviceManifest {
+            manifestFailure?.let { throw it }
+            return manifestResponse ?: error("no fake manifest configured")
+        }
         override suspend fun heartbeat(credentials: DeviceCredentials, status: PlayerStatus, manifestVersion: Long, telemetry: HeartbeatTelemetry) = Unit
         override suspend fun uploadProof(credentials: DeviceCredentials, events: List<ProofOfPlay>): ProofUploadResult { submittedIds += events.map { it.eventId }; if (failUpload) error("offline"); return ProofUploadResult(acknowledgements.size, acknowledgements) }
         override suspend fun unpair(credentials: DeviceCredentials) = Unit
+    }
+
+    @Test fun failedManifestRefreshLeavesLastValidManifestUsableUntilItsLeaseExpires() = runBlocking {
+        val database = open()
+        val now = Instant.parse("2026-11-05T10:00:00Z")
+        val item = ManifestItem("still-authorized", "campaign", "creative", CreativeType.IMAGE, "https://asset.invalid/media", "a".repeat(64), 10, 1, now.minusSeconds(60), now.plusSeconds(600), emptySet(), null, null)
+        val cached = DeviceManifest(1, credentials.screenId, "UTC", listOf(item), now.plusSeconds(900))
+        val cachedEntity = ManifestEntity(version = 1, timezone = "UTC", validUntil = cached.validUntil.toString(), json = ManifestCodec.encode(cached))
+        database.manifestDao().put(cachedEntity)
+
+        val api = FakeApi().apply { manifestFailure = java.net.SocketTimeoutException("fixture timeout") }
+        assertTrue(runCatching { api.manifest(credentials) }.isFailure)
+        assertEquals(cachedEntity, database.manifestDao().active())
+        val reopened = run { database.close(); db = null; open() }
+        val lastKnownGood = ManifestCodec.parse(reopened.manifestDao().active()!!.json)
+        assertEquals(item.id, nextVerifiedManifestItem(lastKnownGood, ScheduleEngine(), now.plusSeconds(300), 0, setOf(item.id))?.id)
+        assertNull(nextVerifiedManifestItem(lastKnownGood, ScheduleEngine(), now.plusSeconds(900), 0, setOf(item.id)))
+    }
+
+    @Test fun successfulRefreshExtendsManifestLeaseButItemScheduleStillCapsPlayback() = runBlocking {
+        val database = open()
+        val now = Instant.parse("2026-11-05T10:00:00Z")
+        val item = ManifestItem("campaign-end-bound", "campaign", "creative", CreativeType.IMAGE, "https://asset.invalid/media", "a".repeat(64), 10, 1, now.minusSeconds(60), now.plusSeconds(600), emptySet(), null, null)
+        val previous = DeviceManifest(1, credentials.screenId, "UTC", listOf(item), now.plusSeconds(120))
+        database.manifestDao().put(ManifestEntity(version = 1, timezone = "UTC", validUntil = previous.validUntil.toString(), json = ManifestCodec.encode(previous)))
+        val refreshed = DeviceManifest(2, credentials.screenId, "UTC", listOf(item), now.plusSeconds(900))
+        val api = FakeApi().apply { manifestResponse = refreshed }
+        val response = api.manifest(credentials)
+        assertTrue(canCommitManifestResponse(response, requiredCount = 1, verifiedCount = 1, now = now))
+        database.manifestDao().put(ManifestEntity(version = response.version, timezone = response.timezone, validUntil = response.validUntil.toString(), json = ManifestCodec.encode(response)))
+        val committed = ManifestCodec.parse(database.manifestDao().active()!!.json)
+        assertTrue(manifestIsAuthorizedAt(committed, now.plusSeconds(899)))
+        assertNull(nextVerifiedManifestItem(committed, ScheduleEngine(), now.plusSeconds(600), 0, setOf(item.id)))
     }
 
     @Test fun productionWorkerKeepsPartialAcknowledgementsForRetryAndDeduplicatesIds() = runBlocking {

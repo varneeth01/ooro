@@ -1,12 +1,35 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { deliveryAssetUrl, manifestVersionFor, manifestVersionFromDigest } from './campaign-eligibility.js'
+import { authorizedAllocationWindow, deliveryAssetUrl, manifestValidUntil, MANIFEST_AUTHORIZATION_LEASE_MS, manifestVersionFor, manifestVersionFromDigest } from './campaign-eligibility.js'
 import { safeDestination } from './qr-destination.js'
 
 test('manifest versions fit persisted signed INT4 fields', () => {
   const version = manifestVersionFromDigest('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
   assert.equal(version, 268435455)
   assert.ok(version > 0 && version <= 2_147_483_647)
+})
+
+test('manifest lease is a fixed 15 minutes; creative schedule dates remain separate playback gates', () => {
+  const now = new Date('2026-11-04T12:00:00.000Z')
+  const until = manifestValidUntil(now)
+  assert.equal(MANIFEST_AUTHORIZATION_LEASE_MS, 900_000)
+  assert.equal(until.toISOString(), '2026-11-04T12:15:00.000Z')
+  const campaignEndsAt = new Date('2026-11-04T12:10:00.000Z')
+  assert.ok(until > campaignEndsAt) // The Android selector must still enforce item.endAt.
+})
+
+test('scheduled item validity is clipped to campaign and single-day allocation bounds', () => {
+  const allocation = new Date('2026-11-05T00:00:00.000Z')
+  const window = authorizedAllocationWindow(
+    new Date('2026-11-05T08:00:00.000Z'),
+    new Date('2026-11-06T12:00:00.000Z'),
+    allocation,
+    new Date('2026-11-05T09:00:00.000Z'),
+    new Date('2026-11-05T20:00:00.000Z'),
+  )
+  assert.equal(window?.startAt.toISOString(), '2026-11-05T09:00:00.000Z')
+  assert.equal(window?.endAt.toISOString(), '2026-11-05T20:00:00.000Z')
+  assert.equal(authorizedAllocationWindow(new Date('2026-11-04T00:00:00.000Z'), new Date('2026-11-04T23:00:00.000Z'), allocation, new Date('2026-11-05T00:00:00.000Z'), null), null)
 })
 
 test('relative asset URLs become device-fetchable URLs in development', () => {
