@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ooro.screenplayer.api.ApiProvider
+import com.ooro.screenplayer.api.DeviceApi
+import com.ooro.screenplayer.model.DeviceCredentials
 import com.ooro.screenplayer.BuildConfig
 import com.ooro.screenplayer.data.DeviceStore
 import com.ooro.screenplayer.model.PlayerStatus
@@ -22,6 +24,14 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
+/** Test seam for exercising the production worker with isolated Room and fake API dependencies. */
+internal object SyncWorkerDependencies {
+    var credentials: ((Context) -> DeviceCredentials?)? = null
+    var database: ((Context) -> OoroDatabase)? = null
+    var api: ((Context, DeviceStore) -> DeviceApi)? = null
+    fun reset() { credentials = null; database = null; api = null }
+}
 
 object ProofSyncScheduler {
     private const val WORK_NAME = "ooro-proof-sync-v4"
@@ -60,13 +70,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val attempt = runAttemptCount
         Log.i("OoroScreen", "proof worker started attempt=$attempt")
         val store = DeviceStore(applicationContext)
-        val credentials = store.credentials() ?: run {
+        val credentials = (SyncWorkerDependencies.credentials?.invoke(applicationContext) ?: store.credentials()) ?: run {
             Log.w("OoroScreen", "proof worker skipped credentials unavailable attempt=$attempt")
             return Result.success()
         }
-        val db = OoroDatabase.get(applicationContext)
+        val db = SyncWorkerDependencies.database?.invoke(applicationContext) ?: OoroDatabase.get(applicationContext)
         return try {
-            val api = ApiProvider(store).api
+            val api = SyncWorkerDependencies.api?.invoke(applicationContext, store) ?: ApiProvider(store).api
             val pendingCount = db.proofDao().pendingCount()
             if (!shouldRunWorkerNetworkCheck(inputData.getBoolean(SCHEDULED_HEARTBEAT, false), pendingCount)) {
                 Log.i("OoroScreen", "proof worker skipped empty queue periodic=false")
