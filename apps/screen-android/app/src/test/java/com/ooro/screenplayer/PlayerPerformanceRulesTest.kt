@@ -8,14 +8,19 @@ import org.junit.Test
 
 class PlayerPerformanceRulesTest {
     @Test fun staticOrFittingTickerTextDoesNotAnimate() {
-        assertFalse(tickerNeedsScroll(hasAnnouncements = false, textWidthPx = 400f, viewportWidthPx = 200f))
-        assertFalse(tickerNeedsScroll(hasAnnouncements = true, textWidthPx = 200f, viewportWidthPx = 200f))
-        assertFalse(tickerNeedsScroll(hasAnnouncements = true, textWidthPx = 100f, viewportWidthPx = 200f))
+        assertFalse(tickerNeedsScroll(true, true, false, 400f, 200f))
+        assertFalse(tickerNeedsScroll(true, true, true, 200f, 200f))
+        assertFalse(tickerNeedsScroll(true, true, true, 100f, 200f))
     }
 
     @Test fun tickerScrollsOnlyWhenMeasuredTextExceedsViewport() {
-        assertTrue(tickerNeedsScroll(hasAnnouncements = true, textWidthPx = 201f, viewportWidthPx = 200f))
-        assertFalse(tickerNeedsScroll(hasAnnouncements = true, textWidthPx = Float.POSITIVE_INFINITY, viewportWidthPx = 200f))
+        assertTrue(tickerNeedsScroll(true, true, true, 201f, 200f))
+        assertFalse(tickerNeedsScroll(true, true, true, Float.POSITIVE_INFINITY, 200f))
+    }
+
+    @Test fun tickerAnimationStopsWhenHiddenOrLifecyclePaused() {
+        assertFalse(tickerNeedsScroll(false, true, true, 500f, 200f))
+        assertFalse(tickerNeedsScroll(true, false, true, 500f, 200f))
     }
 
     @Test fun unchangedImageKeyDoesNotInvalidateDecodeAndSizeChangeDoes() {

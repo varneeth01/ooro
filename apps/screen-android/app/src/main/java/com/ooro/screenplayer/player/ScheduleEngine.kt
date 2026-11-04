@@ -26,8 +26,8 @@ class ScheduleEngine {
         val result = if (due.isEmpty() && emergency.isEmpty() && exclusive.isEmpty()) active.filter { it.priority == 0 } else due
         return result.sortedWith(compareByDescending<ManifestItem> { it.priority }.thenBy { it.campaignId }.thenBy { it.sequence }.thenBy { it.id })
     }
-    fun next(manifest: DeviceManifest, now: Instant = Instant.now(), offset: Int = 0): ManifestItem? {
-        val eligible = eligible(manifest, now)
+    fun next(manifest: DeviceManifest, now: Instant = Instant.now(), offset: Int = 0, availableItemIds: Set<String>? = null): ManifestItem? {
+        val eligible = eligible(manifest, now).filter { availableItemIds == null || it.id in availableItemIds }
         val paced = eligible.filter { it.intervalSeconds > 0 }
         val items = (if (paced.isNotEmpty()) paced else eligible).flatMap { item -> List(item.playsPerLoop.coerceIn(1, 28)) { item } }
         return items.takeIf { it.isNotEmpty() }?.let { it[offset.mod(it.size)] }

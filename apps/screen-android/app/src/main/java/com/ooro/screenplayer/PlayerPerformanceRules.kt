@@ -6,8 +6,14 @@ internal data class CreativeImageDecodeKey(val path: String, val widthPx: Int, v
 internal data class CreativePlaybackKey(val itemId: String, val playbackKey: Int, val preview: Boolean)
 
 /** Animate ticker text only when it would otherwise be clipped by its viewport. */
-internal fun tickerNeedsScroll(hasAnnouncements: Boolean, textWidthPx: Float, viewportWidthPx: Float): Boolean =
-    hasAnnouncements && textWidthPx.isFinite() && viewportWidthPx.isFinite() && textWidthPx > viewportWidthPx && viewportWidthPx > 0f
+internal fun tickerNeedsScroll(
+    isVisible: Boolean,
+    isResumed: Boolean,
+    hasAnnouncements: Boolean,
+    textWidthPx: Float,
+    viewportWidthPx: Float,
+): Boolean = isVisible && isResumed && hasAnnouncements && textWidthPx.isFinite() &&
+    viewportWidthPx.isFinite() && textWidthPx > viewportWidthPx && viewportWidthPx > 0f
 
 /** Avoid rebinding an Android view when it already owns the requested player instance. */
 internal fun <T : Any> needsIdentityBinding(current: T?, desired: T?): Boolean = current !== desired

@@ -4,6 +4,7 @@ import android.content.Context
 import com.ooro.screenplayer.api.*
 import com.ooro.screenplayer.data.DeviceStore
 import com.ooro.screenplayer.ManifestRefreshBus
+import com.ooro.screenplayer.canCommitDownloadedManifest
 import com.ooro.screenplayer.data.ManifestEntity
 import com.ooro.screenplayer.data.OoroDatabase
 import com.ooro.screenplayer.model.DeviceManifest
@@ -51,5 +52,5 @@ class CommandProcessor(private val context: Context, private val api: DeviceApi,
         }
     }
     private suspend fun execute(command: DeviceCommand, credentials: com.ooro.screenplayer.model.DeviceCredentials) { when (command.type.uppercase()) { "REFRESH_MANIFEST", "SYNC_MANIFEST" -> refreshManifest(credentials); "HEALTH_CHECK" -> Unit; "RESTART_PLAYER", "RESTART_APP" -> { context.packageManager.getLaunchIntentForPackage(context.packageName)?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)?.let(context::startActivity) ?: error("launch intent unavailable") }; "CLEAR_CACHE", "CLEAR_UNUSED_CACHE" -> { AssetManager(context).clear(); refreshManifest(credentials) }; "UNPAIR" -> store.clear(); else -> throw UnsupportedOperationException("Unsupported command: ${command.type}") } }
-    private suspend fun refreshManifest(credentials: com.ooro.screenplayer.model.DeviceCredentials) { val db = OoroDatabase.get(context); val assets = AssetManager(context); val manifest = api.manifest(credentials); val required = manifest.items.filter { it.url.isNotBlank() }; val cached = required.mapNotNull { assets.ensure(it) }; if (cached.size != required.size) error("manifest assets unavailable"); db.manifestDao().put(ManifestEntity(version = manifest.version, timezone = manifest.timezone, validUntil = manifest.validUntil?.toString(), json = ManifestCodec.encode(manifest))); ManifestRefreshBus.request() }
+    private suspend fun refreshManifest(credentials: com.ooro.screenplayer.model.DeviceCredentials) { val db = OoroDatabase.get(context); val assets = AssetManager(context); val manifest = api.manifest(credentials); val required = manifest.items.filter { it.url.isNotBlank() }; val cached = required.mapNotNull { assets.ensure(it) }; if (!canCommitDownloadedManifest(required.size, cached.size)) error("manifest assets unavailable"); db.manifestDao().put(ManifestEntity(version = manifest.version, timezone = manifest.timezone, validUntil = manifest.validUntil?.toString(), json = ManifestCodec.encode(manifest))); ManifestRefreshBus.request() }
 }

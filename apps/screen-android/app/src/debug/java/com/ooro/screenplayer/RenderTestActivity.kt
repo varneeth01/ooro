@@ -51,6 +51,7 @@ import com.ooro.screenplayer.model.NewsAnnouncement
 import com.ooro.screenplayer.model.NewsConfig
 import com.ooro.screenplayer.model.OfferMetadata
 import java.io.File
+import java.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
@@ -73,14 +74,16 @@ class RenderTestActivity : ComponentActivity() {
         Log.i("OoroRenderTest", "offline preview started proofsDisabled=true networkManifestDisabled=true")
         setContent {
             MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme(primary = Color(0xFFF5C400))) {
+                val scenario = intent.getStringExtra("scenario")?.uppercase() ?: "STANDARD"
                 RenderTestScreen(
                     previewDirectory.absolutePath,
                     initialAsset = intent.getStringExtra("asset"),
-                    initialLayout = intent.getStringExtra("layout"),
+                    initialLayout = intent.getStringExtra("layout") ?: if (scenario == "TICKER_OVERFLOW") DisplayLayout.FOUR_ZONE.name else null,
                     controlsInitiallyVisible = intent.getBooleanExtra("controls", false),
                     initialMapEnabled = intent.getBooleanExtra("map", false),
-                    initialTickerEnabled = intent.getBooleanExtra("ticker", false),
-                    initialQrEnabled = intent.getBooleanExtra("qr", false)
+                    initialTickerEnabled = intent.getBooleanExtra("ticker", scenario == "TICKER_OVERFLOW"),
+                    initialQrEnabled = intent.getBooleanExtra("qr", false),
+                    scenario = scenario,
                 )
             }
         }
@@ -160,7 +163,8 @@ private fun RenderTestScreen(
     controlsInitiallyVisible: Boolean,
     initialMapEnabled: Boolean,
     initialTickerEnabled: Boolean,
-    initialQrEnabled: Boolean
+    initialQrEnabled: Boolean,
+    scenario: String,
 ) {
     val assets = remember {
         listOf(
@@ -176,10 +180,12 @@ private fun RenderTestScreen(
     }
     var selected by remember { mutableIntStateOf(assets.indexOfFirst { it.name == initialAsset }.takeIf { it >= 0 } ?: 0) }
     var layout by remember { mutableStateOf(DisplayLayout.entries.firstOrNull { it.name == initialLayout } ?: DisplayLayout.FULLSCREEN_AD) }
-    var mapEnabled by remember { mutableStateOf(initialMapEnabled) }
-    var tickerEnabled by remember { mutableStateOf(initialTickerEnabled) }
-    var qrEnabled by remember { mutableStateOf(initialQrEnabled) }
-    var controlsVisible by remember { mutableStateOf(controlsInitiallyVisible) }
+    val idleOnly = scenario == "EMPTY_IDLE"
+    val controlsAllowed = !idleOnly
+    var mapEnabled by remember { mutableStateOf(initialMapEnabled && !idleOnly) }
+    var tickerEnabled by remember { mutableStateOf(initialTickerEnabled && !idleOnly) }
+    var qrEnabled by remember { mutableStateOf(initialQrEnabled && !idleOnly) }
+    var controlsVisible by remember { mutableStateOf(controlsInitiallyVisible && controlsAllowed) }
     val selectedAsset = assets[selected]
     val itemList = remember(assets, qrEnabled) {
         assets.map { asset ->
@@ -198,10 +204,13 @@ private fun RenderTestScreen(
             )
         }
     }
-    val news = if (tickerEnabled) NewsConfig(42, listOf(NewsAnnouncement("render-test-news", "SYNTHETIC TICKER · OFFLINE TEST", 1))) else NewsConfig()
+    val tickerText = if (scenario == "TICKER_OVERFLOW") {
+        List(24) { "SYNTHETIC OVERFLOW EDGE-CHECK ${it + 1}" }.joinToString(" · ")
+    } else "SYNTHETIC TICKER · OFFLINE TEST"
+    val news = if (tickerEnabled && !idleOnly) NewsConfig(42, listOf(NewsAnnouncement("render-test-news", tickerText, 1))) else NewsConfig()
     val manifest = DeviceManifest(
-        version = 0, screenId = "LOCAL_RENDER_TEST", timezone = "UTC", items = itemList,
-        validUntil = null, layout = layout, layoutConfig = LayoutConfig(67, 89, 32, 42), news = news
+        version = 0, screenId = "LOCAL_RENDER_TEST", timezone = "UTC", items = if (idleOnly) emptyList() else itemList,
+        validUntil = Instant.now().plusSeconds(15 * 60), layout = layout, layoutConfig = LayoutConfig(67, 89, 32, 42), news = news
     )
     val paths = remember(assetDirectory, assets) {
         assets.associate { asset ->
@@ -216,13 +225,13 @@ private fun RenderTestScreen(
         nextInstruction = "MapLibre test · no route requested"
     )
     val preview = PlayerPreviewConfig(
-        itemId = "render-test-${selectedAsset.name}", assetPaths = paths, navigation = nav,
+        itemId = if (idleOnly) "empty-idle-no-item" else "render-test-${selectedAsset.name}", assetPaths = paths, navigation = nav,
         onMapHealth = { loaded, error -> Log.i("OoroRenderTest", "map active=$mapEnabled loaded=$loaded error=${error ?: "none"}") }
     )
 
     LaunchedEffect(controlsVisible, selected, layout, mapEnabled, tickerEnabled, qrEnabled) {
         if (controlsVisible) { kotlinx.coroutines.delay(5_000); controlsVisible = false }
-        Log.i("OoroRenderTest", "case creative=${selectedAsset.name} source=${selectedAsset.width}x${selectedAsset.height} type=${if (selectedAsset.video) "VIDEO" else "IMAGE"} layout=$layout map=$mapEnabled ticker=$tickerEnabled qr=$qrEnabled fit=FIT")
+        Log.i("OoroRenderTest", "case scenario=$scenario creative=${if (idleOnly) "none" else selectedAsset.name} source=${if (idleOnly) "none" else "${selectedAsset.width}x${selectedAsset.height}"} type=${if (idleOnly) "NONE" else if (selectedAsset.video) "VIDEO" else "IMAGE"} layout=$layout map=$mapEnabled ticker=$tickerEnabled qr=$qrEnabled fit=FIT manifestItems=${manifest.items.size}")
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -240,7 +249,7 @@ private fun RenderTestScreen(
                     Button(onClick = { controlsVisible = false; Log.i("OoroRenderTest", "controls hidden screenshot-ready=true") }) { Text("Hide") }
                 }
             }
-        } else {
+        } else if (controlsAllowed) {
             Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { controlsVisible = true } })
         }
     }

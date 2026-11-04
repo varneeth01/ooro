@@ -10,6 +10,7 @@ import com.ooro.screenplayer.model.PlayerStatus
 import com.ooro.screenplayer.data.OoroDatabase
 import com.ooro.screenplayer.data.ProofEntity
 import com.ooro.screenplayer.model.ProofOfPlay
+import com.ooro.screenplayer.acknowledgedProofEventIds
 import org.json.JSONObject
 import java.time.Instant
 import android.util.Log
@@ -115,7 +116,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             val upload = api.uploadProof(credentials, events)
             Log.i("OoroScreen", "proof upload acknowledged accepted=${upload.accepted} batch=${events.size} attempt=$attempt")
             val selectedIds = uploadRows.map { it.eventId }.toSet()
-            val acknowledgedIds = upload.acceptedEventIds.intersect(selectedIds)
+            val acknowledgedIds = acknowledgedProofEventIds(selectedIds, upload.acceptedEventIds)
             if (acknowledgedIds.isEmpty() && upload.accepted > 0) {
                 Log.w("OoroScreen", "proof upload acknowledgment missing event IDs accepted=${upload.accepted} selected=${events.size}; retaining local rows")
             }

@@ -70,6 +70,8 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import kotlinx.coroutines.flow.flowOf
+import java.time.Duration
+import java.time.Instant
 
 class MainActivity : ComponentActivity() {
     private val vm: ScreenViewModel by viewModels { ScreenViewModel.factory(applicationContext) }
@@ -183,9 +185,25 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     var taps by remember { mutableIntStateOf(0) }
     val playbackOffset by (vm?.playbackOffset ?: flowOf(0)).collectAsState(initial = 0)
     val presentationItem by (vm?.currentCreative ?: flowOf<ManifestItem?>(null)).collectAsState(initial = null)
-    val scheduledItem = remember(manifest, playbackOffset, vm) { vm?.currentItem(manifest, playbackOffset) }
+    val verifiedAssetIds by (vm?.verifiedAssetIds ?: flowOf(emptySet<String>())).collectAsState(initial = emptySet())
+    var manifestExpired by remember(manifest.version, manifest.validUntil) {
+        mutableStateOf(!manifestIsAuthorizedAt(manifest, Instant.now()))
+    }
+    LaunchedEffect(manifest.version, manifest.validUntil) {
+        val expiresAt = manifest.validUntil
+        if (expiresAt == null) {
+            manifestExpired = true
+        } else {
+            val remainingMs = Duration.between(Instant.now(), expiresAt).toMillis()
+            if (remainingMs <= 0) manifestExpired = true
+            else { kotlinx.coroutines.delay(remainingMs); manifestExpired = true }
+        }
+    }
+    val scheduledItem = remember(manifest, playbackOffset, verifiedAssetIds, manifestExpired, vm) {
+        if (manifestExpired) null else vm?.currentItem(manifest, playbackOffset, verifiedAssetIds)
+    }
     val item = preview?.let { state -> manifest.items.firstOrNull { it.id == state.itemId } } ?: scheduledItem
-    val displayedOffer = if (preview != null) item else presentationItem ?: item
+    val displayedOffer = if (preview != null) item else if (manifestExpired) null else presentationItem ?: item
     val rootModifier = if (preview == null) Modifier.fillMaxSize().background(Color.Black).clickable {
         taps++
         if (taps >= 7) { taps = 0; vm?.showAdmin() }
@@ -194,7 +212,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
         if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize().clipToBounds()) {
             Column(Modifier.weight(manifest.layoutConfig.safePrimaryWidth.toFloat()).fillMaxHeight().clipToBounds()) {
                 Box(Modifier.weight(manifest.layoutConfig.safeAdHeight.toFloat()).fillMaxWidth().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
-                NewsTicker(manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()).fillMaxWidth().clipToBounds())
+                NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()).fillMaxWidth().clipToBounds())
             }
             Column(Modifier.weight((100 - manifest.layoutConfig.safePrimaryWidth).toFloat()).fillMaxHeight().clipToBounds()) {
                 Box(Modifier.weight(manifest.layoutConfig.safeQrHeight.toFloat()).fillMaxWidth().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
@@ -223,11 +241,17 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
             textMeasurer.measure(AnnotatedString(message), style = textStyle, maxLines = 1, softWrap = false).size.width.toFloat()
         }
         val viewportWidthPx = with(density) { maxWidth.toPx() }
-        val shouldScroll = tickerNeedsScroll(announcements.isNotEmpty(), textWidthPx, viewportWidthPx)
+        val shouldScroll = tickerNeedsScroll(
+            isVisible = true,
+            isResumed = lifecycleState == Lifecycle.State.RESUMED,
+            hasAnnouncements = announcements.isNotEmpty(),
+            textWidthPx = textWidthPx,
+            viewportWidthPx = viewportWidthPx,
+        )
         val gap = 36.dp
         val gapPx = with(density) { gap.toPx() }
         LaunchedEffect(message, news.scrollSpeed, textWidthPx, viewportWidthPx, lifecycleState, shouldScroll) {
-            if (!shouldScroll || lifecycleState != Lifecycle.State.RESUMED) { offset.snapTo(0f); return@LaunchedEffect }
+            if (!shouldScroll) { offset.snapTo(0f); return@LaunchedEffect }
             val segment = textWidthPx + gapPx
         val duration = (segment / news.scrollSpeed.coerceIn(10, 120) * 1000).toInt().coerceIn(8_000, 45_000)
         while (true) {
@@ -251,7 +275,9 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     val item = selectedItem
     var path by remember(item?.id, playbackKey, preview) { mutableStateOf<String?>(null) }
     LaunchedEffect(item?.id, playbackKey, preview?.itemId, preview?.assetPaths) {
-        path = item?.let { preview?.assetPaths?.get(it.id) ?: vm?.localFile(it) }
+        val resolved = item?.let { preview?.assetPaths?.get(it.id) ?: vm?.localFile(it) }
+        path = resolved
+        if (item != null && resolved == null && preview == null) vm?.markAssetUnavailable(item.id)
     }
     val measuredBounds = if (preview == null) Modifier else Modifier.onSizeChanged { size ->
         Log.i("OoroRenderTest", "region creativeId=${item?.creativeId} boundsPx=${size.width}x${size.height} fit=${item?.fitMode}")
