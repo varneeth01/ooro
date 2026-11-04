@@ -6,7 +6,6 @@ package com.ooro.screenplayer
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -34,6 +34,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,6 +53,9 @@ import com.google.zxing.MultiFormatWriter
 import com.ooro.screenplayer.kiosk.OoroDeviceAdminReceiver
 import com.ooro.screenplayer.model.*
 import com.ooro.screenplayer.player.Media3CreativePlayer
+import com.ooro.screenplayer.player.CreativeScaleBehavior
+import com.ooro.screenplayer.player.creativeScaleBehavior
+import com.ooro.screenplayer.player.decodeCreativeImage
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -150,12 +158,39 @@ internal fun isRepairAccessCode(value: String, configuredCode: String = BuildCon
     val item = selectedItem; var path by remember(item?.id, playbackKey) { mutableStateOf<String?>(null) }; LaunchedEffect(item?.id, playbackKey) { path = item?.let { vm.localFile(it) } }
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         if (item == null || path == null) Text("OORO\nContent will resume shortly", color = Color.White, fontSize = 24.sp)
-        else if (item.type == CreativeType.IMAGE) { val bitmap = remember(path, playbackKey) { path?.let(BitmapFactory::decodeFile) }; if (bitmap != null) { LaunchedEffect(item.id, playbackKey) { vm.creativeStarted(item); kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm.creativeFinished(item, item.durationSeconds * 1000L, true) }; Image(bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize(), contentScale = item.fitMode.toContentScale()) } else LaunchedEffect(item.id, playbackKey) { vm.creativeStarted(item); vm.creativeFinished(item, 0, false, "IMAGE_DECODE_FAILED") } }
+        else if (item.type == CreativeType.IMAGE) {
+            if (path != null) BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
+                val heightPx = with(density) { maxHeight.roundToPx().coerceAtLeast(1) }
+                val bitmapState = remember(path, widthPx, heightPx) { mutableStateOf<Bitmap?>(null) }
+                val doneState = remember(path, widthPx, heightPx) { mutableStateOf(false) }
+                val bitmap = bitmapState.value
+                LaunchedEffect(path, widthPx, heightPx) {
+                    bitmapState.value = null; doneState.value = false
+                    var decoded: Bitmap? = null
+                    try {
+                        decoded = withContext(Dispatchers.IO) { decodeCreativeImage(path!!, widthPx, heightPx) }
+                        currentCoroutineContext().ensureActive()
+                        bitmapState.value = decoded; decoded = null
+                    } finally { decoded?.recycle(); doneState.value = true }
+                }
+                DisposableEffect(bitmap) { onDispose { bitmap?.takeUnless(Bitmap::isRecycled)?.recycle() } }
+                LaunchedEffect(item.id, playbackKey, path, widthPx, heightPx) {
+                    val loaded = snapshotFlow { bitmapState.value to doneState.value }.first { it.first != null || it.second }
+                    vm.creativeStarted(item)
+                    if (loaded.first == null) vm.creativeFinished(item, 0, false, "IMAGE_DECODE_FAILED")
+                    else { kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm.creativeFinished(item, item.durationSeconds * 1000L, true) }
+                }
+                if (bitmap != null) Image(bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize().clipToBounds(), contentScale = item.fitMode.toContentScale())
+                else Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("Preparing advertisement…", color = Color.White) }
+            } else Text("Preparing advertisement…", color = Color.White)
+        }
         else {
             val context = LocalContext.current
             val creative = remember(item.id, playbackKey) {
                 Log.i("OoroScreen", "media player created creativeId=${item.creativeId} itemId=${item.id} key=$playbackKey")
-                Media3CreativePlayer(context, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) })
+                Media3CreativePlayer(context.applicationContext, { vm.creativeStarted(item) }, { ms -> vm.creativeFinished(item, ms, true) }, { e -> vm.creativeFinished(item, creativeDuration(item), false, e.message) }, { }, { position -> vm.creativePosition(item, position) })
             }
             DisposableEffect(path, playbackKey) {
                 creative.play(path!!)
@@ -167,7 +202,7 @@ internal fun isRepairAccessCode(value: String, configuredCode: String = BuildCon
             }
             AndroidView(
                 factory = { context -> PlayerView(context).apply { useController = false; resizeMode = item.fitMode.toResizeMode(); Log.i("OoroScreen", "video surface created creativeId=${item.creativeId} itemId=${item.id}") } },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().clipToBounds(),
                 update = { view ->
                     if (view.player !== creative.player) Log.i("OoroScreen", "video surface rebound creativeId=${item.creativeId} itemId=${item.id}")
                     view.player = creative.player
@@ -178,36 +213,41 @@ internal fun isRepairAccessCode(value: String, configuredCode: String = BuildCon
         }
     }
 }
-private fun FitMode.toContentScale() = when (this) { FitMode.FILL, FitMode.CENTER_CROP -> ContentScale.Crop; FitMode.FIT -> ContentScale.Fit }
-private fun FitMode.toResizeMode() = when (this) { FitMode.FILL, FitMode.CENTER_CROP -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM; FitMode.FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT }
+private fun FitMode.toContentScale() = when (creativeScaleBehavior(this)) { CreativeScaleBehavior.CROP -> ContentScale.Crop; CreativeScaleBehavior.CONTAIN -> ContentScale.Fit }
+private fun FitMode.toResizeMode() = when (creativeScaleBehavior(this)) { CreativeScaleBehavior.CROP -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM; CreativeScaleBehavior.CONTAIN -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT }
 private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
 
-@Composable private fun NavigationPanel(vm: ScreenViewModel, modifier: Modifier) { val nav by vm.navigation.collectAsState(); Box(modifier.background(Panel).padding(4.dp)) { MapPanel(vm, nav, Modifier.fillMaxSize()); Text("▲", color = Yellow, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center)); if (nav.active && (nav.nextInstruction ?: nav.destinationName) != null) Text(nav.nextInstruction ?: nav.destinationName.orEmpty(), color = Color.White, fontSize = 12.sp, maxLines = 1, modifier = Modifier.align(Alignment.TopStart).background(Color(0xAA121820)).padding(horizontal = 6.dp, vertical = 4.dp)) } }
+@Composable private fun NavigationPanel(vm: ScreenViewModel, modifier: Modifier) { val nav by vm.navigation.collectAsState(); Box(modifier.background(Panel).clipToBounds().padding(4.dp)) { if (nav.active) MapPanel(vm, nav, Modifier.fillMaxSize().clipToBounds()) else Box(Modifier.fillMaxSize().background(Panel)); if (nav.active) { Text("▲", color = Yellow, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center)); if ((nav.nextInstruction ?: nav.destinationName) != null) Text(nav.nextInstruction ?: nav.destinationName.orEmpty(), color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xAA121820)).padding(horizontal = 6.dp, vertical = 4.dp)) } } }
 @Composable private fun MapPanel(vm: ScreenViewModel, nav: NavigationState, modifier: Modifier) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    remember(context.applicationContext) {
+        org.maplibre.android.MapLibre.getInstance(context.applicationContext, "", org.maplibre.android.WellKnownTileServer.MapLibre)
+        true
+    }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var vehicleMarker by remember { mutableStateOf<Marker?>(null) }
     var mapLoaded by remember { mutableStateOf(false) }
     var mapError by remember { mutableStateOf<String?>(null) }
     var lastCameraTarget by remember { mutableStateOf<LatLng?>(null) }
+    var lastCameraMoveAt by remember { mutableLongStateOf(0L) }
 
-    val currentMapView by rememberUpdatedState(mapView)
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, mapView) {
+        val activeMapView = mapView ?: return@DisposableEffect onDispose { }
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> currentMapView?.onStart()
-                Lifecycle.Event.ON_RESUME -> currentMapView?.onResume()
-                Lifecycle.Event.ON_PAUSE -> currentMapView?.onPause()
-                Lifecycle.Event.ON_STOP -> currentMapView?.onStop()
+                Lifecycle.Event.ON_START -> activeMapView.onStart()
+                Lifecycle.Event.ON_RESUME -> activeMapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> activeMapView.onPause()
+                Lifecycle.Event.ON_STOP -> activeMapView.onStop()
                 else -> Unit
             }
         }
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) activeMapView.onStart()
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) activeMapView.onResume()
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val latitude = nav.currentLatitude
@@ -236,8 +276,9 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
         val previous = lastCameraTarget
         if (previous == null) {
             readyMap.moveCamera(CameraUpdateFactory.newLatLngZoom(target, 14.0))
-        } else if (kotlin.math.abs(previous.latitude - lat) > 0.0003 || kotlin.math.abs(previous.longitude - lon) > 0.0003) {
+        } else if (distanceMeters(previous, target) >= 100.0 && android.os.SystemClock.elapsedRealtime() - lastCameraMoveAt >= 20_000L) {
             readyMap.easeCamera(CameraUpdateFactory.newLatLngZoom(target, 14.0), 700)
+            lastCameraMoveAt = android.os.SystemClock.elapsedRealtime()
         }
         lastCameraTarget = target
     }
@@ -248,8 +289,6 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
             factory = { MapView(context).also { createdMapView ->
                 mapView = createdMapView
                 createdMapView.onCreate(null)
-                createdMapView.onStart()
-                createdMapView.onResume()
                 createdMapView.addOnTileActionListener { operation, _, _, _, _, _, reason ->
                     when (operation) {
                         TileOperation.LoadFromNetwork, TileOperation.LoadFromCache -> {
@@ -283,8 +322,9 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
             } },
             update = { },
             onRelease = { releasedMapView ->
-                releasedMapView.onPause()
-                releasedMapView.onStop()
+                val state = lifecycleOwner.lifecycle.currentState
+                if (state.isAtLeast(Lifecycle.State.RESUMED)) releasedMapView.onPause()
+                if (state.isAtLeast(Lifecycle.State.STARTED)) releasedMapView.onStop()
                 releasedMapView.onDestroy()
                 mapView = null
                 map = null
@@ -297,36 +337,54 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
 }
 private const val OSM_STYLE = """{"version":8,"sources":{"osm":{"type":"raster","tiles":["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],"tileSize":256,"attribution":"© OpenStreetMap contributors"}},"layers":[{"id":"osm","type":"raster","source":"osm"}]}"""
 
+private fun distanceMeters(start: LatLng, end: LatLng): Double {
+    val earthRadius = 6_371_000.0
+    val dLat = Math.toRadians(end.latitude - start.latitude)
+    val dLon = Math.toRadians(end.longitude - start.longitude)
+    val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) + kotlin.math.cos(Math.toRadians(start.latitude)) * kotlin.math.cos(Math.toRadians(end.latitude)) * kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+    return earthRadius * 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
+}
+
 @Composable private fun OfferPanel(item: ManifestItem?, modifier: Modifier) {
     val offer = item?.offer ?: OfferMetadata()
-    val qr = remember(item?.id, offer.validQrUrl) { offer.validQrUrl?.let(::qrBitmap) }
     val promotionalText = offer.promotionalText?.trim().takeIf { !it.isNullOrBlank() }
     val brandName = offer.brandName?.trim().takeIf { !it.isNullOrBlank() }
-    BoxWithConstraints(modifier.background(Color(0xFF20252B)).padding(horizontal = 10.dp, vertical = 6.dp)) {
+    BoxWithConstraints(modifier.background(Color(0xFF20252B)).clipToBounds().padding(horizontal = 10.dp, vertical = 6.dp)) {
         val panelWidth = maxWidth
         val panelHeight = maxHeight
-        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        val qrSize = minOf(panelWidth * 0.46f, panelHeight * 0.88f)
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val qrPixels = with(density) { qrSize.roundToPx().coerceIn(96, 512) }
+        val qrUrl = offer.validQrUrl
+        val qrState = produceState<Bitmap?>(null, item?.id, qrUrl, qrPixels) {
+            value = null
+            if (qrUrl != null) value = withContext(Dispatchers.IO) { qrBitmap(qrUrl, qrPixels) }
+        }
+        val qr = qrState.value
+        DisposableEffect(qr) { onDispose { qr?.takeUnless(Bitmap::isRecycled)?.recycle() } }
+        Row(Modifier.fillMaxSize().clipToBounds(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(0.48f).padding(end = 8.dp), verticalArrangement = Arrangement.Center) {
                 if (promotionalText != null) {
-                    Text(promotionalText, color = Yellow, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-                    if (brandName != null) Text(brandName, color = Color.White, fontSize = 14.sp, maxLines = 2)
+                    Text(promotionalText, color = Yellow, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    if (brandName != null) Text(brandName, color = Color.White, fontSize = 14.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 } else if (brandName != null) {
-                    Text(brandName, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                    Text(brandName, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 } else if (qr == null) {
                     Text("OORO", color = Yellow, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
                 if (qr != null && !offer.ctaLabel.isNullOrBlank()) Text(offer.ctaLabel!!.trim(), color = Color(0xFFB8C0C8), fontSize = 11.sp, maxLines = 2, modifier = Modifier.padding(top = 5.dp))
             }
             Box(Modifier.weight(0.52f).fillMaxHeight(), contentAlignment = Alignment.CenterEnd) {
-                if (qr != null) {
-                    val qrSize = minOf(panelWidth * 0.46f, panelHeight * 0.88f)
-                    Image(qr.asImageBitmap(), "Advertisement QR code", Modifier.size(qrSize), contentScale = ContentScale.Fit)
-                }
+                if (qr != null) Image(qr.asImageBitmap(), "Advertisement QR code", Modifier.size(qrSize), contentScale = ContentScale.Fit)
             }
         }
     }
 }
-private fun qrBitmap(value: String): Bitmap? = runCatching { val matrix = MultiFormatWriter().encode(value, BarcodeFormat.QR_CODE, 512, 512); Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888).also { bitmap -> for (x in 0 until 512) for (y in 0 until 512) bitmap.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE) } }.getOrNull()
+private fun qrBitmap(value: String, size: Int): Bitmap? = runCatching {
+    val matrix = MultiFormatWriter().encode(value, BarcodeFormat.QR_CODE, size, size)
+    val pixels = IntArray(size * size) { index -> if (matrix[index % size, index / size]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
+    Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { it.setPixels(pixels, 0, size, 0, 0, size, size) }
+}.getOrNull()
 @Composable private fun Admin(vm: ScreenViewModel) {
     var repairCodeDialog by remember { mutableStateOf(false) }; var repairCode by remember { mutableStateOf("") }; var repairCodeError by remember { mutableStateOf<String?>(null) }
     val d by vm.diagnostics.collectAsState(); val mapTilesRendered by vm.mapTilesRendered.collectAsState(); val mapTileError by vm.mapTileError.collectAsState(); val context = LocalContext.current; val n = networkInfo(context); val l = locationDiagnostics(context); val c = vm.deviceId
