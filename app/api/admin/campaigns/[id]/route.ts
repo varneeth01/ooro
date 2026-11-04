@@ -53,7 +53,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const admin = await requireAdminPermission("campaign:update"); const { id } = await params; const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: { message: "Invalid campaign update." } }, { status: 422 }); const input = parsed.data;
     if (input.status === "APPROVED") await requireAdminPermission("campaign:approve");
     if (input.status === "SCHEDULED" || input.status === "ACTIVE") await requireAdminPermission("campaign:schedule");
-    const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 });
+    const campaign = await webPrisma.campaign.findUnique({ where: { id } }); if (!campaign) return NextResponse.json({ error: { message: "Campaign not found" } }, { status: 404 }); if (campaign.status === "ARCHIVED") return NextResponse.json({ error: { code: "CAMPAIGN_ARCHIVED", message: "Archived campaigns are read-only." } }, { status: 409 });
     if (input.status === "ACTIVE" || input.status === "SCHEDULED") return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Publish through Admin → Scheduler to validate and reserve inventory."}},{status:409});
     const existingSchedule = await webPrisma.adSchedule.findUnique({where:{campaignId:id}});
     if (existingSchedule && (input.screenIds || input.startDate || input.endDate || input.startTime || input.endTime || input.days || input.playsPerLoop || input.autoSelectRadius)) return NextResponse.json({error:{code:"USE_SCHEDULER",message:"Edit delivery dates, targeting and playback rules in Admin → Scheduler."}},{status:409});
@@ -67,4 +67,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const updated = await webPrisma.$transaction(async tx => { if (requestedScreenIds) { await tx.displayCampaignAssignment.updateMany({ where: { campaignId: id }, data: { active: false } }); const existing = await tx.displayCampaignAssignment.findMany({ where: { campaignId: id, displayId: { in: requestedScreenIds } }, select: { id: true, displayId: true } }); const existingByDisplay = new Map(existing.map(item => [item.displayId, item.id])); for (const displayId of requestedScreenIds) { const assignmentId = existingByDisplay.get(displayId); if (assignmentId) await tx.displayCampaignAssignment.update({ where: { id: assignmentId }, data: { active: true } }); else await tx.displayCampaignAssignment.create({ data: { campaignId: id, displayId, active: true } }); } } const result = await tx.campaign.update({ where: { id }, data: { status: input.status, campaignCenterLat: centerLat, campaignCenterLng: centerLng, radiusKm, timezone: input.timezone ?? undefined, startsAt: campaignDate(input.startDate, input.timezone ?? campaign.timezone ?? "UTC"), endsAt: campaignDate(input.endDate, input.timezone ?? campaign.timezone ?? "UTC", true), metadata } }); if(input.status === "PAUSED") await tx.adSchedule.updateMany({where:{campaignId:id},data:{status:"PAUSED"}}); if(input.status === "COMPLETED"){const schedules=await tx.adSchedule.findMany({where:{campaignId:id},select:{id:true}});await tx.adSchedule.updateMany({where:{campaignId:id},data:{status:"COMPLETED"}});await tx.inventoryAllocation.updateMany({where:{scheduleId:{in:schedules.map(schedule=>schedule.id)},status:{in:["RESERVED","ACTIVE"]}},data:{status:"CANCELLED"}});await tx.displayCampaignAssignment.updateMany({where:{campaignId:id},data:{active:false}});} if (commandIds.length) { await tx.displayCommand.createMany({ data: commandIds.map(displayId => ({ displayId, commandType: "SYNC_MANIFEST", payload: { campaignId: id, status: input.status }, expiresAt: null })) }); } await tx.auditLog.create({ data: { actorId: admin.userId, actorRole: admin.role, action: input.status === "PAUSED" ? "CAMPAIGN_PAUSED" : input.status === "APPROVED" ? "CAMPAIGN_APPROVED" : input.status === "COMPLETED" ? "CAMPAIGN_ENDED" : requestedScreenIds ? "SCREENS_ASSIGNED" : "CAMPAIGN_UPDATED", entityType: "Campaign", entityId: id, before: {status:campaign.status}, after: { status: input.status, screenCount: commandIds.length } } }); return result; });
     return NextResponse.json({ data: safe({ ...updated, syncRequested: commandIds.length, commandType: commandIds.length && input.status ? "SYNC_MANIFEST" : null }) });
   } catch (error) { return errorResponse(error); }
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await requireAdminPermission("campaign:update");
+    const { id } = await params;
+    const campaign = await webPrisma.campaign.findUnique({ where: { id } });
+    if (!campaign) return NextResponse.json({ error: { message: "Campaign not found." } }, { status: 404 });
+    if (campaign.status === "ARCHIVED") return NextResponse.json({ data: { id, status: "ARCHIVED", alreadyArchived: true } });
+    const result = await webPrisma.$transaction(async tx => {
+      const assignments = await tx.displayCampaignAssignment.findMany({ where: { campaignId: id, active: true }, select: { displayId: true } });
+      const schedules = await tx.adSchedule.findMany({ where: { campaignId: id }, select: { id: true } });
+      await tx.displayCampaignAssignment.updateMany({ where: { campaignId: id }, data: { active: false } });
+      await tx.adSchedule.updateMany({ where: { campaignId: id }, data: { status: "CANCELLED" } });
+      await tx.inventoryAllocation.updateMany({ where: { campaignId: id, status: { in: ["RESERVED", "ACTIVE"] } }, data: { status: "CANCELLED" } });
+      await tx.displayCommand.createMany({ data: assignments.map(({ displayId }) => ({ displayId, commandType: "SYNC_MANIFEST", payload: { campaignId: id, status: "ARCHIVED" }, expiresAt: null })) });
+      const archived = await tx.campaign.update({ where: { id }, data: { status: "ARCHIVED" } });
+      await tx.auditLog.create({ data: { actorId: admin.userId, actorRole: admin.role, action: "CAMPAIGN_ARCHIVED", entityType: "Campaign", entityId: id, before: { status: campaign.status }, after: { status: "ARCHIVED", activeScreens: assignments.length, schedulesCancelled: schedules.length } } });
+      return archived;
+    });
+    return NextResponse.json({ data: { id: result.id, status: result.status, activeScreens: 0 } });
+  } catch (error) {
+    const status = error instanceof AdminAuthError ? error.status : 503;
+    return NextResponse.json({ error: { message: error instanceof AdminAuthError ? "Campaign management access required." : "Campaign could not be removed. Please retry." } }, { status });
+  }
 }
