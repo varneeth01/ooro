@@ -857,7 +857,24 @@ app.get('/api/device/commands', async (request, reply) => {
   }
   return ok(request, asJson(commands), reply)
 })
-app.post('/api/device/commands/:commandId/ack', async (request, reply) => { const display = await authenticateDisplay(request); const { commandId } = request.params as { commandId: string }; const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED','PROCESSING','SUCCEEDED','FAILED','UNSUPPORTED']), receivedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), completedAt: z.coerce.date().optional(), errorCode: z.string().optional(), errorMessage: z.string().optional() })); const command = await prisma.displayCommand.findFirst({ where: { id: commandId, displayId: display.id } }); if (!command) throw notFound('Command not found'); const terminal = ['SUCCEEDED', 'FAILED', 'UNSUPPORTED'].includes(input.status); return ok(request, await prisma.displayCommand.update({ where: { id: commandId }, data: { status: input.status, acknowledgedAt: terminal || input.status === 'RECEIVED' || input.status === 'PROCESSING' ? new Date() : command.acknowledgedAt, failedAt: input.status === 'FAILED' ? new Date() : undefined, error: input.errorMessage } }), reply) })
+app.post('/api/device/commands/:commandId/ack', async (request, reply) => {
+  const display = await authenticateDisplay(request)
+  const { commandId } = request.params as { commandId: string }
+  const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED','PROCESSING','SUCCEEDED','FAILED','UNSUPPORTED']), receivedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), completedAt: z.coerce.date().optional(), errorCode: z.string().optional(), errorMessage: z.string().optional() }))
+  const command = await prisma.displayCommand.findFirst({ where: { id: commandId, displayId: display.id } })
+  if (!command) throw notFound('Command not found')
+  const terminal = ['SUCCEEDED', 'FAILED', 'UNSUPPORTED'].includes(input.status)
+  const updated = await prisma.$transaction(async (tx) => {
+    const acknowledged = await tx.displayCommand.update({ where: { id: commandId }, data: { status: input.status, acknowledgedAt: terminal || input.status === 'RECEIVED' || input.status === 'PROCESSING' ? new Date() : command.acknowledgedAt, failedAt: input.status === 'FAILED' ? new Date() : undefined, error: input.errorMessage } })
+    if (command.commandType === 'UNPAIR' && input.status === 'SUCCEEDED') {
+      const deleteAfterUnpair = Boolean(command.payload && typeof command.payload === 'object' && 'deleteAfterUnpair' in command.payload && command.payload.deleteAfterUnpair === true)
+      await tx.display.update({ where: { id: display.id }, data: { deviceTokenHash: null, state: deleteAfterUnpair ? 'DELETED' : 'UNPAIRED' } })
+      await tx.auditLog.create({ data: { actorId: null, actorRole: 'DEVICE', action: deleteAfterUnpair ? 'DISPLAY_DELETED_AFTER_UNPAIR' : 'DISPLAY_UNPAIRED', entityType: 'Display', entityId: display.id, after: { commandId }, requestId: request.id } })
+    }
+    return acknowledged
+  })
+  return ok(request, updated, reply)
+})
 app.post('/api/device/unpair', async (request, reply) => { const display = await authenticateDisplay(request); await prisma.display.update({ where: { id: display.id }, data: { deviceTokenHash: null, state: 'UNPAIRED' } }); return ok(request, { unpaired: true }, reply) })
 
 const eventSchema = z.object({ eventId: z.string().min(4).max(160), provider: z.enum(MOBILITY_PROVIDERS), eventType: z.enum(MOBILITY_EVENT_TYPES), timestamp: z.coerce.date().optional(), occurredAt: z.coerce.date().optional(), confidence: z.number().min(0).max(1).default(1), source: z.string().max(80).optional(), sourcePackage: z.string().max(200).optional(), parserVersion: z.number().int().positive().optional() })
@@ -995,6 +1012,34 @@ app.post('/api/admin/displays', async (request, reply) => {
   await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_CREATED', entityType: 'Display', entityId: display.id, after: { city: input.city, area: input.area, notes: input.notes } as any, requestId: request.id } })
   return ok(request, { displayId: display.id, pairingCode: code, expiresAt, display }, reply)
 })
+app.delete('/api/admin/displays/:displayId', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { displayId } = request.params as { displayId: string }
+  const display = await prisma.display.findUnique({ where: { id: displayId }, select: { id: true, state: true, deviceTokenHash: true } })
+  if (!display) throw notFound('Screen not found')
+  if (display.state === 'DELETED') return ok(request, { displayId, state: 'DELETED', pendingUnpair: false }, reply)
+  const result = await prisma.$transaction(async (tx) => {
+    const assignments = await tx.displayCampaignAssignment.findMany({ where: { displayId, active: true }, select: { campaignId: true } })
+    await tx.displayCampaignAssignment.updateMany({ where: { displayId }, data: { active: false } })
+    await tx.inventoryAllocation.updateMany({ where: { screenId: displayId, status: { in: ['RESERVED', 'ACTIVE'] } }, data: { status: 'CANCELLED' } })
+    await tx.displayPairingCode.updateMany({ where: { displayId, consumedAt: null, revokedAt: null }, data: { revokedAt: new Date() } })
+    let commandId: string | null = null
+    const paired = Boolean(display.deviceTokenHash)
+    if (paired) {
+      const existing = await tx.displayCommand.findFirst({ where: { displayId, commandType: 'UNPAIR', status: { in: ['QUEUED', 'DELIVERED'] } }, orderBy: { createdAt: 'desc' } })
+      const command = existing
+        ? await tx.displayCommand.update({ where: { id: existing.id }, data: { payload: { deleteAfterUnpair: true }, expiresAt: null } })
+        : await tx.displayCommand.create({ data: { displayId, commandType: 'UNPAIR', payload: { deleteAfterUnpair: true }, expiresAt: null } })
+      commandId = command.id
+      await tx.display.update({ where: { id: displayId }, data: { state: 'DISABLED' } })
+    } else {
+      await tx.display.update({ where: { id: displayId }, data: { state: 'DELETED', deviceTokenHash: null } })
+    }
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_DELETE_REQUESTED', entityType: 'Display', entityId: displayId, before: { state: display.state }, after: { state: paired ? 'DISABLED_PENDING_UNPAIR' : 'DELETED', commandId, activeCampaignsRemoved: assignments.length }, requestId: request.id } })
+    return { state: paired ? 'DISABLED_PENDING_UNPAIR' : 'DELETED', commandId, pendingUnpair: paired }
+  })
+  return ok(request, { displayId, ...result }, reply)
+})
 app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true, documents: { select: { id: true, documentType: true, status: true, rejectionReason: true } } }, orderBy: { createdAt: 'desc' } })), reply) })
 app.post('/api/admin/drivers', async (request, reply) => {
   const actor = await requireRoles(request, ['SUPER_ADMIN'])
@@ -1077,6 +1122,7 @@ app.get('/api/admin/vehicles', async (request, reply) => { await requirePermissi
 app.get('/api/admin/displays', async (request, reply) => {
   await requirePermission(request, 'device:read')
   const rows = await prisma.display.findMany({
+    where: { state: { not: 'DELETED' } },
     select: {
       id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: { city: true } }, vehicleId: true,
       state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true,
@@ -1136,7 +1182,7 @@ app.get('/api/admin/earnings', async (request, reply) => { await requirePermissi
 app.get('/api/admin/payouts', async (request, reply) => { await requirePermission(request, 'finance:read'); return ok(request, asJson(await prisma.payout.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
 app.post('/api/admin/drivers/:driverId/restrict', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'SUSPENDED' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'SUSPENDED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_SUSPENDED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { suspended: true }, reply) })
 app.post('/api/admin/drivers/:driverId/reactivate', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); transitionDriverOnboarding(driver.onboardingStatus, 'APPROVED'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'ACTIVE' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'APPROVED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_REACTIVATED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { reactivated: true }, reply) })
-app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display) throw notFound('Display not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
+app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display || display.state === 'DELETED') throw notFound('Screen not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: input.commandType === 'UNPAIR' ? null : new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
 
 registerOperations(app)
 registerAdminManagement(app)
