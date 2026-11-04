@@ -67,8 +67,38 @@ import org.maplibre.android.maps.Style
 
 class MainActivity : ComponentActivity() {
     private val vm: ScreenViewModel by viewModels { ScreenViewModel.factory(applicationContext) }
-    private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refreshLocationPermission() }
-    override fun onCreate(state: android.os.Bundle?) { super.onCreate(state); window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); enterFullscreen(); OoroDeviceAdminReceiver.initialize(this,this); if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)); setContent { OoroTheme { Root(vm) } } }
+    private var locationPermissionGranted by mutableStateOf(false)
+    private var locationPermissionMessage by mutableStateOf<String?>(null)
+    private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        locationPermissionGranted = result.values.any { it } || hasLocationPermission()
+        locationPermissionMessage = if (locationPermissionGranted) {
+            "Location access enabled for location-based features."
+        } else {
+            "Location access was not allowed. Pairing and playback still work; live location features are unavailable."
+        }
+        vm.refreshLocationPermission()
+    }
+    override fun onCreate(state: android.os.Bundle?) {
+        super.onCreate(state)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        enterFullscreen()
+        OoroDeviceAdminReceiver.initialize(this, this)
+        locationPermissionGranted = hasLocationPermission()
+        setContent {
+            OoroTheme {
+                Root(vm, locationPermissionGranted, locationPermissionMessage, ::requestLocationPermission)
+            }
+        }
+    }
+    private fun hasLocationPermission() = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    private fun requestLocationPermission() {
+        if (hasLocationPermission()) {
+            locationPermissionGranted = true
+            locationPermissionMessage = "Location access is already enabled."
+        } else {
+            locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        }
+    }
     override fun onWindowFocusChanged(focus: Boolean) { super.onWindowFocusChanged(focus); if (focus) enterFullscreen() }
     private fun enterFullscreen() { WindowCompat.setDecorFitsSystemWindows(window,false); WindowInsetsControllerCompat(window, window.decorView).apply { hide(WindowInsetsCompat.Type.systemBars()); systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE } }
 }
@@ -83,10 +113,38 @@ internal fun backendEnvironment(): String = when {
     else -> "UNKNOWN"
 }
 internal fun isRepairAccessCode(value: String, configuredCode: String = BuildConfig.REPAIR_ACCESS_CODE): Boolean = value.filter(Char::isDigit) == configuredCode && configuredCode.isNotBlank()
+internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): String = when {
+    !granted -> "Not granted · live location features unavailable"
+    fixAvailable -> "Available"
+    else -> "Granted · waiting for location fix"
+}
 @Composable private fun OoroTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = darkColorScheme(primary = Yellow, background = Color.Black, surface = Panel), content = content)
-@Composable private fun Root(vm: ScreenViewModel) { val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest); is ScreenState.Admin -> Admin(vm) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
+@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) { val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage, onRequestLocation) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest); is ScreenState.Admin -> Admin(vm, locationGranted, onRequestLocation) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
 @Composable private fun Message(text: String) { Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("OORO\n$text", color = Color.White, fontSize = 28.sp) } }
-@Composable private fun Setup(vm: ScreenViewModel, message: String?, repair: Boolean = false) { var code by remember { mutableStateOf("") }; val pairing by vm.pairing.collectAsState(); Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("OORO", color = Yellow, fontSize = 52.sp); Text(if (repair) "Repair this screen" else "Connect this screen", fontSize = 28.sp); Spacer(Modifier.height(16.dp)); OutlinedTextField(code, { code = it.uppercase().take(32) }, label = { Text("Pairing code") }, singleLine = true); Spacer(Modifier.height(16.dp)); Button({ vm.pair(code) }, enabled = !pairing) { Text(if (pairing) "Connecting…" else if (repair) "Complete Repair" else "Connect") }; Text(message ?: "Enter the code from the OORO workspace", color = Color.LightGray, modifier = Modifier.padding(16.dp)) } } }
+@Composable private fun Setup(vm: ScreenViewModel, message: String?, repair: Boolean = false, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) {
+    var code by remember { mutableStateOf("") }
+    val pairing by vm.pairing.collectAsState()
+    Box(Modifier.fillMaxSize().background(Color.Black).padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text("OORO", color = Yellow, fontSize = 52.sp)
+            Text(if (repair) "Repair this screen" else "Connect this screen", fontSize = 28.sp)
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(code, { code = it.uppercase().take(32) }, label = { Text("Pairing code") }, singleLine = true)
+            Spacer(Modifier.height(16.dp))
+            Button({ vm.pair(code) }, enabled = !pairing) { Text(if (pairing) "Connecting…" else if (repair) "Complete Repair" else "Connect") }
+            Text(message ?: "Enter the code from the OORO workspace", color = Color.LightGray, modifier = Modifier.padding(16.dp))
+            HorizontalDivider(color = Color(0xFF343434), modifier = Modifier.widthIn(max = 520.dp).padding(vertical = 8.dp))
+            Text("Location is optional. Pairing and advertising playback work without it.", color = Color.LightGray, fontSize = 14.sp)
+            Text(
+                locationMessage ?: if (locationGranted) "Location access is enabled." else "Live location features are unavailable until you allow access.",
+                color = if (locationGranted) Color(0xFF9CCC65) else Color.LightGray,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 6.dp, bottom = 8.dp)
+            )
+            if (!locationGranted) OutlinedButton(onClick = onRequestLocation) { Text("Enable location (optional)") }
+        }
+    }
+}
 
 @Composable private fun AuthRecovery(vm: ScreenViewModel, recovery: ScreenState.AuthRecovery) {
     var confirmRepair by remember { mutableStateOf(false) }
@@ -385,7 +443,7 @@ private fun qrBitmap(value: String, size: Int): Bitmap? = runCatching {
     val pixels = IntArray(size * size) { index -> if (matrix[index % size, index / size]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
     Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { it.setPixels(pixels, 0, size, 0, 0, size, size) }
 }.getOrNull()
-@Composable private fun Admin(vm: ScreenViewModel) {
+@Composable private fun Admin(vm: ScreenViewModel, locationGranted: Boolean, onRequestLocation: () -> Unit) {
     var repairCodeDialog by remember { mutableStateOf(false) }; var repairCode by remember { mutableStateOf("") }; var repairCodeError by remember { mutableStateOf<String?>(null) }
     val d by vm.diagnostics.collectAsState(); val mapTilesRendered by vm.mapTilesRendered.collectAsState(); val mapTileError by vm.mapTileError.collectAsState(); val context = LocalContext.current; val n = networkInfo(context); val l = locationDiagnostics(context); val c = vm.deviceId
     val apiOk = d.probe?.connected == true; val issues = listOf(!apiOk, !l.permission || (!l.gps && !l.network), d.missingAssets > 0, d.proofQueued > 0).count { it }
@@ -394,7 +452,7 @@ private fun qrBitmap(value: String, size: Int): Bitmap? = runCatching {
         item { Section("OVERVIEW") { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusText("DEVICE", if (vm.online) "ONLINE" else "OFFLINE", vm.online); StatusText("API", if (apiOk) "CONNECTED" else "UNREACHABLE", apiOk); StatusText("PAIRING", if (vm.isPaired) "PAIRED" else "UNPAIRED", vm.isPaired); StatusText("GPS", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "SEARCHING", l.permission) } } }
         item { Section("CONNECTION") { Line("API Base URL", BuildConfig.API_BASE_URL); Line("Environment", backendEnvironment()); Line("Mock backend", if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"); Line("API status", if (apiOk) "CONNECTED" else "UNREACHABLE"); Line("Database-backed API", if (d.probe?.httpStatus == 200) "HEALTHY" else "UNKNOWN"); Line("Map tiles", if (mapTilesRendered) "RENDERED" else if (mapTileError != null) "UNAVAILABLE" else "CHECKING"); Line("GPS fix", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "UNAVAILABLE"); Line("Last successful API", relativeTime(d.apiLastSuccessAt)); d.apiLastError?.let { Text("Last API error: $it", color = Color(0xFFFFB74D), modifier = Modifier.padding(top = 4.dp)) }; mapTileError?.let { Text("Map error: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Text("DNS ${passFail(d.probe?.dns)}   TCP ${passFail(d.probe?.tcp)}   ${d.probe?.httpStatus?.let { "HTTP $it" } ?: "HTTP —"}   ${d.probe?.latencyMs?.let { "${it} ms" } ?: ""}", color = Color.LightGray); d.probe?.failureKind?.let { Text("Diagnostic: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Button({ vm.runDiagnostics() }, enabled = !d.running, modifier = Modifier.padding(top = 6.dp)) { Text(if (d.running) "RUNNING…" else "TEST API CONNECTION") } } }
         item { Section("NETWORK") { Line("Connection type", n.type); Line("Internet", if (n.internet) "AVAILABLE" else "UNAVAILABLE"); Line("Local network", if (n.localNetwork) "AVAILABLE" else "UNAVAILABLE"); Line("Device IP", n.ip ?: "unavailable"); Line("API host reachable", if (apiOk) "YES" else "NO") } }
-        item { Section("GPS") { Line("Location permission", if (l.permission) "GRANTED" else "DENIED"); Line("GPS provider", if (l.gps) "ENABLED" else "DISABLED"); Line("Network provider", if (l.network) "ENABLED" else "DISABLED"); Line("Last location", relativeTime(vm.latestLocation.value?.occurredAt)); Line("Accuracy", vm.latestLocation.value?.accuracyMeters?.let { "%.0f m".format(it) } ?: "unavailable"); Line("Attached to heartbeat", if (vm.latestLocation.value != null) "YES" else "NO") } }
+        item { Section("GPS") { Line("Location permission", locationPermissionStatus(locationGranted, l.gps || l.network)); if (!locationGranted) { Text("Location is optional; playback and pairing are unaffected.", color = Color.LightGray, fontSize = 12.sp); OutlinedButton(onClick = onRequestLocation) { Text("Enable location (optional)") } }; Line("GPS provider", if (l.gps) "ENABLED" else "DISABLED"); Line("Network provider", if (l.network) "ENABLED" else "DISABLED"); Line("Last location", relativeTime(vm.latestLocation.value?.occurredAt)); Line("Accuracy", vm.latestLocation.value?.accuracyMeters?.let { "%.0f m".format(it) } ?: "unavailable"); Line("Attached to heartbeat", if (vm.latestLocation.value != null) "YES" else "NO") } }
         item { Section("HEARTBEAT") { Line("Last attempted", relativeTime(d.heartbeatLastAttemptAt)); Line("Last successful", relativeTime(d.heartbeatLastSuccessAt)); Line("Last HTTP status", d.heartbeatStatus?.toString() ?: "—"); Line("GPS attached", if (vm.latestLocation.value != null) "YES" else "NO"); Line("Playback attached", if (vm.currentCreative.value != null) "YES" else "NO"); d.heartbeatError?.let { Text(it, color = Color(0xFFFFB74D)) } } }
         item { Section("PAIRING") { Line("Paired", if (vm.isPaired) "YES" else "NO"); Line("Screen ID", vm.screenId); Line("Device credential", "SECURELY STORED"); Text("Repair requires the OORO technician code, then uses the existing pairing flow.", color = Color.LightGray, fontSize = 12.sp); Button({ repairCode = ""; repairCodeError = null; repairCodeDialog = true }) { Text("REPAIR SCREEN") } } }
         item { Section("MANIFEST & ASSETS") { Line("Manifest version", vm.manifestVersion); Line("Last sync", relativeTime(d.manifestLastSyncAt)); Line("Cached assets", "${d.verifiedAssets}/${d.verifiedAssets + d.missingAssets}"); Line("LKG available", if (d.manifestLastSyncAt != null) "YES" else "NO"); Button({ vm.runDiagnostics() }) { Text("VERIFY ASSETS") } } }
