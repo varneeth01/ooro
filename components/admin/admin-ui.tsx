@@ -45,8 +45,8 @@ export function AdminSubnav({ children }: { children?: ReactNode }) {
     ["Operations", "/admin/operations"],
   ] as const;
 
-  return <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-neutral-200 text-sm">{links.map(([label, href]) => {
+  return <nav aria-label="Admin workspace" className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-neutral-200 text-sm">{links.map(([label, href]) => {
     const active = pathname === href || pathname.startsWith(`${href}/`);
-    return <Link key={href} href={href} className={active ? "border-b-2 border-black pb-3 font-medium" : "pb-3 text-neutral-500 hover:text-black"}>{label}</Link>;
-  })}{children}</div>;
+    return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={active ? "border-b-2 border-[#dfff00] pb-3 font-medium text-neutral-900" : "pb-3 text-neutral-500 hover:text-neutral-900"}>{label}</Link>;
+  })}{children}</nav>;
 }
