@@ -77,6 +77,6 @@ export async function probeCreative(bytes: Buffer, mimeType: string) {
   const duration = Number(result.format?.duration ?? stream.duration);
   if (mimeType.startsWith('video/') && (!Number.isFinite(duration) || duration<=0 || duration>3600)) throw new Error('CREATIVE_PROBE_FAILED');
   return { width:stream.width,height:stream.height,durationSeconds:mimeType.startsWith('video/')?Math.ceil(duration):undefined };
- } catch { throw new Error('CREATIVE_PROBE_FAILED'); }
+ } catch (error) { if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") throw new Error("CREATIVE_PROBE_UNAVAILABLE"); throw new Error("CREATIVE_PROBE_FAILED"); }
  finally { await rm(dir,{recursive:true,force:true}); }
 }
