@@ -1,7 +1,13 @@
 package com.ooro.screenplayer
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.os.Debug
 import android.util.Log
+import android.view.FrameMetrics
+import android.view.Window
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -45,12 +51,17 @@ import com.ooro.screenplayer.model.NewsAnnouncement
 import com.ooro.screenplayer.model.NewsConfig
 import com.ooro.screenplayer.model.OfferMetadata
 import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
+import java.util.concurrent.atomic.AtomicLong
 import androidx.compose.foundation.gestures.detectTapGestures
 
 private data class PreviewAsset(val name: String, val width: Int, val height: Int, val video: Boolean = false)
 
 class RenderTestActivity : ComponentActivity() {
     private lateinit var previewDirectory: File
+    private var frameListener: Window.OnFrameMetricsAvailableListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +84,53 @@ class RenderTestActivity : ComponentActivity() {
                 )
             }
         }
+        if (intent.getBooleanExtra("diagnostics", false)) startBoundedDiagnostics()
     }
+
+    private fun startBoundedDiagnostics() {
+        val counterStart = RuntimeDiagnostics.capture()
+        val pssBeforeKb = Debug.getPss()
+        val startedAt = SystemClock.elapsedRealtime()
+        val frameCount = AtomicLong()
+        val slowFrames = AtomicLong()
+        val droppedFrames = AtomicLong()
+        val handler = Handler(Looper.getMainLooper())
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            frameListener = Window.OnFrameMetricsAvailableListener { _, metrics, dropped ->
+                frameCount.incrementAndGet()
+                droppedFrames.addAndGet(dropped.toLong())
+                if (metrics.getMetric(FrameMetrics.TOTAL_DURATION) > 16_666_667L) slowFrames.incrementAndGet()
+            }
+            window.addOnFrameMetricsAvailableListener(frameListener!!, handler)
+        }
+        lifecycleScope.launch {
+            val beforeThreads = threadCpuTicks()
+            delay(5_000)
+            frameListener?.let(window::removeOnFrameMetricsAvailableListener)
+            frameListener = null
+            val afterThreads = threadCpuTicks()
+            val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
+            val pssAfterKb = Debug.getPss()
+            val threadDeltas = afterThreads.mapNotNull { (name, ticks) ->
+                val delta = ticks - (beforeThreads[name] ?: ticks)
+                if (delta > 0) "$name:$delta" else null
+            }.sortedByDescending { entry -> entry.substringAfter(':').toLongOrNull() ?: 0L }.take(12)
+            Log.i("OoroPerfDiag", "sampleMs=$elapsed pssBeforeKb=$pssBeforeKb pssAfterKb=$pssAfterKb frames=${frameCount.get()} slowFrames=${slowFrames.get()} dropped=${droppedFrames.get()} threadCpuTicks=${threadDeltas.joinToString(",")} counters=${RuntimeDiagnostics.formatDelta(counterStart)}")
+        }
+    }
+
+    /** One-shot thread CPU tick deltas are read only for the explicit debug sample. */
+    private fun threadCpuTicks(): Map<String, Long> = runCatching {
+        File("/proc/self/task").listFiles().orEmpty().mapNotNull { task ->
+            val stat = File(task, "stat").readText()
+            val close = stat.lastIndexOf(')')
+            if (close < 0) return@mapNotNull null
+            val fields = stat.substring(close + 1).trim().split(Regex("\\s+"))
+            val ticks = fields.getOrNull(11)?.toLongOrNull()?.plus(fields.getOrNull(12)?.toLongOrNull() ?: 0L) ?: return@mapNotNull null
+            val name = runCatching { File(task, "comm").readText().trim() }.getOrDefault(task.name)
+            name to ticks
+        }.toMap()
+    }.getOrDefault(emptyMap())
 
     private fun copyAssets(destination: File): Boolean = runCatching {
         destination.deleteRecursively()
@@ -84,6 +141,8 @@ class RenderTestActivity : ComponentActivity() {
     }.onFailure { Log.e("OoroRenderTest", "could not prepare local preview assets", it) }.isSuccess
 
     override fun onDestroy() {
+        frameListener?.let(window::removeOnFrameMetricsAvailableListener)
+        frameListener = null
         if (::previewDirectory.isInitialized) previewDirectory.deleteRecursively()
         Log.i("OoroRenderTest", "offline preview closed; production data untouched")
         super.onDestroy()

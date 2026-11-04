@@ -14,6 +14,7 @@ import android.util.Log
 class CommandProcessor(private val context: Context, private val api: DeviceApi, private val store: DeviceStore) {
     private val prefs = context.getSharedPreferences("ooro_commands", Context.MODE_PRIVATE)
     suspend fun poll() {
+        com.ooro.screenplayer.RuntimeDiagnostics.increment(com.ooro.screenplayer.RuntimeDiagnostics.Counter.COMMAND_POLL)
         val credentials = store.credentials() ?: return
         try {
             val commands = api.pendingCommands(credentials)

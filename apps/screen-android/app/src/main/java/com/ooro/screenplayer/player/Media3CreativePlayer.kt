@@ -9,12 +9,14 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.core.net.toUri
 import java.io.File
 import android.util.Log
+import com.ooro.screenplayer.RuntimeDiagnostics
 
 /** Media3 boundary. Playback remains local: callers pass a verified cached file URI. */
 class Media3CreativePlayer(context: Context, private val onStarted: () -> Unit = {}, private val onCompleted: (Long) -> Unit = {}, private val onFailed: (Throwable) -> Unit = {}, private val onStall: () -> Unit = {}, private val onPosition: (Long) -> Unit = {}, private val onVideoSize: (androidx.media3.common.VideoSize) -> Unit = {}, repeatOne: Boolean = false) : AutoCloseable {
     val player: ExoPlayer = ExoPlayer.Builder(context).build().apply { volume = 0f; repeatMode = if (repeatOne) ExoPlayer.REPEAT_MODE_ONE else ExoPlayer.REPEAT_MODE_OFF }
     private val watchdog = android.os.Handler(android.os.Looper.getMainLooper()); private var lastPosition = -1L; private var stallCount = 0; private var closed = false
     init {
+        RuntimeDiagnostics.playerCreated()
         player.addListener(object : androidx.media3.common.Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) { onStarted(); scheduleWatchdog() }
@@ -34,7 +36,12 @@ class Media3CreativePlayer(context: Context, private val onStarted: () -> Unit =
         })
         player.addAnalyticsListener(object : AnalyticsListener {
             override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
+                RuntimeDiagnostics.decoderInitialized()
                 Log.i("OoroScreen", "video decoder initialized name=$decoderName initMs=$initializationDurationMs")
+            }
+
+            override fun onVideoDecoderReleased(eventTime: AnalyticsListener.EventTime, decoderName: String) {
+                RuntimeDiagnostics.decoderReleased()
             }
         })
     }
@@ -56,6 +63,7 @@ class Media3CreativePlayer(context: Context, private val onStarted: () -> Unit =
         override fun run() {
             if (closed || !player.isPlaying) return
             val position = player.currentPosition
+            RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.POSITION_SAMPLE)
             onPosition(position)
             if (position == lastPosition) {
                 stallCount++
@@ -65,5 +73,5 @@ class Media3CreativePlayer(context: Context, private val onStarted: () -> Unit =
         }
     }
     fun recover() { player.seekTo(0); player.prepare(); player.play() }
-    override fun close() { if (closed) return; closed = true; watchdog.removeCallbacks(watchdogTick); player.release(); Log.i("OoroScreen", "media playback released") }
+    override fun close() { if (closed) return; closed = true; watchdog.removeCallbacks(watchdogTick); player.release(); RuntimeDiagnostics.playerReleased(); Log.i("OoroScreen", "media playback released") }
 }

@@ -94,7 +94,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             Log.w("OoroScreen", "heartbeat sending displayId=${c.screenId} tokenPresent=true paired=true")
             api.heartbeat(c, PlayerStatus.DEGRADED, active?.version ?: db.manifestDao().active()?.version ?: 0)
             Log.w("OoroScreen", "heartbeat accepted displayId=${c.screenId} tokenPresent=true paired=true")
-            ProofSyncScheduler.enqueue(context, "sync-heartbeat-success")
+            if (shouldEnqueueProofSync(db.proofDao().pendingCount())) ProofSyncScheduler.enqueue(context, "sync-heartbeat-success")
             _diagnostic.value = "Heartbeat accepted · display ${c.screenId}"
         }.onFailure { error ->
             if (error is DeviceApiException && error.kind.requiresRepair()) { showRecovery(error); return@onFailure }

@@ -128,7 +128,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     else -> "Granted · waiting for location fix"
 }
 @Composable private fun OoroTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = darkColorScheme(primary = Yellow, background = Color.Black, surface = Panel), content = content)
-@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) { val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage, onRequestLocation) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest); is ScreenState.Admin -> Admin(vm, locationGranted, onRequestLocation) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
+@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) { SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.ROOT_COMPOSITION) }; val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage, onRequestLocation) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest); is ScreenState.Admin -> Admin(vm, locationGranted, onRequestLocation) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
 @Composable private fun Message(text: String) { Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("OORO\n$text", color = Color.White, fontSize = 28.sp) } }
 @Composable private fun Setup(vm: ScreenViewModel, message: String?, repair: Boolean = false, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) {
     var code by remember { mutableStateOf("") }
@@ -213,6 +213,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
 }
 
 @Composable private fun NewsTicker(news: NewsConfig, modifier: Modifier) {
+    SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.TICKER_COMPOSITION) }
     val announcements = remember(news.announcements) { news.announcements.sortedWith(compareByDescending<NewsAnnouncement> { it.priority }.thenBy { it.id }) }
     val message = announcements.joinToString("   •   ") { it.text.trim() }.ifBlank { "OORO" }
     val offset = remember(message) { Animatable(0f) }
@@ -240,6 +241,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
 }
 
 @Composable private fun PrimaryAdRegion(vm: ScreenViewModel?, modifier: Modifier, selectedItem: ManifestItem?, playbackKey: Int = 0, preview: PlayerPreviewConfig? = null) {
+    SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.AD_COMPOSITION) }
     val item = selectedItem
     var path by remember(item?.id, playbackKey, preview) { mutableStateOf<String?>(null) }
     LaunchedEffect(item?.id, playbackKey, preview?.itemId, preview?.assetPaths) {
@@ -262,7 +264,9 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
                     bitmapState.value = null; doneState.value = false
                     var decoded: Bitmap? = null
                     try {
+                        RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.IMAGE_DECODE)
                         decoded = withContext(Dispatchers.IO) { decodeCreativeImage(path!!, widthPx, heightPx) }
+                        if (decoded != null) RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.IMAGE_DECODED_BYTES, decoded!!.allocationByteCount.toLong())
                         currentCoroutineContext().ensureActive()
                         bitmapState.value = decoded; decoded = null
                     } finally { decoded?.recycle(); doneState.value = true }
@@ -347,6 +351,7 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
 
 @Composable private fun NavigationPanel(nav: NavigationState, modifier: Modifier, onMapHealth: (Boolean, String?) -> Unit) { Box(modifier.background(Panel).clipToBounds().padding(4.dp)) { if (nav.active) MapPanel(nav, Modifier.fillMaxSize().clipToBounds(), onMapHealth) else Box(Modifier.fillMaxSize().background(Panel)); if (nav.active) { Text("▲", color = Yellow, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center)); if ((nav.nextInstruction ?: nav.destinationName) != null) Text(nav.nextInstruction ?: nav.destinationName.orEmpty(), color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xAA121820)).padding(horizontal = 6.dp, vertical = 4.dp)) } } }
 @Composable private fun MapPanel(nav: NavigationState, modifier: Modifier, onMapHealth: (Boolean, String?) -> Unit) {
+    SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.MAP_COMPOSITION) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     remember(context.applicationContext) {
@@ -415,6 +420,7 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { MapView(context).also { createdMapView ->
+                RuntimeDiagnostics.mapCreated()
                 mapView = createdMapView
                 createdMapView.onCreate(null)
                 createdMapView.addOnTileActionListener { operation, _, _, _, _, _, reason ->
@@ -454,6 +460,7 @@ private fun creativeDuration(item: ManifestItem) = item.durationSeconds * 1000L
                 if (state.isAtLeast(Lifecycle.State.RESUMED)) releasedMapView.onPause()
                 if (state.isAtLeast(Lifecycle.State.STARTED)) releasedMapView.onStop()
                 releasedMapView.onDestroy()
+                RuntimeDiagnostics.mapReleased()
                 mapView = null
                 map = null
                 vehicleMarker = null
@@ -474,6 +481,7 @@ private fun distanceMeters(start: LatLng, end: LatLng): Double {
 }
 
 @Composable private fun OfferPanel(item: ManifestItem?, modifier: Modifier) {
+    SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.OFFER_COMPOSITION) }
     val offer = item?.offer ?: OfferMetadata()
     val promotionalText = offer.promotionalText?.trim().takeIf { !it.isNullOrBlank() }
     val brandName = offer.brandName?.trim().takeIf { !it.isNullOrBlank() }
@@ -486,7 +494,11 @@ private fun distanceMeters(start: LatLng, end: LatLng): Double {
         val qrUrl = offer.validQrUrl
         val qrState = produceState<Bitmap?>(null, item?.id, qrUrl, qrPixels) {
             value = null
-            if (qrUrl != null) value = withContext(Dispatchers.IO) { qrBitmap(qrUrl, qrPixels) }
+            if (qrUrl != null) {
+                RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.QR_DECODE)
+                value = withContext(Dispatchers.IO) { qrBitmap(qrUrl, qrPixels) }
+                value?.let { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.QR_DECODED_BYTES, it.allocationByteCount.toLong()) }
+            }
         }
         val qr = qrState.value
         DisposableEffect(qr) { onDispose { qr?.takeUnless(Bitmap::isRecycled)?.recycle() } }
