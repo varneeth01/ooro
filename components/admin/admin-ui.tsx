@@ -8,7 +8,7 @@ import { exactTime, formatBytes, percent, relativeTime } from "@/lib/admin/forma
 
 const connectivityStyles: Record<ConnectivityStatus, string> = { ONLINE: "text-[#3f6d1d]", STALE: "text-[#9a6500]", OFFLINE: "text-red-700", NEVER_CONNECTED: "text-neutral-400" };
 export function ConnectivityStatus({ status }: { status: ConnectivityStatus }) { const label = status === "NEVER_CONNECTED" ? "Never connected" : status[0] + status.slice(1).toLowerCase(); return <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${connectivityStyles[status]}`}><Circle size={8} fill="currentColor" />{label}</span>; }
-export function PairingBadge({ status }: { status: PairingStatus }) { return <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-[10px] uppercase tracking-[.08em] text-neutral-500">{status.replaceAll("_", " ")}</span>; }
+export function PairingBadge({ status }: { status: PairingStatus }) { const pending = status === "REMOVAL_PENDING"; return <span className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[.08em] ${pending ? "border-amber-200 bg-amber-50 text-amber-800" : "border-neutral-200 bg-neutral-50 text-neutral-500"}`}>{status.replaceAll("_", " ")}</span>; }
 export function PlayerState({ state }: { state?: PlayerStatus }) { return <span className="text-xs font-medium text-neutral-700">{state ? state.replaceAll("_", " ") : "Waiting for heartbeat"}</span>; }
 export function HealthSeverityIcon({ severity }: { severity: HealthSeverity }) { if (severity === "CRITICAL") return <AlertTriangle size={14} className="text-red-700"/>; if (severity === "WARNING") return <AlertTriangle size={14} className="text-[#a06b00]"/>; if (severity === "INFO") return <Info size={14} className="text-neutral-500"/>; return <Check size={14} className="text-[#3f6d1d]"/>; }
 export function RelativeTime({ value }: { value?: string }) { return <time dateTime={value} title={exactTime(value)}>{relativeTime(value)}</time>; }
@@ -45,8 +45,8 @@ export function AdminSubnav({ children }: { children?: ReactNode }) {
     ["Operations", "/admin/operations"],
   ] as const;
 
-  return <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-neutral-200 text-sm">{links.map(([label, href]) => {
+  return <nav aria-label="Admin workspace" className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-neutral-200 text-sm">{links.map(([label, href]) => {
     const active = pathname === href || pathname.startsWith(`${href}/`);
-    return <Link key={href} href={href} className={active ? "border-b-2 border-black pb-3 font-medium" : "pb-3 text-neutral-500 hover:text-black"}>{label}</Link>;
-  })}{children}</div>;
+    return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={active ? "border-b-2 border-[#dfff00] pb-3 font-medium text-neutral-900" : "pb-3 text-neutral-500 hover:text-neutral-900"}>{label}</Link>;
+  })}{children}</nav>;
 }

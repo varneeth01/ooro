@@ -44,3 +44,50 @@ summary::-webkit-details-marker { display: none; }
 @media (max-width: 700px) { .site-grid { background-size: 42px 42px; } .display { letter-spacing: -.04em; } .section-sm { padding-block: 72px; } .section-md { padding-block: 88px; } .section-lg { padding-block: 112px; } }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } .ooro-route-sweep { display: none; } }
+
+/* Admin workspace theme: shared across administrator and super administrator routes. */
+.ooro-admin { --admin-bg: #101416; --admin-surface: #191f24; --admin-surface-raised: #20272e; --admin-border: #30383f; background: var(--admin-bg); color: #f1f3ef; }
+.ooro-admin main { background: var(--admin-bg); }
+.ooro-admin .bg-white { background-color: var(--admin-surface) !important; }
+.ooro-admin .bg-neutral-50, .ooro-admin .bg-\[\#fafaf8\] { background-color: #151a1e !important; }
+.ooro-admin .bg-neutral-100 { background-color: #252c32 !important; }
+.ooro-admin .bg-neutral-200 { background-color: #30383f !important; }
+.ooro-admin .border-neutral-100, .ooro-admin .border-neutral-200, .ooro-admin .border-neutral-300 { border-color: var(--admin-border) !important; }
+.ooro-admin .divide-neutral-100 > :not([hidden]) ~ :not([hidden]), .ooro-admin .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--admin-border) !important; }
+.ooro-admin .text-neutral-900, .ooro-admin .text-neutral-800, .ooro-admin .text-neutral-700 { color: #edf0ec !important; }
+.ooro-admin .text-neutral-600, .ooro-admin .text-neutral-500 { color: #a2abb2 !important; }
+.ooro-admin .text-neutral-400 { color: #87919a !important; }
+.ooro-admin .text-neutral-300 { color: #bec5ca !important; }
+.ooro-admin .app-eyebrow { color: #aebd4d; }
+.ooro-admin input:not([type="checkbox"]), .ooro-admin textarea, .ooro-admin select { color: #f1f3ef; border-color: #46515a; background-color: #151a1e; }
+.ooro-admin input::placeholder, .ooro-admin textarea::placeholder { color: #828d95; }
+.ooro-admin input:focus, .ooro-admin textarea:focus, .ooro-admin select:focus { border-color: #dfff00; outline-color: #dfff00; }
+.ooro-admin button.bg-black, .ooro-admin a.bg-black { background-color: #dfff00 !important; color: #090b0a !important; }
+.ooro-admin button.bg-black:hover, .ooro-admin a.bg-black:hover { background-color: #c9e600 !important; }
+.ooro-admin .bg-red-50 { background-color: #321d1d !important; }
+.ooro-admin .border-red-200 { border-color: #773b3b !important; }
+.ooro-admin .text-red-950, .ooro-admin .text-red-900, .ooro-admin .text-red-800 { color: #ffd1ca !important; }
+.ooro-admin .text-red-700 { color: #ff8b80 !important; }
+.ooro-admin .bg-lime-100 { background-color: #28331a !important; }
+.ooro-admin .text-lime-900 { color: #d6f18c !important; }
+.ooro-admin .bg-amber-100 { background-color: #3b2b17 !important; }
+.ooro-admin .text-amber-900 { color: #ffd58b !important; }
+.ooro-admin .bg-\[\#f5facf\], .ooro-admin .bg-\[\#f8fbdc\] { background-color: #28311a !important; }
+.ooro-admin .text-\[\#3f6d1d\] { color: #b9dc76 !important; }
+.ooro-admin .text-\[\#9a6500\], .ooro-admin .text-\[\#a06b00\] { color: #f2c86f !important; }
+.ooro-admin .hover\:bg-neutral-50:hover { background-color: #222930 !important; }
+.ooro-admin .hover\:bg-neutral-100:hover { background-color: #293138 !important; }
+.ooro-admin .hover\:bg-neutral-200:hover { background-color: #30383f !important; }
+.ooro-admin :where(table) thead { color: #abb4ba; background: #151a1e; }
+.ooro-admin :where(details) summary { cursor: pointer; color: #edf0ec; }
+.ooro-admin :where(pre) { color: #d8ded9; }
+.ooro-admin :where(a, button, input, textarea, select):focus-visible { outline-color: #dfff00; }
+
+.admin-login { background: radial-gradient(ellipse at 15% 0%, rgba(223,255,0,.09), transparent 32%), #101416; color: #f1f3ef; }
+.admin-login .admin-login-card { border-color: #30383f; background: #191f24; box-shadow: 0 28px 90px rgba(0,0,0,.3); }
+.admin-login input { border-color: #46515a; background: #151a1e; color: #f1f3ef; }
+.admin-login input:focus { border-color: #dfff00; }
+.admin-login button[type="submit"] { background: #dfff00; color: #090b0a; }
+.admin-login .text-neutral-500 { color: #a2abb2; }
+.admin-login .text-red-700, .admin-login [role="alert"] { color: #ffaaa1; }
+.admin-login a:hover { color: #dfff00; }
