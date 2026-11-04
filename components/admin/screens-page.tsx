@@ -1,25 +1,101 @@
 "use client";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Unplug } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader, PrimaryButton, SectionCard } from "@/components/app/app-ui";
+import { ConfirmDialog, PageHeader, PrimaryButton, SectionCard } from "@/components/app/app-ui";
 import { AdminSubnav, ConnectivityStatus, HealthBanner, LiveCreativePreview, PairingBadge, RelativeTime } from "./admin-ui";
-import { isMockDeviceData, screenRepository } from "@/lib/admin/repositories";
+import { deviceCommandRepository, isMockDeviceData, screenRepository } from "@/lib/admin/repositories";
 import type { ConnectivityStatus as Connectivity, Screen } from "@/lib/admin/types";
 
-export function ScreensPage() {
-  const [screens, setScreens] = useState<Screen[]>([]); const [query, setQuery] = useState(""); const [status, setStatus] = useState<Connectivity | "">(""); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [clock,setClock]=useState(()=>Date.now()); const [page,setPage]=useState(0);
-  const load = () => { setLoading(true); setError(""); screenRepository.listScreens().then(setScreens).catch(error => setError(error instanceof Error ? error.message : "Unable to load screen fleet.")).finally(() => setLoading(false)); };
-  useEffect(() => { load(); const refresh=window.setInterval(load,60000); const tick=window.setInterval(()=>setClock(Date.now()),30000); return()=>{window.clearInterval(refresh);window.clearInterval(tick);}; }, []);
-  useEffect(()=>setPage(0),[query,status]);
-  const filtered = useMemo(() => screens.filter(screen => { const text = `${screen.screenName} ${screen.screenId} ${screen.deviceId} ${screen.vehicleId ?? ""} ${screen.vehicleIdentifier ?? ""} ${screen.city} ${screen.area}`.toLowerCase(); return (!query || text.includes(query.toLowerCase())) && (!status || (screen.connectivity ?? "NEVER_CONNECTED") === status); }), [query, screens, status]);
-  const summary = useMemo(() => { const live=screens.filter(screen=>screen.playbackState==="PLAYING"&&isVerified(screen,clock)); return { total: screens.length, online: screens.filter(screen => screen.connectivity === "ONLINE").length, offline: screens.filter(screen => screen.connectivity === "OFFLINE").length, playing: live.length, idle: screens.filter(screen => screen.playbackState === "IDLE" || screen.playbackState === "READY").length, errors: screens.filter(screen => screen.playbackState === "FAILED" || screen.playbackState === "ERROR").length, campaigns: new Set(live.map(screen => screen.currentCampaignId).filter(Boolean)).size }; }, [clock,screens]);
-  const pageSize=25; const pageCount=Math.max(1,Math.ceil(filtered.length/pageSize)); const visible=filtered.slice(page*pageSize,(page+1)*pageSize);
-  useEffect(()=>setPage(current=>Math.min(current,pageCount-1)),[pageCount]);
-  return <div className="space-y-7"><PageHeader title="Screen fleet" description="Monitor connectivity, see the creative each screen reports, and open device evidence without losing fleet context." action={<PrimaryButton href="/admin/screens/new"><Plus size={15} className="mr-2"/>Add screen</PrimaryButton>}/><HealthBanner mock={isMockDeviceData}/><AdminSubnav/><div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-200 sm:grid-cols-4 xl:grid-cols-7">{[["Total screens", summary.total], ["Online", summary.online], ["Offline", summary.offline], ["Verified playing", summary.playing], ["Idle", summary.idle], ["Error", summary.errors], ["Live campaigns", summary.campaigns]].map(([label, value]) => <div className="bg-white p-4 sm:p-5" key={String(label)}><p className="text-xs text-neutral-500">{label}</p><p className="mt-2 text-2xl font-semibold tracking-[-.03em] tabular-nums">{loading ? "…" : error ? "—" : value}</p></div>)}</div><SectionCard title="All screens" description="Playback shown here is device-reported. Stale and offline reports remain visible but are not presented as live.">{error ? <div className="flex items-center justify-between gap-4 py-12 text-sm"><span className="text-red-700">{error}</span><button type="button" onClick={load} className="underline underline-offset-4">Retry</button></div> : <><div className="mb-5 flex flex-col gap-3 sm:flex-row"><label className="relative flex-1"><span className="sr-only">Search screens</span><Search size={15} className="absolute left-3 top-3 text-neutral-400"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search screen, device, vehicle, city or area" className="w-full rounded-xl border border-neutral-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10"/></label><label className="sm:w-48"><span className="sr-only">Filter by connection status</span><select value={status} onChange={event => setStatus(event.target.value as Connectivity | "")} className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10"><option value="">All statuses</option><option value="ONLINE">Online</option><option value="STALE">Stale</option><option value="OFFLINE">Offline</option><option value="NEVER_CONNECTED">Never connected</option></select></label></div>{loading ? <div className="py-12 text-center text-sm text-neutral-500">Loading screen fleet…</div> : filtered.length ? <><div className="grid gap-3 md:hidden">{visible.map(screen=><ScreenCard key={screen.screenId} screen={screen} clock={clock}/>)}</div><div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[920px] border-collapse text-left"><thead><tr className="border-y border-neutral-200 text-[10px] uppercase tracking-[.12em] text-neutral-400">{["Screen", "Reported creative", "Connection", "Location", "Last report", "Manifest"].map(label => <th className="px-3 py-3 font-medium first:pl-0" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-neutral-100">{visible.map(screen => <ScreenRow key={screen.screenId} screen={screen} clock={clock}/>)}</tbody></table></div>{pageCount>1&&<nav aria-label="Screen fleet pages" className="mt-5 flex items-center justify-between border-t border-neutral-200 pt-5 text-sm"><button type="button" disabled={page===0} onClick={()=>setPage(current=>Math.max(0,current-1))} className="rounded-lg px-3 py-2 font-medium hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span className="text-neutral-500">{page*pageSize+1}–{Math.min((page+1)*pageSize,filtered.length)} of {filtered.length}</span><button type="button" disabled={page+1>=pageCount} onClick={()=>setPage(current=>Math.min(pageCount-1,current+1))} className="rounded-lg px-3 py-2 font-medium hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40">Next</button></nav>}</> : <div className="py-12 text-center"><p className="text-sm font-medium">{screens.length ? "No screens match these filters." : "No screens connected yet."}</p><p className="mt-2 text-sm text-neutral-500">{screens.length ? "Try a different search or status." : "Add your first OORO screen to begin building the network."}</p>{!screens.length && <div className="mt-5"><PrimaryButton href="/admin/screens/new"><Plus size={15} className="mr-2"/>Add screen</PrimaryButton></div>}</div>}</>}</SectionCard></div>;
+export function ScreensPage({ canManage = false }: { canManage?: boolean }) {
+  const [screens, setScreens] = useState<Screen[]>([]);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<Connectivity | "">("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [unpairing, setUnpairing] = useState<Screen | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [clock, setClock] = useState(() => Date.now());
+  const [page, setPage] = useState(0);
+
+  const load = () => {
+    setLoading(true);
+    setError("");
+    screenRepository.listScreens().then(setScreens).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load screen fleet.")).finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    load();
+    const refresh = window.setInterval(load, 60_000);
+    const tick = window.setInterval(() => setClock(Date.now()), 30_000);
+    return () => { window.clearInterval(refresh); window.clearInterval(tick); };
+  }, []);
+  useEffect(() => setPage(0), [query, status]);
+
+  const filtered = useMemo(() => screens.filter(screen => {
+    const text = `${screen.screenName} ${screen.screenId} ${screen.deviceId} ${screen.vehicleId ?? ""} ${screen.vehicleIdentifier ?? ""} ${screen.city} ${screen.area}`.toLowerCase();
+    return (!query || text.includes(query.toLowerCase())) && (!status || (screen.connectivity ?? "NEVER_CONNECTED") === status);
+  }), [query, screens, status]);
+  const live = screens.filter(screen => screen.playbackState === "PLAYING" && isVerified(screen, clock));
+  const summary = {
+    total: screens.length,
+    online: screens.filter(screen => screen.connectivity === "ONLINE").length,
+    offline: screens.filter(screen => screen.connectivity === "OFFLINE").length,
+    playing: live.length,
+    idle: screens.filter(screen => screen.playbackState === "IDLE" || screen.playbackState === "READY").length,
+    errors: screens.filter(screen => screen.playbackState === "FAILED" || screen.playbackState === "ERROR").length,
+    campaigns: new Set(live.map(screen => screen.currentCampaignId).filter(Boolean)).size,
+  };
+  const pageSize = 25;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
+  useEffect(() => setPage(current => Math.min(current, pageCount - 1)), [pageCount]);
+
+  async function queueUnpair() {
+    if (!unpairing || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await deviceCommandRepository.createCommand(unpairing.screenId, "UNPAIR");
+      setNotice(`Unpair request queued for ${unpairing.screenName}. It will unpair when the player reconnects and acknowledges the command.`);
+      setUnpairing(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to queue unpair request.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <div className="space-y-7">
+    <PageHeader title="Screen fleet" description="Monitor connectivity, see the creative each screen reports, and take device actions from the fleet." action={<PrimaryButton href="/admin/screens/new"><Plus size={15} className="mr-2"/>Add screen</PrimaryButton>}/>
+    <HealthBanner mock={isMockDeviceData}/>
+    <AdminSubnav/>
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-200 sm:grid-cols-4 xl:grid-cols-7">
+      {[["Total screens", summary.total], ["Online", summary.online], ["Offline", summary.offline], ["Verified playing", summary.playing], ["Idle", summary.idle], ["Error", summary.errors], ["Live campaigns", summary.campaigns]].map(([label, value]) => <div className="bg-white p-4 sm:p-5" key={String(label)}><p className="text-xs text-neutral-500">{label}</p><p className="mt-2 text-2xl font-semibold tracking-[-.03em] tabular-nums">{loading ? "…" : error ? "—" : value}</p></div>)}
+    </div>
+    <SectionCard title="All screens" description="Playback shown here is device-reported. Stale and offline reports remain visible but are not presented as live.">
+      {notice && <p role="status" className="mb-4 rounded-xl border border-lime-200 bg-lime-50 px-4 py-3 text-sm text-lime-950">{notice}</p>}
+      {error ? <div role="alert" className="flex items-center justify-between gap-4 py-12 text-sm"><span className="text-red-700">{error}</span><button type="button" onClick={load} className="underline underline-offset-4">Retry</button></div> : <>
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+          <label className="relative flex-1"><span className="sr-only">Search screens</span><Search size={15} className="absolute left-3 top-3 text-neutral-400"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search screen, device, vehicle, city or area" className="w-full rounded-xl border border-neutral-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10"/></label>
+          <label className="sm:w-48"><span className="sr-only">Filter by connection status</span><select value={status} onChange={event => setStatus(event.target.value as Connectivity | "")} className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10"><option value="">All statuses</option><option value="ONLINE">Online</option><option value="STALE">Stale</option><option value="OFFLINE">Offline</option><option value="NEVER_CONNECTED">Never connected</option></select></label>
+        </div>
+        {loading ? <div className="py-12 text-center text-sm text-neutral-500">Loading screen fleet…</div> : filtered.length ? <>
+          <div className="grid gap-3 md:hidden">{visible.map(screen => <ScreenCard key={screen.screenId} screen={screen} clock={clock} canManage={canManage} onUnpair={setUnpairing}/>)}</div>
+          <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[1020px] border-collapse text-left"><thead><tr className="border-y border-neutral-200 text-[10px] uppercase tracking-[.12em] text-neutral-400">{["Screen", "Reported creative", "Connection", "Location", "Last report", "Manifest", ...(canManage ? ["Actions"] : [])].map(label => <th className="px-3 py-3 font-medium first:pl-0" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-neutral-100">{visible.map(screen => <ScreenRow key={screen.screenId} screen={screen} clock={clock} canManage={canManage} onUnpair={setUnpairing}/>)}</tbody></table></div>
+          {pageCount > 1 && <nav aria-label="Screen fleet pages" className="mt-5 flex items-center justify-between border-t border-neutral-200 pt-5 text-sm"><button type="button" disabled={page === 0} onClick={() => setPage(current => Math.max(0, current - 1))} className="rounded-lg px-3 py-2 font-medium hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span className="text-neutral-500">{page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}</span><button type="button" disabled={page + 1 >= pageCount} onClick={() => setPage(current => Math.min(pageCount - 1, current + 1))} className="rounded-lg px-3 py-2 font-medium hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40">Next</button></nav>}
+        </> : <div className="py-12 text-center"><p className="text-sm font-medium">{screens.length ? "No screens match these filters." : "No screens connected yet."}</p><p className="mt-2 text-sm text-neutral-500">{screens.length ? "Try a different search or status." : "Add your first OORO screen to begin building the network."}</p>{!screens.length && <div className="mt-5"><PrimaryButton href="/admin/screens/new"><Plus size={15} className="mr-2"/>Add screen</PrimaryButton></div>}</div>}
+      </>}
+    </SectionCard>
+    {unpairing && <ConfirmDialog title={`Unpair ${unpairing.screenName}?`} description="The player will clear its pairing credential only after it reconnects, receives this request, and acknowledges it. Until then, it remains paired." confirmLabel={busy ? "Queueing…" : "Queue unpair"} tone="danger" onClose={() => !busy && setUnpairing(null)} onConfirm={() => void queueUnpair()}/>}
+  </div>;
 }
 
 function isVerified(screen: Screen, clock: number) { return Boolean(screen.connectivity === "ONLINE" && screen.lastHeartbeatAt && clock - new Date(screen.lastHeartbeatAt).getTime() <= 120000); }
 function preview(screen: Screen) { return { name: screen.currentCreativeName, url: screen.currentCreativeUrl, mimeType: screen.currentCreativeMimeType, fileName: screen.currentCreativeFileName }; }
-function ScreenRow({ screen,clock }: { screen: Screen;clock:number }) { return <tr className="align-middle transition-colors hover:bg-neutral-50"><td className="px-3 py-4 pl-0"><Link href={`/admin/screens/${screen.screenId}`} className="font-medium hover:underline">{screen.screenName}</Link><span className="mt-1 block text-xs text-neutral-500">{screen.vehicleIdentifier ?? screen.vehicleId ?? "No vehicle"}</span><span className="mt-1 block font-mono text-[10px] text-neutral-400">{screen.screenId}</span></td><td className="px-3 py-4"><div className="flex items-center gap-3"><LiveCreativePreview compact creative={preview(screen)} state={screen.playbackState} verified={isVerified(screen,clock)}/><div className="max-w-48"><p className="truncate text-xs font-medium">{screen.currentCreativeName ?? screen.currentCreativeId ?? "No creative reported"}</p><p className="mt-1 truncate text-[11px] text-neutral-500">{screen.currentCampaignName ?? screen.currentCampaignId ?? screen.playbackState ?? "Unknown state"}</p></div></div></td><td className="px-3 py-4"><ConnectivityStatus status={screen.connectivity ?? "NEVER_CONNECTED"}/></td><td className="px-3 py-4 text-xs"><span className="block">{screen.area}, {screen.city}</span>{screen.latitude != null && screen.longitude != null ? <span className="mt-1 block font-mono text-[10px] text-neutral-400">{screen.latitude.toFixed(4)}, {screen.longitude.toFixed(4)}</span> : <span className="mt-1 block text-neutral-400">No GPS</span>}</td><td className="px-3 py-4 text-xs"><RelativeTime value={screen.lastHeartbeatAt ?? undefined}/><span className="mt-1 block text-neutral-400">{screen.networkType ?? "Network unknown"}</span></td><td className="px-3 py-4 text-xs">{screen.manifestVersion ? `v${screen.manifestVersion}` : "—"}<div className="mt-1"><PairingBadge status={screen.pairingStatus}/></div></td></tr>; }
-function ScreenCard({ screen,clock }: { screen: Screen;clock:number }) { return <Link href={`/admin/screens/${screen.screenId}`} className="rounded-xl border border-neutral-200 p-4 transition hover:border-neutral-400"><div className="flex items-start gap-3"><LiveCreativePreview compact creative={preview(screen)} state={screen.playbackState} verified={isVerified(screen,clock)}/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div><p className="truncate text-sm font-semibold">{screen.screenName}</p><p className="mt-1 truncate text-xs text-neutral-500">{screen.vehicleIdentifier ?? "No vehicle"} · {screen.area}</p></div><ConnectivityStatus status={screen.connectivity ?? "NEVER_CONNECTED"}/></div><p className="mt-3 truncate text-xs font-medium">{screen.currentCreativeName ?? screen.currentCreativeId ?? "No creative reported"}</p><p className="mt-1 text-xs text-neutral-500">Last report <RelativeTime value={screen.lastHeartbeatAt ?? undefined}/></p></div></div></Link>; }
+function ScreenRow({ screen, clock, canManage, onUnpair }: { screen: Screen; clock: number; canManage: boolean; onUnpair: (screen: Screen) => void }) {
+  return <tr className="align-middle transition-colors hover:bg-neutral-50"><td className="px-3 py-4 pl-0"><Link href={`/admin/screens/${screen.screenId}`} className="font-medium hover:underline">{screen.screenName}</Link><span className="mt-1 block text-xs text-neutral-500">{screen.vehicleIdentifier ?? screen.vehicleId ?? "No vehicle"}</span><span className="mt-1 block font-mono text-[10px] text-neutral-400">{screen.screenId}</span></td><td className="px-3 py-4"><div className="flex items-center gap-3"><LiveCreativePreview compact creative={preview(screen)} state={screen.playbackState} verified={isVerified(screen, clock)}/><div className="max-w-48"><p className="truncate text-xs font-medium">{screen.currentCreativeName ?? screen.currentCreativeId ?? "No creative reported"}</p><p className="mt-1 truncate text-[11px] text-neutral-500">{screen.currentCampaignName ?? screen.currentCampaignId ?? screen.playbackState ?? "Unknown state"}</p></div></div></td><td className="px-3 py-4"><ConnectivityStatus status={screen.connectivity ?? "NEVER_CONNECTED"}/></td><td className="px-3 py-4 text-xs"><span className="block">{screen.area}, {screen.city}</span>{screen.latitude != null && screen.longitude != null ? <span className="mt-1 block font-mono text-[10px] text-neutral-400">{screen.latitude.toFixed(4)}, {screen.longitude.toFixed(4)}</span> : <span className="mt-1 block text-neutral-400">No GPS</span>}</td><td className="px-3 py-4 text-xs"><RelativeTime value={screen.lastHeartbeatAt ?? undefined}/><span className="mt-1 block text-neutral-400">{screen.networkType ?? "Network unknown"}</span></td><td className="px-3 py-4 text-xs">{screen.manifestVersion ? `v${screen.manifestVersion}` : "—"}<div className="mt-1"><PairingBadge status={screen.pairingStatus}/></div></td>{canManage && <td className="px-3 py-4"><div className="flex items-center gap-3 text-xs"><Link href={`/admin/screens/${screen.screenId}`} className="font-medium underline underline-offset-4">Manage</Link>{screen.pairingStatus === "PAIRED" && <button type="button" onClick={() => onUnpair(screen)} className="inline-flex items-center gap-1.5 font-medium text-amber-200 underline underline-offset-4"><Unplug size={13}/>Unpair</button>}</div></td>}</tr>;
+}
+function ScreenCard({ screen, clock, canManage, onUnpair }: { screen: Screen; clock: number; canManage: boolean; onUnpair: (screen: Screen) => void }) {
+  return <article className="rounded-xl border border-neutral-200 p-4 transition hover:border-neutral-400"><Link href={`/admin/screens/${screen.screenId}`} className="block"><div className="flex items-start gap-3"><LiveCreativePreview compact creative={preview(screen)} state={screen.playbackState} verified={isVerified(screen, clock)}/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div><p className="truncate text-sm font-semibold">{screen.screenName}</p><p className="mt-1 truncate text-xs text-neutral-500">{screen.vehicleIdentifier ?? "No vehicle"} · {screen.area}</p></div><ConnectivityStatus status={screen.connectivity ?? "NEVER_CONNECTED"}/></div><p className="mt-3 truncate text-xs font-medium">{screen.currentCreativeName ?? screen.currentCreativeId ?? "No creative reported"}</p><p className="mt-1 text-xs text-neutral-500">Last report <RelativeTime value={screen.lastHeartbeatAt ?? undefined}/></p></div></div></Link>{canManage && <div className="mt-4 flex gap-4 border-t border-neutral-200 pt-3">{screen.pairingStatus === "PAIRED" && <button type="button" onClick={() => onUnpair(screen)} className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-200 underline underline-offset-4"><Unplug size={13}/>Unpair</button>}<Link href={`/admin/screens/${screen.screenId}`} className="text-xs font-medium underline underline-offset-4">Manage screen</Link></div>}</article>;
+}
