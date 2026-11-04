@@ -33,7 +33,7 @@ function rulesOverlap(a: Rules, b: Rules) {
   return a.days.some((day) => b.days.includes(day)) && (!a.windows.length || !b.windows.length || a.windows.some((x) => b.windows.some((y) => x.start < y.end && y.start < x.end)));
 }
 
-export function OperationsScheduler({ canOverrideInventory = false }: { canOverrideInventory?: boolean }) {
+export function OperationsScheduler({ canOverrideInventory = false, initialCampaignId }: { canOverrideInventory?: boolean; initialCampaignId?: string }) {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,6 +53,7 @@ export function OperationsScheduler({ canOverrideInventory = false }: { canOverr
   const [range, setRange] = useState<(typeof ranges)[number]>("Day");
   const [date, setDate] = useState(today());
   const [screen, setScreen] = useState("");
+  const [initialSelectionApplied, setInitialSelectionApplied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,6 +137,21 @@ export function OperationsScheduler({ canOverrideInventory = false }: { canOverr
     setError("");
     setView("plan");
   }
+
+  useEffect(() => {
+    if (!initialCampaignId || !data || initialSelectionApplied) return;
+    const schedule = data.schedules.find((item) => item.campaignId === initialCampaignId);
+    if (schedule) {
+      edit(schedule);
+    } else if (data.campaigns.some((item) => item.id === initialCampaignId)) {
+      setCampaign(initialCampaignId);
+      setView("plan");
+      setMessage("Campaign selected. Configure delivery timing, playback and screens here, then check availability before publishing.");
+    } else {
+      setError("That campaign is not available in the scheduler. Refresh the page and try again.");
+    }
+    setInitialSelectionApplied(true);
+  }, [data, edit, initialCampaignId, initialSelectionApplied]);
 
   function moveCreative(index: number, delta: number) {
     const next = [...rules.creativeIds];
