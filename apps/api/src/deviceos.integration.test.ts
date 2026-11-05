@@ -11,7 +11,8 @@ const enabled = process.env.OORO_DEVICEOS_INTEGRATION_TESTS === 'true'
   && (/host=\/tmp\/ooro-deviceos-/.test(databaseUrl) || (process.env.OORO_DEVICEOS_ALLOW_DISPOSABLE_TCP_DB === 'true' && /@127\.0\.0\.1:\d+\//.test(databaseUrl)))
 
 test('DeviceOS PostgreSQL integration: enrollment, scoping, authorization, and revocation', { skip: !enabled }, async () => {
-  const admin = await prisma.user.create({ data: { phone: `deviceos-admin-${randomUUID()}`, role: 'ADMIN', accountStatus: 'ACTIVE' } })
+  const admin = await prisma.user.create({ data: { phone: `deviceos-admin-${randomUUID()}`, role: 'SUPER_ADMIN', accountStatus: 'ACTIVE' } })
+  const regularAdmin = await prisma.user.create({ data: { phone: `deviceos-regular-admin-${randomUUID()}`, role: 'ADMIN', accountStatus: 'ACTIVE' } })
   const support = await prisma.user.create({ data: { phone: `deviceos-support-${randomUUID()}`, role: 'SUPPORT', accountStatus: 'ACTIVE' } })
   const { accessToken: adminToken } = await issueTokens(admin.id, admin.role)
   const { accessToken: supportToken } = await issueTokens(support.id, support.role)
@@ -24,6 +25,8 @@ test('DeviceOS PostgreSQL integration: enrollment, scoping, authorization, and r
     { displayId: displayTwo.id, codeHash: hashSecret(pairingTwo), codeLast4: pairingTwo.slice(-4), expiresAt: new Date(Date.now() + 60_000) },
   ] })
   const adminHeaders = { authorization: `Bearer ${adminToken}` }
+  const { accessToken: regularAdminToken } = await issueTokens(regularAdmin.id, regularAdmin.role)
+  const regularAdminHeaders = { authorization: `Bearer ${regularAdminToken}` }
   const supportHeaders = { authorization: `Bearer ${supportToken}` }
   const enrolledOne = await app.inject({ method: 'POST', url: '/api/deviceos/enroll', payload: { pairingCode: pairingOne, agentVersionName: 'test', agentVersionCode: 1 } })
   const enrolledTwo = await app.inject({ method: 'POST', url: '/api/deviceos/enroll', payload: { pairingCode: pairingTwo, agentVersionName: 'test', agentVersionCode: 1 } })
@@ -51,6 +54,32 @@ test('DeviceOS PostgreSQL integration: enrollment, scoping, authorization, and r
     await prisma.deploymentTarget.create({ data: { campaignId: campaign.id, managedDeviceId: deviceTwo.managedDeviceId, state: 'ASSIGNED', assignedAt: new Date(), attempts: { create: { managedDeviceId: deviceTwo.managedDeviceId, attemptNumber: 1, state: 'ASSIGNED', idempotencyKey: `${campaign.id}:attempt-1` } } } })
     const deploymentPayload = { name: 'DeviceOS integration versioned campaign', applicationId: registeredApplicationId, releaseId: release.id, targetingMode: 'DEVICES', deviceIds: [deviceTwo.managedDeviceId] }
     const deploymentKey = randomUUID()
+    const deploymentUrl = '/api/admin/deviceos/deployments'
+    const missingApplication = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, applicationId: undefined } })
+    assert.equal(missingApplication.statusCode, 422)
+    assert.match(missingApplication.json().error.message, /Application ID is required/)
+    const missingRelease = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, releaseId: undefined } })
+    assert.equal(missingRelease.statusCode, 422)
+    assert.match(missingRelease.json().error.message, /Release ID is required/)
+    const malformedApplication = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, applicationId: 'screen-label' } })
+    assert.equal(malformedApplication.statusCode, 422)
+    assert.match(malformedApplication.json().error.message, /Application ID must be a valid UUID/)
+    const emptyDevices = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, deviceIds: [] } })
+    assert.equal(emptyDevices.statusCode, 422)
+    assert.equal(emptyDevices.json().error.code, 'TARGET_DEVICES_REQUIRED')
+    const missingGroup = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, targetingMode: 'GROUP', groupId: undefined, deviceIds: undefined } })
+    assert.equal(missingGroup.statusCode, 422)
+    assert.equal(missingGroup.json().error.code, 'TARGET_GROUP_REQUIRED')
+    const missingCity = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, targetingMode: 'CITY', city: '  ', deviceIds: undefined } })
+    assert.equal(missingCity.statusCode, 422)
+    assert.equal(missingCity.json().error.code, 'TARGET_CITY_REQUIRED')
+    const invalidPercentage = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, targetingMode: 'PERCENTAGE', targetPercentage: 0, deviceIds: undefined } })
+    assert.equal(invalidPercentage.statusCode, 422)
+    const mismatchedRelease = await app.inject({ method: 'POST', url: deploymentUrl, headers: adminHeaders, payload: { ...deploymentPayload, applicationId: randomUUID() } })
+    assert.equal(mismatchedRelease.statusCode, 422)
+    assert.equal(mismatchedRelease.json().error.code, 'RELEASE_APPLICATION_MISMATCH')
+    const adminCannotCreateDeployment = await app.inject({ method: 'POST', url: deploymentUrl, headers: regularAdminHeaders, payload: deploymentPayload })
+    assert.equal(adminCannotCreateDeployment.statusCode, 403)
     const createdDeployment = await app.inject({ method: 'POST', url: '/api/admin/deviceos/deployments', headers: { ...adminHeaders, 'idempotency-key': deploymentKey }, payload: deploymentPayload })
     assert.equal(createdDeployment.statusCode, 200, createdDeployment.body)
     const repeatedDeployment = await app.inject({ method: 'POST', url: '/api/admin/deviceos/deployments', headers: { ...adminHeaders, 'idempotency-key': deploymentKey }, payload: deploymentPayload })
@@ -144,6 +173,6 @@ test('DeviceOS PostgreSQL integration: enrollment, scoping, authorization, and r
     await prisma.managedDevice.deleteMany({ where: { id: { in: [deviceOne.managedDeviceId, deviceTwo.managedDeviceId] } } })
     await prisma.display.deleteMany({ where: { id: { in: [displayOne.id, displayTwo.id] } } })
     await prisma.managedApplication.deleteMany({ where: { packageName: 'com.ooro.integration' } })
-    await prisma.user.deleteMany({ where: { id: { in: [admin.id, support.id] } } })
+    await prisma.user.deleteMany({ where: { id: { in: [admin.id, regularAdmin.id, support.id] } } })
   }
 })

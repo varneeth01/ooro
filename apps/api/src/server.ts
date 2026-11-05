@@ -733,11 +733,11 @@ app.post('/api/admin/deviceos/deployments', async (request, reply) => {
   const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const input = bodyOf(request, z.object({
     name: z.string().trim().min(1).max(160),
-    applicationId: z.string().uuid(),
-    releaseId: z.string().uuid(),
+    applicationId: z.string({ error: 'Application ID is required' }).uuid({ error: 'Application ID must be a valid UUID' }),
+    releaseId: z.string({ error: 'Release ID is required' }).uuid({ error: 'Release ID must be a valid UUID' }),
     targetingMode: z.enum(deploymentTargetingModes),
-    deviceIds: z.array(z.string().uuid()).max(5000).optional(),
-    groupId: z.string().uuid().optional(),
+    deviceIds: z.array(z.string().uuid({ error: 'Device ID must be a valid UUID' })).max(5000).optional(),
+    groupId: z.string().uuid({ error: 'Group ID must be a valid UUID' }).optional(),
     city: z.string().trim().max(120).optional(),
     targetPercentage: z.number().int().min(1).max(100).optional(),
     maintenanceWindowStart: z.coerce.date().optional(),
