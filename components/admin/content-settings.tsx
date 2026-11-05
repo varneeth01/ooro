@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageHeader, SectionCard } from "@/components/app/app-ui";
 import { AdminSubnav } from "./admin-ui";
 
@@ -137,7 +138,7 @@ export function ContentSettings() {
           <div className="mt-5 rounded-lg border border-white/10 bg-black/20 p-4"><p className="text-xs text-neutral-500">Current contract</p><p className="mt-1 text-sm font-semibold text-neutral-100">V{zone.layoutContractVersion} · {isV3 ? "Sponsored strip, no news ticker" : zone.layoutContractVersion === 2 ? "Legacy layout with news ticker" : "Legacy geometry"}</p></div>
           <label className="mt-4 block text-sm font-medium">Player layout<select value={zone.layoutContractVersion ?? 2} onChange={event => setZone(current => ({ ...current, layoutContractVersion: Number(event.target.value) }))} className={fieldClass}><option value={1}>V1 · legacy geometry</option><option value={2}>V2 · sidebar with news ticker</option><option value={3}>V3 · sponsored strip, no ticker</option></select><span className="mt-1.5 block text-xs leading-5 text-neutral-500">Enable V3 only after the compatible Screen Player is installed and the V3 API migration is deployed.</span></label>
           {!isV3 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{([["primaryWidthPercent","Primary area width (%)"],["adHeightPercent","Main creative height (%)"],["qrHeightPercent","QR area height (%)"],["newsScrollSpeed","Legacy ticker speed"]] as const).map(([key,label]) => <label className="block text-sm font-medium" key={key}>{label}<input type="number" value={zone[key]} onChange={event => setZone(current => ({ ...current, [key]: Number(event.target.value) || 0 }))} className={fieldClass} /></label>)}</div>}
-          {isV3 && <p className="mt-4 rounded-lg border border-[#dfff00]/20 bg-[#dfff00]/[.05] p-4 text-sm leading-6 text-neutral-200">V3 uses a fixed sponsored strip. Create or edit the sponsor from <a href="/admin/campaigns/new" className="font-semibold text-[#dfff00] underline underline-offset-4">Campaigns</a>; no ticker text or speed setting is used.</p>}
+          {isV3 && <p className="mt-4 rounded-lg border border-[#dfff00]/20 bg-[#dfff00]/[.05] p-4 text-sm leading-6 text-neutral-200">V3 uses a fixed sponsored strip. Create or edit the sponsor from <Link href="/admin/campaigns/new" className="font-semibold text-[#dfff00] underline underline-offset-4">Campaigns</Link>; no ticker text or speed setting is used.</p>}
           <button type="button" onClick={() => void saveZone()} className={`${primaryButton} mt-5`}>Save layout</button>
         </>}
       </SectionCard>
