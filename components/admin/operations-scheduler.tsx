@@ -54,6 +54,7 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
   const [date, setDate] = useState(today());
   const [screen, setScreen] = useState("");
   const [initialSelectionApplied, setInitialSelectionApplied] = useState(false);
+  const [step, setStep] = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +108,7 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
   }
 
   function edit(schedule: Schedule) {
+    setStep(1);
     setCampaign(schedule.campaignId);
     setRevision(schedule.revision);
     setStart(local(schedule.startsAt));
@@ -123,6 +125,7 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
   }
 
   function startNewSchedule() {
+    setStep(1);
     setCampaign("");
     setRevision(0);
     setStart(`${today()}T07:00`);
@@ -209,11 +212,11 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
         })}
       </div></div> : <div className="mt-4 flex flex-col items-start gap-4 rounded-xl bg-[#f2f4ec] p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-neutral-900">No schedules in this interval</p><p className="mt-1 text-sm text-neutral-600">Choose another date or plan a new delivery.</p></div><button type="button" onClick={startNewSchedule} className={primaryClass}><Plus size={15} />Plan delivery</button></div>}
     </SectionCard> : <>
-      <ol aria-label="Scheduling steps" className="grid gap-0 overflow-hidden rounded-xl border border-neutral-200 bg-white sm:grid-cols-3">
-        {[ ["1", "Campaign & creative", "Choose approved media."], ["2", "Screens & timing", "Set audience and delivery window."], ["3", "Availability", "Check conflicts before publishing."] ].map(([step, title, detail], index) => <li key={step} className={`flex gap-3 p-4 sm:p-5 ${index < 2 ? "border-b border-neutral-200 sm:border-b-0 sm:border-r" : ""}`}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold tabular-nums text-neutral-800">{step}</span><div><p className="text-sm font-semibold text-neutral-900">{title}</p><p className="mt-1 text-xs leading-5 text-neutral-500">{detail}</p></div></li>)}
+      <ol aria-label="Scheduling steps" className="grid gap-2 sm:grid-cols-3">
+        {[["Campaign & creative", "Choose approved media."], ["Screens & timing", "Set audience and delivery window."], ["Availability", "Check conflicts before publishing."]].map(([title, detail], index) => <li key={title}><div aria-current={step === index + 1 ? "step" : undefined} className={`flex min-h-[76px] items-start gap-3 rounded-xl border p-4 ${step === index + 1 ? "border-[#dfff00]/50 bg-[#dfff00]/[.07]" : step > index + 1 ? "border-white/15 bg-[#191f24]" : "border-white/10 bg-[#151a1e] opacity-60"}`}><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${step === index + 1 ? "bg-[#dfff00] text-black" : "bg-white/10 text-neutral-200"}`}>{index + 1 < step ? <Check size={14} /> : index + 1}</span><span><span className="block text-sm font-semibold text-neutral-100">{title}</span><span className="mt-1 block text-xs leading-5 text-neutral-400">{detail}</span></span></div></li>)}
       </ol>
 
-      <SectionCard title={revision > 0 ? `Edit schedule · revision ${revision}` : "Campaign and playback"} description="Choose approved media, then set when and how it appears.">
+      {step === 1 && <SectionCard title={revision > 0 ? `Edit schedule · revision ${revision}` : "Campaign and playback"} description="Choose approved media, then set when and how it appears.">
         <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
           <div><Field label="Campaign" hint={selected ? `${selected.ownerEmail ?? "Internal advertiser"} · ${selected.creatives.filter((creative) => creative.status === "APPROVED").length} approved creatives` : "Choose a campaign with approved media. Existing schedules can be edited from Timeline."}>
             <select className={inputClass} value={campaignId} disabled={revision > 0} onChange={(event) => { setCampaign(event.target.value); setRevision(0); setStart(`${today()}T07:00`); setEnd(`${today()}T22:00`); setRules(defaultRules()); setTarget(defaultTarget()); setPriority("NORMAL"); setExclusive(false); setReason(""); setReport(null); setMessage(""); }}><option value="">Select campaign</option>{data.campaigns.map((campaign) => { const hasSchedule = data.schedules.some((schedule) => schedule.campaignId === campaign.id); return <option value={campaign.id} key={campaign.id} disabled={revision === 0 && hasSchedule}>{campaign.name} · {campaign.status.replaceAll("_", " ")}{hasSchedule && revision === 0 ? " · Already scheduled — edit in Timeline" : ""}</option>; })}</select>
@@ -236,9 +239,9 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
           <Field label="Add approved creative" hint="Add creatives in the order you want them to appear in the sequence."><select className={inputClass} value="" onChange={(event) => { const id = event.target.value; if (id) setRules({ ...rules, creativeIds: [...rules.creativeIds, id] }); }}><option value="">Choose creative</option>{selected?.creatives.filter((creative) => creative.status === "APPROVED").map((creative) => <option key={creative.id} value={creative.id}>{creative.name} · {creative.type}</option>)}</select></Field>
           {rules.creativeIds.length > 0 && <ol aria-label="Creative playback sequence" className="mt-3 divide-y divide-neutral-200 rounded-lg border border-neutral-200">{rules.creativeIds.map((id, index) => { const name = selected?.creatives.find((creative) => creative.id === id)?.name ?? id; return <li key={`${id}-${index}`} className="flex min-w-0 items-center gap-2 p-3"><span className="w-7 shrink-0 text-xs font-semibold tabular-nums text-neutral-500">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{name}</span><button type="button" aria-label={`Move creative ${index + 1} up`} disabled={index === 0} onClick={() => moveCreative(index, -1)} className="grid h-9 w-9 place-items-center rounded-md text-neutral-700 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-30"><ArrowUp size={15} /></button><button type="button" aria-label={`Move creative ${index + 1} down`} disabled={index === rules.creativeIds.length - 1} onClick={() => moveCreative(index, 1)} className="grid h-9 w-9 place-items-center rounded-md text-neutral-700 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-30"><ArrowDown size={15} /></button><button type="button" aria-label={`Remove ${name}`} onClick={() => setRules({ ...rules, creativeIds: rules.creativeIds.filter((_, itemIndex) => itemIndex !== index) })} className="grid h-9 w-9 place-items-center rounded-md text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"><X size={15} /></button></li>; })}</ol>}
         </fieldset>
-      </SectionCard>
+      </SectionCard>}
 
-      <SectionCard title="Target screens" description="Choose screens, screen groups, or vehicles. Location and route filters narrow the selection.">
+      {step === 2 && <SectionCard title="Target screens" description="Choose screens, screen groups, or vehicles. Location and route filters narrow the selection.">
         <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-[#f7f7f4] px-4 text-sm font-semibold text-neutral-900"><input type="checkbox" checked={target.all} onChange={(event) => setTarget({ ...target, all: event.target.checked })} className="h-4 w-4 accent-black" />Target all screens</label>
         <div className="mt-4 grid gap-5 lg:grid-cols-3">{([
           ["screenIds", "Screens", data.screens],
@@ -256,9 +259,9 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
         </div></fieldset>
         <div className="mt-5"><label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-neutral-800"><input type="checkbox" checked={!!target.geofence} onChange={(event) => setTarget({ ...target, geofence: event.target.checked ? { latitude: 17.385, longitude: 78.4867, radiusKm: 5 } : undefined })} className="h-4 w-4 accent-black" />Use radius targeting <span className="text-xs font-normal text-neutral-500">Location is checked when publishing.</span></label>{target.geofence && <div className="mt-2 grid gap-4 sm:grid-cols-3">{([ ["latitude", "Center latitude"], ["longitude", "Center longitude"], ["radiusKm", "Radius (km)"] ] as const).map(([key, label]) => <Field key={key} label={label}><input type="number" step="any" className={inputClass} value={target.geofence![key]} onChange={(event) => setTarget({ ...target, geofence: { ...target.geofence!, [key]: Number(event.target.value) } })} /></Field>)}</div>}</div>
         <Link href="/admin/screen-groups" className="mt-4 inline-flex min-h-10 items-center text-sm font-medium text-neutral-700 underline underline-offset-4 hover:text-black">Manage screen groups</Link>
-      </SectionCard>
+      </SectionCard>}
 
-      <SectionCard title="Availability and publish" description="Pacing targets depend on device uptime. Inventory checks include existing bookings.">
+      {step === 3 && <SectionCard title="Availability and publish" description="Pacing targets depend on device uptime. Inventory checks include existing bookings.">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f2f4ec] px-4 py-3"><div><p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Target summary</p><p className="mt-1 text-sm font-semibold text-neutral-900">{targetSummary}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${report ? report.canPublish ? "bg-[#e7f0c8] text-[#405316]" : "bg-red-100 text-red-900" : "bg-neutral-200 text-neutral-700"}`}>{report ? report.canPublish ? "Ready to publish" : "Needs attention" : "Not checked"}</span></div>
 
         {canOverrideInventory && <details className="mt-4 rounded-lg border border-neutral-200 p-4 text-sm"><summary className="cursor-pointer font-medium text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">Advanced · inventory override</summary><p className="mt-2 text-xs leading-5 text-neutral-500">Use only for an approved exception to an exclusive inventory conflict. The reason is recorded in the audit log.</p><Field label="Override reason"><input className={inputClass} value={overrideReason} onChange={(event) => setReason(event.target.value)} placeholder="Explain the exception" /></Field></details>}
@@ -269,7 +272,17 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
         {publishBlocker && <p role="status" className="mt-4 rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-700">{publishBlocker}</p>}
         {checkBlocker && <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Before checking availability: {checkBlocker}</p>}
         <div className="mt-5 flex flex-col-reverse gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-neutral-500">{busy ? "Saving schedule…" : revision > 0 ? `Updating revision ${revision}` : "Your schedule is saved when published."}</p><div className="flex flex-col gap-2 sm:flex-row"><button type="button" disabled={busy || !!checkBlocker} onClick={() => void submit("check")} className={buttonClass}>{busy ? <RefreshCw size={15} className="animate-spin" /> : <CalendarDays size={15} />}{busy ? "Checking…" : "Check availability"}</button><button type="button" disabled={busy || !!publishBlocker || !!checkBlocker} onClick={() => void submit("publish")} className={primaryClass}>{busy ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}{busy ? "Publishing…" : "Publish schedule"}</button></div></div>
-      </SectionCard>
+      </SectionCard>}
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button type="button" onClick={() => { setError(""); setStep(Math.max(1, step - 1)); }} disabled={step === 1} className={buttonClass}>Back</button>
+        {step < 3 ? <button type="button" className={primaryClass} onClick={() => {
+          const blocker = step === 1
+            ? (!campaignId ? "Choose a campaign first." : !selected?.creatives.some(creative => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !rules.creativeIds.length ? "Add at least one approved creative to the playback sequence." : !start || !end || start >= end ? "Set a valid start and end time." : null)
+            : !hasTarget ? "Choose at least one screen or targeting filter." : null;
+          if (blocker) { setError(blocker); return; }
+          setError(""); setMessage(""); setStep(step + 1); window.scrollTo({ top: 0, behavior: "smooth" });
+        }}>{step === 1 ? "Choose screens" : "Review availability"} <ArrowDown size={15} /></button> : <span className="text-xs text-neutral-500">Check availability, resolve conflicts, then publish.</span>}
+      </div>
     </>}
   </div>;
 }
