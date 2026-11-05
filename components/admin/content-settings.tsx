@@ -7,9 +7,9 @@ import { AdminSubnav } from "./admin-ui";
 
 type News = { id: string; text: string; city?: string | null; priority: number; active: boolean; startsAt?: string | null; endsAt?: string | null };
 type Screen = { screenId: string; screenName: string; city?: string | null };
-type Zone = { primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number; layoutContractVersion: number | null };
+type Zone = { primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number; layoutContractVersion: number | null; playerSupportsSponsoredSlot: boolean };
 
-const initialZone: Zone = { primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42, layoutContractVersion: null };
+const initialZone: Zone = { primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42, layoutContractVersion: null, playerSupportsSponsoredSlot: false };
 const fieldClass = "mt-1.5 min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-[#dfff00] focus:ring-2 focus:ring-[#dfff00]/20";
 const primaryButton = "inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--brand-yellow)] px-4 text-sm font-semibold text-black transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -28,6 +28,7 @@ export function ContentSettings() {
   const v3Supported = zone.layoutContractVersion !== null;
   const isV3 = zone.layoutContractVersion === 3;
   const isV3Active = savedContractVersion === 3;
+  const canActivateSponsoredSlot = v3Supported && zone.playerSupportsSponsoredSlot;
 
   async function load() {
     setLoading(true);
@@ -63,7 +64,7 @@ export function ContentSettings() {
         if (!response.ok) throw new Error(body.error?.message || "Screen layout could not be loaded.");
         if (active && body.data) {
           const version = Number.isInteger(body.data.layoutContractVersion) ? body.data.layoutContractVersion : null;
-          setZone({ primaryWidthPercent: body.data.primaryWidthPercent ?? 67, adHeightPercent: body.data.adHeightPercent ?? 86, qrHeightPercent: body.data.qrHeightPercent ?? 47, newsScrollSpeed: body.data.newsScrollSpeed ?? 42, layoutContractVersion: version });
+          setZone({ primaryWidthPercent: body.data.primaryWidthPercent ?? 67, adHeightPercent: body.data.adHeightPercent ?? 86, qrHeightPercent: body.data.qrHeightPercent ?? 47, newsScrollSpeed: body.data.newsScrollSpeed ?? 42, layoutContractVersion: version, playerSupportsSponsoredSlot: body.data.playerSupportsSponsoredSlot === true });
           setSavedContractVersion(version);
         }
       })
@@ -110,7 +111,7 @@ export function ContentSettings() {
           <h2 id="sponsored-placement-title" className="mt-2 text-lg font-semibold text-neutral-100">Sponsored strip replaces the news ticker</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">On V3 screens, the lower strip is reserved for a sponsored image. Create it as a campaign and choose <strong className="font-semibold text-neutral-200">Sponsored placement</strong>; it will not be managed as a news announcement.</p>
         </div>
-        <span className={`inline-flex w-fit shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${isV3 ? "border-lime-400/30 bg-lime-400/10 text-lime-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>{isV3Active ? "V3 layout active" : isV3 ? "V3 selected · save to activate" : "Legacy layout active"}</span>
+        <span className={`inline-flex w-fit shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${isV3 && canActivateSponsoredSlot ? "border-lime-400/30 bg-lime-400/10 text-lime-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>{isV3Active ? "V3 configuration saved" : isV3 && !canActivateSponsoredSlot ? "V3 selected · player support unverified" : isV3 ? "V3 selected · save to activate" : "Legacy layout active"}</span>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-white/10 bg-black/20 p-4"><p className="text-xs text-neutral-500">Main creative</p><p className="mt-1 text-sm font-medium text-neutral-200">Full-size campaign area</p></div>
@@ -138,10 +139,11 @@ export function ContentSettings() {
         <label className="block text-sm font-medium">Screen<select value={screenId} onChange={event => setScreenId(event.target.value)} className={fieldClass}><option value="">Select a screen</option>{screens.map(screen => <option value={screen.screenId} key={screen.screenId}>{screen.screenName} · {screen.city || "City not set"}</option>)}</select></label>
         {!screenId ? <p className="mt-5 rounded-lg border border-white/10 bg-black/20 p-4 text-sm leading-6 text-neutral-400">Select a screen to see its layout contract and available controls.</p> : !v3Supported ? <div className="mt-5 rounded-lg border border-white/10 bg-black/20 p-4"><p className="text-sm font-medium text-neutral-200">Current layout: legacy configuration</p><p className="mt-1 text-xs leading-5 text-neutral-500">The server has not returned a layout contract version. V3 cannot be enabled safely from this admin build.</p></div> : <>
           <div className="mt-5 rounded-lg border border-white/10 bg-black/20 p-4"><p className="text-xs text-neutral-500">Current contract</p><p className="mt-1 text-sm font-semibold text-neutral-100">V{zone.layoutContractVersion} · {isV3Active ? "Sponsored strip active · no news ticker" : isV3 ? "Sponsored strip selected · not saved yet" : zone.layoutContractVersion === 2 ? "Legacy layout with news ticker" : "Legacy geometry"}</p></div>
-          <label className="mt-4 block text-sm font-medium">Player layout<select value={zone.layoutContractVersion ?? 2} onChange={event => setZone(current => ({ ...current, layoutContractVersion: Number(event.target.value) }))} className={fieldClass}><option value={1}>V1 · legacy geometry</option><option value={2}>V2 · sidebar with news ticker</option><option value={3}>V3 · sponsored strip, no ticker</option></select><span className="mt-1.5 block text-xs leading-5 text-neutral-500">Enable V3 only after the compatible Screen Player is installed and the V3 API migration is deployed.</span></label>
+          <label className="mt-4 block text-sm font-medium">Player layout<select value={zone.layoutContractVersion ?? 2} onChange={event => setZone(current => ({ ...current, layoutContractVersion: Number(event.target.value) }))} className={fieldClass}><option value={1}>V1 · legacy geometry</option><option value={2}>V2 · sidebar with news ticker</option><option value={3} disabled={!canActivateSponsoredSlot && zone.layoutContractVersion !== 3}>V3 · sponsored strip, no ticker{!canActivateSponsoredSlot ? " (player support unverified)" : ""}</option></select><span className="mt-1.5 block text-xs leading-5 text-neutral-500">V3 can be selected only when the API confirms this screen’s player supports the sponsored slot and the migration is deployed.</span></label>
           {!isV3 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{([["primaryWidthPercent","Primary area width (%)"],["adHeightPercent","Main creative height (%)"],["qrHeightPercent","QR area height (%)"],["newsScrollSpeed","Legacy ticker speed"]] as const).map(([key,label]) => <label className="block text-sm font-medium" key={key}>{label}<input type="number" value={zone[key]} onChange={event => setZone(current => ({ ...current, [key]: Number(event.target.value) || 0 }))} className={fieldClass} /></label>)}</div>}
           {isV3 && <p className="mt-4 rounded-lg border border-[#dfff00]/20 bg-[#dfff00]/[.05] p-4 text-sm leading-6 text-neutral-200">V3 uses a fixed sponsored strip. Create or edit the sponsor from <Link href="/admin/campaigns/new" className="font-semibold text-[#dfff00] underline underline-offset-4">Campaigns</Link>; no ticker text or speed setting is used.</p>}
-          <button type="button" onClick={() => void saveZone()} className={`${primaryButton} mt-5`}>Save layout</button>
+          {isV3 && !canActivateSponsoredSlot && <p className="mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[.06] p-4 text-sm leading-6 text-amber-100">Sponsored strip activation is locked because this screen’s player support has not been confirmed by the API. Ask an administrator to update the player/API first.</p>}
+          <button type="button" onClick={() => void saveZone()} disabled={isV3 && !canActivateSponsoredSlot} className={`${primaryButton} mt-5`}>Save layout</button>
         </>}
       </SectionCard>
     </div>
