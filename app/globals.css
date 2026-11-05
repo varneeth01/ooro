@@ -94,7 +94,7 @@ summary::-webkit-details-marker { display: none; }
 
 
 /* Admin dark-surface normalization for legacy pages that still use light utility colors. */
-.ooro-admin .bg-\\[\\#f2f4ec\\], .ooro-admin .bg-\\[\\#f7f7f4\\], .ooro-admin .bg-\\[\\#f7fadf\\], .ooro-admin .bg-\\[\\#f8fbdc\\] {
+.ooro-admin .bg-\[\#f2f4ec\], .ooro-admin .bg-\[\#f7f7f4\], .ooro-admin .bg-\[\#f7fadf\], .ooro-admin .bg-\[\#f8fbdc\] {
   background-color: #151a1e !important;
   border-color: var(--admin-border) !important;
 }
