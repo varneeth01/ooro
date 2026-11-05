@@ -44,8 +44,8 @@ class AssetDownloadTest {
             assertFails { downloadVerifiedAsset("$base/truncated", temp, target, null) }
             assertArrayEquals(content, target.readBytes())
             assertFalse(temp.exists())
-            server.close()
-            assertFails { downloadVerifiedAsset("$base/ok", temp, target, checksum) }
+            // Port zero is never a valid TCP destination, so this cannot depend on runner port reuse.
+            assertFails { downloadVerifiedAsset("http://127.0.0.1:0/ok", temp, target, checksum) }
             assertArrayEquals(content, target.readBytes())
         } finally { runCatching { server.close() }; serverThread.join(1_000); directory.deleteRecursively() }
     }
