@@ -9,6 +9,10 @@ import java.time.Duration
 import java.time.Instant
 
 internal const val MANIFEST_REFRESH_LEAD_MILLIS = 120_000L
+internal const val NETWORK_RECOVERY_THROTTLE_MILLIS = 30_000L
+
+internal fun shouldRefreshAfterNetworkRecovery(nowElapsedMillis: Long, lastRefreshElapsedMillis: Long): Boolean =
+    lastRefreshElapsedMillis <= 0L || nowElapsedMillis - lastRefreshElapsedMillis >= NETWORK_RECOVERY_THROTTLE_MILLIS
 
 internal fun syncRetryDelayMillis(attempt: Int, jitterMillis: Long): Long {
     val exponent = attempt.coerceIn(1, 8)

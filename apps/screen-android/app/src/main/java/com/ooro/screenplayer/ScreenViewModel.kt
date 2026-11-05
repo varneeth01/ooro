@@ -25,6 +25,7 @@ import com.ooro.screenplayer.sync.ProofSyncScheduler
 import android.util.Log
 import android.net.ConnectivityManager
 import android.net.Network
+import android.os.SystemClock
 import com.ooro.screenplayer.location.LocationReporter
 import com.ooro.screenplayer.location.LocationSnapshot
 import java.time.Instant
@@ -75,8 +76,8 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            val now = System.currentTimeMillis()
-            if (!networkRecoveryReady || now - lastNetworkRecoveryAt < 30_000L || store.credentials() == null) return
+            val now = SystemClock.elapsedRealtime()
+            if (!networkRecoveryReady || !shouldRefreshAfterNetworkRecovery(now, lastNetworkRecoveryAt) || store.credentials() == null) return
             lastNetworkRecoveryAt = now
             reconnectJob?.cancel()
             reconnectJob = null

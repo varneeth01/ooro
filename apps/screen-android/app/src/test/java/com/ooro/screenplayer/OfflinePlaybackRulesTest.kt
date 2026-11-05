@@ -122,6 +122,12 @@ class OfflinePlaybackRulesTest {
         assertEquals(256_999L, syncRetryDelayMillis(20, 999))
     }
 
+    @Test fun networkRecoveryRefreshIsThrottledForThirtySecondsUsingElapsedTime() {
+        assertTrue(shouldRefreshAfterNetworkRecovery(1_000L, 0L))
+        assertFalse(shouldRefreshAfterNetworkRecovery(30_999L, 1_000L))
+        assertTrue(shouldRefreshAfterNetworkRecovery(31_000L, 1_000L))
+    }
+
     @Test fun refreshedManifestCannotExtendPlaybackPastCampaignOrAllocationEnd() {
         val item = item("allocated-slot").copy(startAt = now.minusSeconds(60), endAt = now.plusSeconds(600))
         val refreshed = manifest(listOf(item), now.plusSeconds(900))
