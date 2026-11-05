@@ -67,6 +67,9 @@ import com.ooro.screenplayer.player.fittedContentBounds
 import com.ooro.screenplayer.player.usesSidebar80
 import com.ooro.screenplayer.player.usesSponsoredLayout
 import com.ooro.screenplayer.player.shouldRenderNewsTicker
+import com.ooro.screenplayer.player.PresentationPreference
+import com.ooro.screenplayer.player.PresentationPreferenceStore
+import com.ooro.screenplayer.player.geometryContractVersion
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -84,6 +87,8 @@ class MainActivity : ComponentActivity() {
     private val vm: ScreenViewModel by viewModels { ScreenViewModel.factory(applicationContext) }
     private var locationPermissionGranted by mutableStateOf(false)
     private var locationPermissionMessage by mutableStateOf<String?>(null)
+    private lateinit var presentationPreferenceStore: PresentationPreferenceStore
+    private var presentationPreference by mutableStateOf(PresentationPreference.AUTO_FROM_MANIFEST)
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         locationPermissionGranted = result.values.any { it } || hasLocationPermission()
         locationPermissionMessage = if (locationPermissionGranted) {
@@ -99,9 +104,14 @@ class MainActivity : ComponentActivity() {
         enterFullscreen()
         OoroDeviceAdminReceiver.initialize(this, this)
         locationPermissionGranted = hasLocationPermission()
+        presentationPreferenceStore = PresentationPreferenceStore(this)
+        presentationPreference = presentationPreferenceStore.read()
         setContent {
             OoroTheme {
-                Root(vm, locationPermissionGranted, locationPermissionMessage, ::requestLocationPermission)
+                Root(vm, locationPermissionGranted, locationPermissionMessage, ::requestLocationPermission, presentationPreference) { selected ->
+                    presentationPreferenceStore.write(selected)
+                    presentationPreference = selected
+                }
             }
         }
     }
@@ -142,7 +152,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     else -> "Granted · waiting for location fix"
 }
 @Composable private fun OoroTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = darkColorScheme(primary = Yellow, background = Color.Black, surface = Panel), content = content)
-@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) { SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.ROOT_COMPOSITION) }; val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage, onRequestLocation) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest); is ScreenState.Admin -> Admin(vm, locationGranted, onRequestLocation) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
+@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit, presentationPreference: PresentationPreference, onPresentationPreferenceChanged: (PresentationPreference) -> Unit) { SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.ROOT_COMPOSITION) }; val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage, onRequestLocation) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery, presentationPreference); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest, presentationPreference = presentationPreference); is ScreenState.Admin -> Admin(vm, locationGranted, onRequestLocation, presentationPreference, onPresentationPreferenceChanged) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
 @Composable private fun Message(text: String) { Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("OORO\n$text", color = Color.White, fontSize = 28.sp) } }
 @Composable private fun Setup(vm: ScreenViewModel, message: String?, repair: Boolean = false, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) {
     var code by remember { mutableStateOf("") }
@@ -169,13 +179,13 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     }
 }
 
-@Composable private fun AuthRecovery(vm: ScreenViewModel, recovery: ScreenState.AuthRecovery) {
+@Composable private fun AuthRecovery(vm: ScreenViewModel, recovery: ScreenState.AuthRecovery, presentationPreference: PresentationPreference) {
     var confirmRepair by remember { mutableStateOf(false) }
     val reconnecting by vm.reconnecting.collectAsState()
     val authFailure = recovery.kind !in setOf(com.ooro.screenplayer.api.DeviceFailureKind.DNS_ERROR, com.ooro.screenplayer.api.DeviceFailureKind.CONNECTION_REFUSED, com.ooro.screenplayer.api.DeviceFailureKind.TIMEOUT, com.ooro.screenplayer.api.DeviceFailureKind.TLS_ERROR, com.ooro.screenplayer.api.DeviceFailureKind.NETWORK_UNAVAILABLE, com.ooro.screenplayer.api.DeviceFailureKind.SERVER_UNAVAILABLE)
     val preservePlayback = !authFailure && recovery.cachedManifest != null
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        if (preservePlayback) Player(vm, recovery.cachedManifest!!)
+        if (preservePlayback) Player(vm, recovery.cachedManifest!!, presentationPreference = presentationPreference)
         Surface(color = Color(0xEE101010), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth(0.9f).padding(24.dp)) {
           Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("OORO DEVICE CONNECTION", color = Yellow, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -190,7 +200,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     if (confirmRepair) AlertDialog(onDismissRequest = { confirmRepair = false }, title = { Text("Repair this device?") }, text = { Text("Use this if Reconnect does not work. This keeps the existing screen identity and history, and may require a new pairing code.") }, confirmButton = { TextButton(onClick = { confirmRepair = false; vm.beginRepair() }) { Text("Continue Repair") } }, dismissButton = { TextButton(onClick = { confirmRepair = false }) { Text("Cancel") } })
 }
 
-@Composable internal fun Player(vm: ScreenViewModel?, manifest: DeviceManifest, preview: PlayerPreviewConfig? = null) {
+@Composable internal fun Player(vm: ScreenViewModel?, manifest: DeviceManifest, preview: PlayerPreviewConfig? = null, presentationPreference: PresentationPreference = PresentationPreference.AUTO_FROM_MANIFEST) {
     var taps by remember { mutableIntStateOf(0) }
     val playbackOffset by (vm?.playbackOffset ?: flowOf(0)).collectAsState(initial = 0)
     val presentationItem by (vm?.currentCreative ?: flowOf<ManifestItem?>(null)).collectAsState(initial = null)
@@ -226,6 +236,9 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
         }
     }
     val sponsoredItem = remember(sponsorCandidate, sponsorClock, verifiedAssetIds, manifest.layoutContractVersion, manifest.validUntil) { eligibleSponsoredItem(manifest, sponsorClock, verifiedAssetIds) }
+    // The local setting affects presentation geometry only. Sponsor eligibility, lease,
+    // schedules, selection and proof attribution continue to use the unmodified manifest.
+    val geometryVersion = geometryContractVersion(manifest.layoutContractVersion, manifest.layout, presentationPreference)
     val item = preview?.let { state -> manifest.items.firstOrNull { it.id == state.itemId } } ?: scheduledItem
     val displayedOffer = if (preview != null) item else if (manifestExpired) null else presentationItem ?: item
     val rootModifier = if (preview == null) Modifier.fillMaxSize().background(Color.Black).clickable {
@@ -234,17 +247,17 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     } else Modifier.fillMaxSize().background(Color.Black).clipToBounds()
     Box(rootModifier) {
         if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize().clipToBounds()) {
-            val adWidth = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 80 else manifest.layoutConfig.safePrimaryWidth
-            val sidebarSplit = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 50 else manifest.layoutConfig.safeQrHeight
+            val adWidth = if (usesSidebar80(manifest.layout, geometryVersion)) 80 else manifest.layoutConfig.safePrimaryWidth
+            val sidebarSplit = if (usesSidebar80(manifest.layout, geometryVersion)) 50 else manifest.layoutConfig.safeQrHeight
             Column(Modifier.weight(adWidth.toFloat()).fillMaxHeight().clipToBounds()) {
-                val mainHeight = if (usesSponsoredLayout(manifest.layout, manifest.layoutContractVersion)) 85 else manifest.layoutConfig.safeAdHeight
+                val mainHeight = if (usesSponsoredLayout(manifest.layout, geometryVersion)) 85 else manifest.layoutConfig.safeAdHeight
                 Box(Modifier.weight(mainHeight.toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:main-ad" }.onSizeChanged { Log.i("OoroRenderTest", "region=main-ad boundsPx=${it.width}x${it.height}") })) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
-                if (usesSponsoredLayout(manifest.layout, manifest.layoutContractVersion)) {
+                if (usesSponsoredLayout(manifest.layout, geometryVersion)) {
                     Box(Modifier.weight(15f).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:sponsored" }.onSizeChanged { Log.i("OoroRenderTest", "region=sponsored boundsPx=${it.width}x${it.height}") })) {
                         SponsoredAdRegion(vm, sponsoredItem, Modifier.fillMaxSize(), preview?.sponsoredAssetPath)
                     }
-                } else if (shouldRenderNewsTicker(manifest.layout, manifest.layoutContractVersion)) {
-                    NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - mainHeight).toFloat()).fillMaxWidth().clipToBounds())
+                } else if (shouldRenderNewsTicker(manifest.layout, geometryVersion)) {
+                    NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - mainHeight).toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroRegion:news-ticker" }))
                 }
             }
             Column(Modifier.weight((100 - adWidth).toFloat()).fillMaxHeight().clipToBounds()) {
@@ -263,7 +276,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
     if (item == null || (vm == null && previewAssetPath == null)) {
-        Box(modifier.background(Color(0xFF101418)).clipToBounds())
+        Box(modifier.background(Color(0xFF101418)).clipToBounds().then(if (previewAssetPath == null && vm == null) Modifier.semantics { contentDescription = "Sponsored slot neutral placeholder" } else Modifier))
         return
     }
     var path by remember(item.id) { mutableStateOf<String?>(null) }
@@ -668,13 +681,24 @@ private fun qrBitmap(value: String, size: Int): Bitmap? = runCatching {
     val pixels = IntArray(size * size) { index -> if (matrix[index % size, index / size]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
     Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { it.setPixels(pixels, 0, size, 0, 0, size, size) }
 }.getOrNull()
-@Composable private fun Admin(vm: ScreenViewModel, locationGranted: Boolean, onRequestLocation: () -> Unit) {
+@Composable private fun Admin(vm: ScreenViewModel, locationGranted: Boolean, onRequestLocation: () -> Unit, presentationPreference: PresentationPreference, onPresentationPreferenceChanged: (PresentationPreference) -> Unit) {
     var repairCodeDialog by remember { mutableStateOf(false) }; var repairCode by remember { mutableStateOf("") }; var repairCodeError by remember { mutableStateOf<String?>(null) }
     val d by vm.diagnostics.collectAsState(); val mapTilesRendered by vm.mapTilesRendered.collectAsState(); val mapTileError by vm.mapTileError.collectAsState(); val context = LocalContext.current; val n = networkInfo(context); val l = locationDiagnostics(context); val c = vm.deviceId
     val apiOk = d.probe?.connected == true; val issues = listOf(!apiOk, !l.permission || (!l.gps && !l.network), d.missingAssets > 0, d.proofQueued > 0).count { it }
     LazyColumn(Modifier.fillMaxSize().background(Color(0xFF101010)).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text("TECHNICAL DIAGNOSTICS", color = Yellow, fontSize = 24.sp, fontWeight = FontWeight.Bold); Text("OORO SCREEN  •  $c", color = Color.LightGray); Spacer(Modifier.height(4.dp)); StatusCard("SYSTEM HEALTH", if (issues == 0) "ALL SYSTEMS OPERATIONAL" else "$issues ISSUES DETECTED", if (issues == 0) Color(0xFF63D68A) else Color(0xFFFFB74D)) }
         item { Section("OVERVIEW") { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusText("DEVICE", if (vm.online) "ONLINE" else "OFFLINE", vm.online); StatusText("API", if (apiOk) "CONNECTED" else "UNREACHABLE", apiOk); StatusText("PAIRING", if (vm.isPaired) "PAIRED" else "UNPAIRED", vm.isPaired); StatusText("GPS", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "SEARCHING", l.permission) } } }
+        item { Section("PLAYER PRESENTATION") {
+            Text("This device-local setting changes layout geometry only. Campaign eligibility, schedules, expiry, creative selection and proof attribution remain controlled by the server manifest.", color = Color.LightGray, fontSize = 12.sp)
+            Text("Current: ${presentationPreference.name}", color = Color.White, modifier = Modifier.padding(top = 6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                if (presentationPreference == PresentationPreference.AUTO_FROM_MANIFEST) Button(onClick = { onPresentationPreferenceChanged(PresentationPreference.AUTO_FROM_MANIFEST) }) { Text("AUTO (selected)") }
+                else OutlinedButton(onClick = { onPresentationPreferenceChanged(PresentationPreference.AUTO_FROM_MANIFEST) }) { Text("AUTO FROM MANIFEST") }
+                if (presentationPreference == PresentationPreference.OORO_V3_PRESENTATION) Button(onClick = { onPresentationPreferenceChanged(PresentationPreference.OORO_V3_PRESENTATION) }) { Text("OORO V3 (selected)") }
+                else OutlinedButton(onClick = { onPresentationPreferenceChanged(PresentationPreference.OORO_V3_PRESENTATION) }) { Text("OORO V3 PRESENTATION") }
+            }
+            Text("V3 applies to FOUR_ZONE and AD_NAV_OFFER. SPLIT_50_25_25 is unchanged. A sponsor appears only when supplied and authorized by an eligible manifest; otherwise the slot stays neutral.", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+        } }
         item { Section("CONNECTION") { Line("API Base URL", BuildConfig.API_BASE_URL); Line("Environment", backendEnvironment()); Line("Mock backend", if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"); Line("API status", if (apiOk) "CONNECTED" else "UNREACHABLE"); Line("Database-backed API", if (d.probe?.httpStatus == 200) "HEALTHY" else "UNKNOWN"); Line("Map tiles", if (mapTilesRendered) "RENDERED" else if (mapTileError != null) "UNAVAILABLE" else "CHECKING"); Line("GPS fix", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "UNAVAILABLE"); Line("Last successful API", relativeTime(d.apiLastSuccessAt)); d.apiLastError?.let { Text("Last API error: $it", color = Color(0xFFFFB74D), modifier = Modifier.padding(top = 4.dp)) }; mapTileError?.let { Text("Map error: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Text("DNS ${passFail(d.probe?.dns)}   TCP ${passFail(d.probe?.tcp)}   ${d.probe?.httpStatus?.let { "HTTP $it" } ?: "HTTP —"}   ${d.probe?.latencyMs?.let { "${it} ms" } ?: ""}", color = Color.LightGray); d.probe?.failureKind?.let { Text("Diagnostic: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Button({ vm.runDiagnostics() }, enabled = !d.running, modifier = Modifier.padding(top = 6.dp)) { Text(if (d.running) "RUNNING…" else "TEST API CONNECTION") } } }
         item { Section("NETWORK") { Line("Connection type", n.type); Line("Internet", if (n.internet) "AVAILABLE" else "UNAVAILABLE"); Line("Local network", if (n.localNetwork) "AVAILABLE" else "UNAVAILABLE"); Line("Device IP", n.ip ?: "unavailable"); Line("API host reachable", if (apiOk) "YES" else "NO") } }
         item { Section("GPS") { Line("Location permission", locationPermissionStatus(locationGranted, l.gps || l.network)); if (!locationGranted) { Text("Location is optional; playback and pairing are unaffected.", color = Color.LightGray, fontSize = 12.sp); OutlinedButton(onClick = onRequestLocation) { Text("Enable location (optional)") } }; Line("GPS provider", if (l.gps) "ENABLED" else "DISABLED"); Line("Network provider", if (l.network) "ENABLED" else "DISABLED"); Line("Last location", relativeTime(vm.latestLocation.value?.occurredAt)); Line("Accuracy", vm.latestLocation.value?.accuracyMeters?.let { "%.0f m".format(it) } ?: "unavailable"); Line("Attached to heartbeat", if (vm.latestLocation.value != null) "YES" else "NO") } }

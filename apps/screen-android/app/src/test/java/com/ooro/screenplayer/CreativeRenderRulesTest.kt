@@ -9,6 +9,8 @@ import com.ooro.screenplayer.player.creativeScaleBehavior
 import com.ooro.screenplayer.player.fittedContentBounds
 import com.ooro.screenplayer.player.sponsoredLayoutGeometry
 import com.ooro.screenplayer.player.usesSponsoredLayout
+import com.ooro.screenplayer.player.geometryContractVersion
+import com.ooro.screenplayer.player.PresentationPreference
 import com.ooro.screenplayer.player.shouldRenderNewsTicker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -59,6 +61,16 @@ class CreativeRenderRulesTest {
         assertTrue(!shouldRenderNewsTicker(DisplayLayout.AD_NAV_OFFER, 3))
         assertTrue(!shouldRenderNewsTicker(DisplayLayout.SPLIT_50_25_25, 3))
         assertEquals(0.85f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 3).height, 0.0001f)
+    }
+
+    @Test fun localV3PreferenceChangesGeometryOnlyForSupportedLayouts() {
+        assertEquals(1, geometryContractVersion(1, DisplayLayout.FOUR_ZONE, PresentationPreference.AUTO_FROM_MANIFEST))
+        assertEquals(3, geometryContractVersion(1, DisplayLayout.FOUR_ZONE, PresentationPreference.OORO_V3_PRESENTATION))
+        assertEquals(3, geometryContractVersion(2, DisplayLayout.AD_NAV_OFFER, PresentationPreference.OORO_V3_PRESENTATION))
+        assertEquals(1, geometryContractVersion(1, DisplayLayout.SPLIT_50_25_25, PresentationPreference.OORO_V3_PRESENTATION))
+        assertEquals(0.67f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), geometryContractVersion(1, DisplayLayout.FOUR_ZONE, PresentationPreference.AUTO_FROM_MANIFEST)).width, 0f)
+        assertEquals(0.8f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), geometryContractVersion(1, DisplayLayout.FOUR_ZONE, PresentationPreference.OORO_V3_PRESENTATION)).width, 0f)
+        assertEquals(0.5f, adRegionFraction(DisplayLayout.SPLIT_50_25_25, LayoutConfig(), geometryContractVersion(1, DisplayLayout.SPLIT_50_25_25, PresentationPreference.OORO_V3_PRESENTATION)).width, 0f)
     }
 
     @Test fun fitBoundsContainLandscapePortraitSquareUltrawideAndNonstandardMedia() {

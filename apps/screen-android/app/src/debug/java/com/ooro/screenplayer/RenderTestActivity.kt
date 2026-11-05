@@ -79,7 +79,7 @@ class RenderTestActivity : ComponentActivity() {
                 RenderTestScreen(
                     previewDirectory.absolutePath,
                     initialAsset = intent.getStringExtra("asset"),
-                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR")) DisplayLayout.FOUR_ZONE.name else null,
+                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR", "V1_LOCAL_V3")) DisplayLayout.FOUR_ZONE.name else null,
                     controlsInitiallyVisible = intent.getBooleanExtra("controls", false),
                     initialMapEnabled = intent.getBooleanExtra("map", false),
                     initialTickerEnabled = intent.getBooleanExtra("ticker", scenario == "TICKER_OVERFLOW"),
@@ -183,6 +183,7 @@ private fun RenderTestScreen(
     var layout by remember { mutableStateOf(DisplayLayout.entries.firstOrNull { it.name == initialLayout } ?: DisplayLayout.FULLSCREEN_AD) }
     val idleOnly = scenario == "EMPTY_IDLE"
     val v3Sponsored = scenario == "V3_SPONSORED" || scenario == "V3_EXPIRED_SPONSOR"
+    val localV3Presentation = scenario == "V1_LOCAL_V3"
     val controlsAllowed = !idleOnly
     var mapEnabled by remember { mutableStateOf(initialMapEnabled && !idleOnly) }
     var tickerEnabled by remember { mutableStateOf(initialTickerEnabled && !idleOnly) }
@@ -209,7 +210,7 @@ private fun RenderTestScreen(
     val tickerText = if (scenario == "TICKER_OVERFLOW") {
         List(24) { "SYNTHETIC OVERFLOW EDGE-CHECK ${it + 1}" }.joinToString(" · ")
     } else "SYNTHETIC TICKER · OFFLINE TEST"
-    val news = if (tickerEnabled && !idleOnly) NewsConfig(42, listOf(NewsAnnouncement("render-test-news", tickerText, 1))) else NewsConfig()
+    val news = if ((tickerEnabled || localV3Presentation) && !idleOnly) NewsConfig(42, listOf(NewsAnnouncement("render-test-news", tickerText, 1))) else NewsConfig()
     val sponsorItemId = "render-test-sponsored-strip"
     val sponsorItem = if (v3Sponsored) ManifestItem(
         id = sponsorItemId, campaignId = "local-sponsored-test", creativeId = "local-sponsored-image",
@@ -249,11 +250,11 @@ private fun RenderTestScreen(
 
     LaunchedEffect(controlsVisible, selected, layout, mapEnabled, tickerEnabled, qrEnabled) {
         if (controlsVisible) { kotlinx.coroutines.delay(5_000); controlsVisible = false }
-        Log.i("OoroRenderTest", "case scenario=$scenario creative=${if (idleOnly) "none" else selectedAsset.name} source=${if (idleOnly) "none" else "${selectedAsset.width}x${selectedAsset.height}"} type=${if (idleOnly) "NONE" else if (selectedAsset.video) "VIDEO" else "IMAGE"} layout=$layout contract=${manifest.layoutContractVersion} mainItems=${manifest.items.size} sponsor=${manifest.sponsoredItem?.id ?: "none"} sponsorApprovedForTest=${manifest.sponsoredItem != null} map=$mapEnabled ticker=${if (v3Sponsored) "absent" else tickerEnabled} qr=$qrEnabled fit=FIT proofsDisabled=true networkManifestDisabled=true")
+        Log.i("OoroRenderTest", "case scenario=$scenario creative=${if (idleOnly) "none" else selectedAsset.name} source=${if (idleOnly) "none" else "${selectedAsset.width}x${selectedAsset.height}"} type=${if (idleOnly) "NONE" else if (selectedAsset.video) "VIDEO" else "IMAGE"} layout=$layout contract=${manifest.layoutContractVersion} localPresentation=${if (localV3Presentation) "OORO_V3_PRESENTATION" else "AUTO_FROM_MANIFEST"} mainItems=${manifest.items.size} sponsor=${manifest.sponsoredItem?.id ?: "none"} sponsorApprovedForTest=${manifest.sponsoredItem != null} map=$mapEnabled ticker=${if (v3Sponsored || localV3Presentation) "absent" else tickerEnabled} qr=$qrEnabled fit=FIT proofsDisabled=true networkManifestDisabled=true")
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        Player(vm = null, manifest = manifest, preview = preview)
+        Player(vm = null, manifest = manifest, preview = preview, presentationPreference = if (localV3Presentation) com.ooro.screenplayer.player.PresentationPreference.OORO_V3_PRESENTATION else com.ooro.screenplayer.player.PresentationPreference.AUTO_FROM_MANIFEST)
         if (controlsVisible) {
             Surface(color = Color(0xEE101820), modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {

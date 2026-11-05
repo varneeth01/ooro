@@ -23,6 +23,10 @@ class V3RenderScreenshotTest {
         capture("V3_EXPIRED_SPONSOR", "v3-expired-sponsor-fallback.png")
     }
 
+    @Test fun localV3PresentationUsesNeutralSponsorOnV1ManifestWithoutTicker() {
+        capture("V1_LOCAL_V3", "v1-local-v3-neutral-sponsor.png")
+    }
+
     private fun capture(scenarioName: String, fileName: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
@@ -39,6 +43,9 @@ class V3RenderScreenshotTest {
             assertTrue("main test creative did not load", device.wait(Until.hasObject(By.desc("OORO creative")), 10_000))
             if (scenarioName == "V3_SPONSORED") {
                 assertTrue("sponsor test creative did not load", device.wait(Until.hasObject(By.desc("Sponsored test advertisement")), 10_000))
+            } else if (scenarioName == "V1_LOCAL_V3") {
+                assertTrue("local V3 sponsor placeholder missing", device.wait(Until.hasObject(By.desc("Sponsored slot neutral placeholder")), 5_000))
+                assertTrue("V1 news ticker was composed under local V3 presentation", device.findObject(By.desc("OoroRegion:news-ticker")) == null)
             } else {
                 assertTrue("expired sponsor was rendered", device.findObject(By.desc("Sponsored advertisement")) == null)
             }
