@@ -86,7 +86,8 @@ export function ContentSettings() {
   async function saveZone() {
     if (!screenId) return;
     setError(""); setSaved("");
-    const payload = v3Supported ? zone : (({ layoutContractVersion: _ignored, ...legacyZone }) => legacyZone)(zone);
+    const { layoutContractVersion, ...legacyZone } = zone;
+    const payload = layoutContractVersion === null ? legacyZone : { ...legacyZone, layoutContractVersion };
     const response = await fetch(`/api/admin/screens/${screenId}/zones`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const body = await response.json();
     if (!response.ok) { setError(body.error?.message || "Screen layout could not be saved."); return; }
