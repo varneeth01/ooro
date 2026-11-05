@@ -117,6 +117,7 @@ internal fun downloadVerifiedAsset(url: String, temp: File, target: File, expect
     connection.connectTimeout = 10_000
     connection.readTimeout = 30_000
     connection.instanceFollowRedirects = true
+    connection.useCaches = false
     try {
         val responseCode = connection.responseCode
         if (responseCode !in 200..299) error("HTTP $responseCode")
