@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, CircleAlert, Clock3, MapPin, MonitorPlay, Radio, RefreshCw, Upload } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/app/app-ui";
@@ -74,7 +74,7 @@ export function ProofReport() {
 
   useEffect(() => { void load(); }, [load]);
 
-  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSkip(0);
     const normalized: Record<string, string> = {};
