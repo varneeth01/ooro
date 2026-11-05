@@ -59,6 +59,39 @@ internal fun nextVerifiedManifestItem(
     return scheduler.next(manifest, now, offset, verifiedItemIds)
 }
 
+internal enum class CachedStartupBlock {
+    NONE,
+    NO_MANIFEST,
+    UNPAIRED,
+    SCREEN_ID_MISMATCH,
+    AUTHORIZATION_EXPIRED,
+    NO_ELIGIBLE_VERIFIED_ASSET,
+}
+
+internal data class CachedStartupResolution(
+    /** Null means the cached manifest must not be rendered for this device identity. */
+    val manifest: DeviceManifest?,
+    val firstItem: ManifestItem?,
+    val block: CachedStartupBlock,
+)
+
+/** Resolves the persisted playlist without any network access or proof side effects. */
+internal fun resolveCachedStartup(
+    manifest: DeviceManifest?,
+    pairedScreenId: String?,
+    verifiedItemIds: Set<String>,
+    scheduler: ScheduleEngine,
+    now: Instant,
+): CachedStartupResolution {
+    if (manifest == null) return CachedStartupResolution(null, null, CachedStartupBlock.NO_MANIFEST)
+    if (pairedScreenId == null) return CachedStartupResolution(null, null, CachedStartupBlock.UNPAIRED)
+    if (manifest.screenId != pairedScreenId) return CachedStartupResolution(null, null, CachedStartupBlock.SCREEN_ID_MISMATCH)
+    if (!manifestIsAuthorizedAt(manifest, now)) return CachedStartupResolution(manifest, null, CachedStartupBlock.AUTHORIZATION_EXPIRED)
+    val firstItem = nextVerifiedManifestItem(manifest, scheduler, now, 0, verifiedItemIds)
+    return if (firstItem == null) CachedStartupResolution(manifest, null, CachedStartupBlock.NO_ELIGIBLE_VERIFIED_ASSET)
+    else CachedStartupResolution(manifest, firstItem, CachedStartupBlock.NONE)
+}
+
 internal fun eligibleSponsoredItem(manifest: DeviceManifest, now: Instant, verifiedItemIds: Set<String>): ManifestItem? {
     if (manifest.layoutContractVersion < 3 || manifest.layout !in setOf(DisplayLayout.FOUR_ZONE, DisplayLayout.AD_NAV_OFFER) || !manifestIsAuthorizedAt(manifest, now)) return null
     val item = manifest.sponsoredItem ?: return null

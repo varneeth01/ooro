@@ -69,13 +69,60 @@ class OfflinePersistenceIntegrationTest {
         assertEquals("event-1", reopened.proofDao().pending(10).single().eventId)
         val restored = ManifestCodec.parse(reopened.manifestDao().active()!!.json)
         val now = Instant.parse("2026-01-01T00:00:00Z")
+        val proofsBeforeSelection = reopened.proofDao().pendingCount()
         assertTrue(manifestIsAuthorizedAt(restored, now))
         val restoredAssets = AssetManager(context).verifiedItemIds(restored.items)
         assertEquals(setOf(item.id), restoredAssets)
-        assertEquals(item.id, nextVerifiedManifestItem(restored, ScheduleEngine(), now, 0, restoredAssets)?.id)
+        val startup = resolveCachedStartup(restored, credentials.screenId, restoredAssets, ScheduleEngine(), now)
+        assertEquals(CachedStartupBlock.NONE, startup.block)
+        assertEquals(item.id, startup.firstItem?.id)
+        assertEquals("cached selection must not create another proof", proofsBeforeSelection, reopened.proofDao().pendingCount())
         File(context.filesDir, "creative-cache/${item.id}").delete()
         File(context.filesDir, "creative-cache/.$itemId.sha256").delete()
         Unit
+    }
+
+    @Test fun missingAndCorruptCachedFilesAreNotEligibleAfterOfflineRestart() = runBlocking {
+        val directory = File(context.filesDir, "creative-cache").also { it.mkdirs() }
+        val assetManager = AssetManager(context)
+        val now = Instant.parse("2026-11-05T10:00:00Z")
+        val missing = ManifestItem("offline-missing-${System.nanoTime()}", "c", "missing", CreativeType.IMAGE, "https://invalid.test/missing", "a".repeat(64), 10, 0, null, null, emptySet(), null, null)
+        val corrupt = ManifestItem("offline-corrupt-${System.nanoTime()}", "c", "corrupt", CreativeType.IMAGE, "https://invalid.test/corrupt", "a".repeat(64), 10, 0, null, null, emptySet(), null, null)
+        val corruptFile = File(directory, corrupt.id).apply { writeText("corrupt-content") }
+        val items = listOf(missing, corrupt)
+        val manifest = DeviceManifest(5, credentials.screenId, "UTC", items, now.plusSeconds(600))
+        val database = open()
+        database.manifestDao().put(ManifestEntity(version = 5, timezone = "UTC", validUntil = manifest.validUntil.toString(), json = ManifestCodec.encode(manifest)))
+        database.close(); db = null
+
+        val reopened = open()
+        val restored = ManifestCodec.parse(reopened.manifestDao().active()!!.json)
+        val verified = assetManager.verifiedItemIds(restored.items)
+        assertTrue("missing and checksum-corrupt files must not be marked verified", verified.isEmpty())
+        val resolution = resolveCachedStartup(restored, credentials.screenId, verified, ScheduleEngine(), now)
+        assertEquals(CachedStartupBlock.NO_ELIGIBLE_VERIFIED_ASSET, resolution.block)
+        assertNull(resolution.firstItem)
+        assertEquals(0, reopened.proofDao().pendingCount())
+        corruptFile.delete()
+        File(directory, ".${corrupt.id}.sha256").delete()
+        File(directory, missing.id).delete()
+        File(directory, ".${missing.id}.sha256").delete()
+        Unit
+    }
+
+    @Test fun cachedStartupRejectsAnotherDisplayAndExpiredAuthorizationAfterDatabaseReopen() = runBlocking {
+        val database = open()
+        val now = Instant.parse("2026-11-05T10:00:00Z")
+        val item = ManifestItem("identity-item", "campaign", "creative", CreativeType.IMAGE, "https://invalid.test/media", "a".repeat(64), 10, 0, null, null, emptySet(), null, null)
+        val cached = DeviceManifest(2, credentials.screenId, "UTC", listOf(item), now.plusSeconds(600))
+        database.manifestDao().put(ManifestEntity(version = cached.version, timezone = cached.timezone, validUntil = cached.validUntil.toString(), json = ManifestCodec.encode(cached)))
+        database.close(); db = null
+
+        val reopened = open()
+        val restored = ManifestCodec.parse(reopened.manifestDao().active()!!.json)
+        assertEquals(CachedStartupBlock.SCREEN_ID_MISMATCH, resolveCachedStartup(restored, "other-screen", setOf(item.id), ScheduleEngine(), now).block)
+        assertEquals(CachedStartupBlock.AUTHORIZATION_EXPIRED, resolveCachedStartup(restored.copy(validUntil = now), credentials.screenId, setOf(item.id), ScheduleEngine(), now).block)
+        assertEquals(0, reopened.proofDao().pendingCount())
     }
 
     @Test fun expiredManifestCannotSelectCachedItemAfterRoomReopen() = runBlocking {

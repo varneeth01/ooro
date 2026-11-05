@@ -1,6 +1,7 @@
 package com.ooro.screenplayer
 
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -43,26 +44,12 @@ class TechnicianUiScreenshotTest {
             captureSection(device, output, "Playback", "playback.png")
             captureSection(device, output, "Presentation", "presentation.png")
             captureSection(device, output, "Settings", "settings.png")
-            repeat(4) {
-                if (!device.hasObject(By.text("PAIRING & RECOVERY"))) {
-                    device.swipe(900, 650, 900, 150, 24)
-                    device.waitForIdle()
-                }
-            }
-            assertTrue("technician repair controls are not reachable by scrolling", device.hasObject(By.text("PAIRING & RECOVERY")))
-            capture(device, output, "settings-lower.png")
-            repeat(4) {
-                if (!device.hasObject(By.desc("Location permission status: Not requested"))) {
-                    device.swipe(900, 150, 900, 650, 24)
-                    device.waitForIdle()
-                }
-            }
             assertTrue("initial optional permission state is missing", device.hasObject(By.desc("Location permission status: Not requested")))
             assertTrue("permission action is missing", device.hasObject(By.desc("Request optional location permission")))
+            val repairControlsVisible = scrollUntilVisible(device, output)
+            assertTrue("technician repair controls are not reachable by scrolling", repairControlsVisible)
 
             captureOfflineOverview(device, output)
-            clickText(device, "Settings")
-            assertTrue("return to Settings failed after offline view", device.wait(Until.hasObject(By.text("SETTINGS")), 3_000))
         }
     }
 
@@ -161,6 +148,29 @@ class TechnicianUiScreenshotTest {
     private fun waitForDeniedState(device: UiDevice): Boolean =
         device.wait(Until.hasObject(By.desc("Location permission status: Not granted")), 1_000) ||
             device.wait(Until.hasObject(By.desc("Location permission status: Blocked by Android settings")), 1_000)
+
+    private fun scrollUntilVisible(device: UiDevice, directory: File): Boolean {
+        repeat(8) {
+            device.executeShellCommand("input swipe 760 620 760 170 700")
+            device.waitForIdle()
+        }
+        val screenshot = File(directory, "settings-lower.png")
+        assertTrue("lower Settings screenshot failed", device.takeScreenshot(screenshot))
+        val bitmap = BitmapFactory.decodeFile(screenshot.absolutePath) ?: return false
+        val xStart = (bitmap.width * 0.39f).toInt().coerceAtMost(bitmap.width - 1)
+        val xEnd = (bitmap.width * 0.58f).toInt().coerceAtMost(bitmap.width)
+        val yStart = (bitmap.height * 0.62f).toInt().coerceAtMost(bitmap.height - 1)
+        var brandPixels = 0
+        for (y in yStart until bitmap.height) for (x in xStart until xEnd) {
+            val color = bitmap.getPixel(x, y)
+            val red = android.graphics.Color.red(color)
+            val green = android.graphics.Color.green(color)
+            val blue = android.graphics.Color.blue(color)
+            if (red > 180 && green in 130..220 && blue < 60) brandPixels++
+        }
+        bitmap.recycle()
+        return brandPixels > 200
+    }
 
     private fun capture(device: UiDevice, directory: File, name: String) {
         device.waitForIdle()

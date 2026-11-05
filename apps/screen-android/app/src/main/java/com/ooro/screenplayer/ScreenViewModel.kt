@@ -134,13 +134,31 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
         }
         viewModelScope.launch {
             val stored = db.manifestDao().active()
-            active = stored?.let { entity -> runCatching { ManifestCodec.parse(entity.json) }.onFailure { error ->
+            val pairedScreenId = store.credentials()?.screenId
+            val parsed = stored?.let { entity -> runCatching { ManifestCodec.parse(entity.json) }.onFailure { error ->
                 Log.e("OoroScreen", "cached manifest rejected; no cached playlist will be selected", error)
             }.getOrNull() }
-            active?.takeIf { store.credentials() != null }?.let(::scheduleManifestRefresh)
-            _verifiedAssetIds.value = active?.let { manifest ->
+            val identityMatched = parsed?.takeIf { it.screenId == pairedScreenId }
+            _verifiedAssetIds.value = identityMatched?.let { manifest ->
                 runCatching { assets.verifiedItemIds(manifest.items + listOfNotNull(manifest.sponsoredItem)) }.getOrDefault(emptySet())
             } ?: emptySet()
+            val startup = resolveCachedStartup(parsed, pairedScreenId, _verifiedAssetIds.value, scheduler, Instant.now())
+            active = startup.manifest
+            if (startup.block == CachedStartupBlock.SCREEN_ID_MISMATCH) {
+                Log.w("OoroScreen", "cached manifest identity does not match paired screen; cached playlist withheld")
+            }
+            active?.let { cached ->
+                if (pairedScreenId != null) {
+                    // Render a still-authorized cached playlist before doing any network
+                    // work. A slow health/manifest request must not blank offline ads.
+                    _state.value = ScreenState.Player(cached)
+                    if (startup.block == CachedStartupBlock.NONE) {
+                        _diagnostic.value = "Verified cached playlist ready · refreshing authorization"
+                        scheduleManifestRefresh(cached)
+                    } else if (startup.block == CachedStartupBlock.AUTHORIZATION_EXPIRED) _diagnostic.value = "Cached ad authorization expired · reconnect to refresh approved content"
+                    else if (startup.block == CachedStartupBlock.NO_ELIGIBLE_VERIFIED_ASSET) _diagnostic.value = "No eligible verified cached ad · reconnect to refresh approved content"
+                }
+            }
             networkRecoveryReady = true
             if (store.credentials() != null) sync()
             ManifestRefreshBus.events.collect { sync() }

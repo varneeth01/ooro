@@ -71,3 +71,5 @@ adb shell am start -n com.ooro.screenplayer/.RenderTestActivity \
 ```
 
 The debug `V3RenderScreenshotTest` instrumentation captures the normal and expired-sponsor screenshots under the app-specific external `render-test-screenshots` directory and reports `OoroRenderTest` region bounds. The automated screenshot test is compile-ready; run `./gradlew connectedDebugAndroidTest` on an emulator or a thermally cleared, supervised development board. Do not run it on the signage board without the same safety clearance required for loaded playback. At 1280×720, expected measured logs are main `1024x612`, sponsor `1024x108`, QR/offer `256x360`, and navigation `256x360`.
+
+`OFFLINE_CACHED_STARTUP` is an isolated instrumentation fixture for rendering a locally copied synthetic image through the production player at launch. It has no view model, API, pairing, campaign, or proof writer; it validates the rendering path, while `OfflinePersistenceIntegrationTest` validates Room/cache reopening and the production cache verifier. It does not simulate real process death or grant offline authorization beyond the manifest lease.

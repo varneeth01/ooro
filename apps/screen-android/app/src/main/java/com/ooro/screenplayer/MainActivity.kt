@@ -345,7 +345,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
             val sidebarSplit = if (usesSidebar80(manifest.layout, geometryVersion)) 50 else manifest.layoutConfig.safeQrHeight
             Column(Modifier.weight(adWidth.toFloat()).fillMaxHeight().clipToBounds()) {
                 val mainHeight = if (usesSponsoredLayout(manifest.layout, geometryVersion)) 85 else manifest.layoutConfig.safeAdHeight
-                Box(Modifier.weight(mainHeight.toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:main-ad" }.onSizeChanged { Log.i("OoroRenderTest", "region=main-ad boundsPx=${it.width}x${it.height}") })) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
+                Box(Modifier.weight(mainHeight.toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:main-ad" }.onSizeChanged { Log.i("OoroRenderTest", "region=main-ad boundsPx=${it.width}x${it.height}") })) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview, if (manifestExpired) "Offline ads paused\nAuthorization expired. Reconnect to refresh approved content." else "OORO\nContent will resume shortly") }
                 if (usesSponsoredLayout(manifest.layout, geometryVersion)) {
                     Box(Modifier.weight(15f).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:sponsored" }.onSizeChanged { Log.i("OoroRenderTest", "region=sponsored boundsPx=${it.width}x${it.height}") })) {
                         SponsoredAdRegion(vm, sponsoredItem, Modifier.fillMaxSize(), preview?.sponsoredAssetPath)
@@ -359,10 +359,10 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
                 Box(Modifier.weight((100 - sidebarSplit).toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:navigation" }.onSizeChanged { Log.i("OoroRenderTest", "region=navigation boundsPx=${it.width}x${it.height}") })) { NavigationPanel(vm, preview, Modifier.fillMaxSize()) }
             }
         } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize().clipToBounds()) {
-            Box(Modifier.weight(2f).fillMaxHeight().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
+            Box(Modifier.weight(2f).fillMaxHeight().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview, if (manifestExpired) "Offline ads paused\nAuthorization expired. Reconnect to refresh approved content." else "OORO\nContent will resume shortly") }
             Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) { NavigationPanel(vm, preview, Modifier.fillMaxSize()) }
             Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
-        } else PrimaryAdRegion(vm, Modifier.fillMaxSize().clipToBounds(), item, playbackOffset, preview)
+        } else PrimaryAdRegion(vm, Modifier.fillMaxSize().clipToBounds(), item, playbackOffset, preview, if (manifestExpired) "Offline ads paused\nAuthorization expired. Reconnect to refresh approved content." else "OORO\nContent will resume shortly")
     }
 }
 
@@ -463,7 +463,7 @@ internal fun nextScheduleBoundary(item: ManifestItem, now: Instant, zone: ZoneId
     }
 }
 
-@Composable private fun PrimaryAdRegion(vm: ScreenViewModel?, modifier: Modifier, selectedItem: ManifestItem?, playbackKey: Int = 0, preview: PlayerPreviewConfig? = null) {
+@Composable private fun PrimaryAdRegion(vm: ScreenViewModel?, modifier: Modifier, selectedItem: ManifestItem?, playbackKey: Int = 0, preview: PlayerPreviewConfig? = null, emptyMessage: String = "OORO\nContent will resume shortly") {
     SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.AD_COMPOSITION) }
     val item = selectedItem
     var path by remember(item?.id, playbackKey, preview) { mutableStateOf<String?>(null) }
@@ -476,7 +476,7 @@ internal fun nextScheduleBoundary(item: ManifestItem, now: Instant, zone: ZoneId
         Log.i("OoroRenderTest", "region creativeId=${item?.creativeId} boundsPx=${size.width}x${size.height} fit=${item?.fitMode}")
     }
     Box(modifier.background(Color.Black).clipToBounds().then(measuredBounds), contentAlignment = Alignment.Center) {
-        if (item == null || path == null) Text("OORO\nContent will resume shortly", color = Color.White, fontSize = 24.sp)
+        if (item == null || path == null) Text(emptyMessage, color = Color.White, fontSize = 24.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         else if (item.type == CreativeType.IMAGE) {
             if (path != null) BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
                 val density = androidx.compose.ui.platform.LocalDensity.current
@@ -911,9 +911,11 @@ private enum class TechnicianSection(val title: String, val subtitle: String) {
     onRepair: () -> Unit
 ) {
     val context = LocalContext.current
+    val sectionScrollState = rememberScrollState()
     var thermalSensors by remember { mutableStateOf<List<String>>(emptyList()) }
     LaunchedEffect(Unit) { thermalSensors = withContext(Dispatchers.IO) { readThermalSensors() } }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LaunchedEffect(section) { sectionScrollState.scrollTo(0) }
+    Column(Modifier.fillMaxSize().verticalScroll(sectionScrollState), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text(section.title.uppercase(), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -1048,7 +1050,7 @@ private enum class TechnicianSection(val title: String, val subtitle: String) {
                     }
                 }
                 TechnicianCard {
-                    Text("PAIRING & RECOVERY", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("PAIRING & RECOVERY", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { contentDescription = "Pairing and recovery controls" })
                     TechnicianLine("Device", vm.deviceId)
                     TechnicianLine("Screen", if (vm.isPaired) vm.screenId else "Not paired")
                     Text("Reconnect and repair are separate actions. Repair keeps its existing technician-code gate; this dashboard will not replace the screen identity automatically.", color = Color(0xFFB6C0CA), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))

@@ -179,6 +179,39 @@ class OfflinePlaybackRulesTest {
         assertNull(nextVerifiedManifestItem(manifest(listOf(item("not-cached"))), ScheduleEngine(), now, 0, emptySet()))
     }
 
+    @Test fun cachedStartupSelectsVerifiedAuthorizedCreativeForThePairedScreenWithoutNetwork() {
+        val playlist = manifest(listOf(item("cached")))
+        val resolution = resolveCachedStartup(playlist, "screen-test", setOf("cached"), ScheduleEngine(), now)
+        assertEquals(CachedStartupBlock.NONE, resolution.block)
+        assertEquals("cached", resolution.firstItem?.id)
+        assertEquals(playlist, resolution.manifest)
+    }
+
+    @Test fun cachedStartupFailsClosedForExpiredOrWrongScreenManifest() {
+        val playlist = manifest(listOf(item("cached")))
+        val expired = resolveCachedStartup(playlist.copy(validUntil = now), "screen-test", setOf("cached"), ScheduleEngine(), now)
+        assertEquals(CachedStartupBlock.AUTHORIZATION_EXPIRED, expired.block)
+        assertNull(expired.firstItem)
+        val wrongScreen = resolveCachedStartup(playlist, "different-screen", setOf("cached"), ScheduleEngine(), now)
+        assertEquals(CachedStartupBlock.SCREEN_ID_MISMATCH, wrongScreen.block)
+        assertNull(wrongScreen.manifest)
+        assertNull(wrongScreen.firstItem)
+    }
+
+    @Test fun cachedStartupDistinguishesUnpairedAndNoManifestStates() {
+        assertEquals(CachedStartupBlock.NO_MANIFEST, resolveCachedStartup(null, "screen-test", emptySet(), ScheduleEngine(), now).block)
+        assertEquals(CachedStartupBlock.UNPAIRED, resolveCachedStartup(manifest(listOf(item("cached"))), null, setOf("cached"), ScheduleEngine(), now).block)
+    }
+
+    @Test fun cachedStartupSkipsMissingOrCorruptAssetsAndDoesNotCreateProofs() {
+        val playlist = manifest(listOf(item("missing"), item("corrupt")))
+        val resolution = resolveCachedStartup(playlist, "screen-test", emptySet(), ScheduleEngine(), now)
+        assertEquals(CachedStartupBlock.NO_ELIGIBLE_VERIFIED_ASSET, resolution.block)
+        assertNull(resolution.firstItem)
+        // This resolver is selection-only; proof creation belongs to observed playback completion.
+        assertTrue(acknowledgedProofEventIds(emptySet(), emptySet()).isEmpty())
+    }
+
     @Test fun proofAcknowledgementDeletesOnlyStableSelectedIds() {
         val selected = setOf("event-a", "event-b")
         assertEquals(setOf("event-a"), acknowledgedProofEventIds(selected, setOf("event-a", "unselected-event")))

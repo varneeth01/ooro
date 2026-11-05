@@ -15,7 +15,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Exercises a granted optional permission on an isolated AVD; never targets a physical device. */
+/** Exercises a granted optional permission on an isolated AVD; run separately because it changes package permission state. */
 @RunWith(AndroidJUnit4::class)
 class GrantedLocationPermissionTest {
     @Test fun grantedLocationShowsCurrentStateWithoutLaunchingConsentDialog() {
