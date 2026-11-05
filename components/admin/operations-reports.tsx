@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, CircleAlert, Clock3, MapPin, MonitorPlay, Radio, RefreshCw, Upload } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/app/app-ui";
@@ -50,9 +50,74 @@ export function OperationsOverview({canViewFleet=true,canViewCampaigns=true,canS
   </div>:<section className="rounded-2xl border border-neutral-200 bg-white px-6 py-12 text-center"><MonitorPlay className="mx-auto text-neutral-300" size={30}/><h2 className="mt-4 text-lg font-semibold">Fleet details are restricted</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-neutral-500">Your role can view aggregate operations metrics. Screen-level creative, location, and device controls require fleet access.</p></section>}
  </div>;
 }
-export function ProofReport(){
- const [items,setItems]=useState<Proof[]|null>(null),[total,setTotal]=useState(0),[skip,setSkip]=useState(0),[error,setError]=useState(''),[filters,setFilters]=useState<Record<string,string>>({}),[query,setQuery]=useState('');
- const load=useCallback(async()=>{setError('');setItems(null);try{const r=await fetch(`/api/admin/proof-of-play?${query}&skip=${skip}`,{cache:'no-store'});const p=await r.json();if(!r.ok)throw new Error(`${p.error?.message} ${p.requestId??''}`);setItems(p.data.items);setTotal(p.data.total);}catch(e){setError(String(e));}},[query,skip]);useEffect(()=>{void load();},[load]);
- return <div className="space-y-7"><PageHeader eyebrow="Admin / Ad operations" title="Proof of play" description="Device-reported delivery, including failed attempts. Durations are milliseconds."/><SectionCard title="Filters" description="Filter before loading large histories."><form onSubmit={e=>{e.preventDefault();setSkip(0);const normalized=Object.fromEntries(Object.entries(filters).filter(([,v])=>v).map(([k,v])=>[['from','to'].includes(k)?k:k,v]));for(const key of ['from','to'])if(typeof normalized[key]==='string'&&String(normalized[key]).includes('T'))normalized[key]=new Date(String(normalized[key])+'+05:30').toISOString();setQuery(new URLSearchParams(normalized).toString());}} className="grid gap-3 sm:grid-cols-3">{['campaignId','creativeId','displayId','vehicleId','routeId','from','to'].map(key=><label key={key} className="text-xs">{key}<input type={['from','to'].includes(key)?'datetime-local':'text'} className="block w-full rounded border p-2 text-sm" value={filters[key]??''} onChange={e=>setFilters({...filters,[key]:e.target.value})}/></label>)}<label className="text-xs">Result<select className="block w-full border p-2" value={filters.success??''} onChange={e=>setFilters({...filters,success:e.target.value})}><option value="">All</option><option value="true">Successful</option><option value="false">Failed</option></select></label><button className="self-end rounded bg-black p-2 text-sm text-white">Apply filters</button></form></SectionCard>{error?<p role="alert">{error} <button onClick={()=>void load()} className="underline">Retry</button></p>:items===null?<p>Loading proof of play…</p>:<SectionCard title={`${total} recorded plays`} description="Expected duration is the player expectation, not a booked-play count."><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead><tr>{['Timestamp (IST)','Screen','Campaign / creative','Expected / actual','Status','Failure reason'].map(s=><th key={s} className="border-b p-2">{s}</th>)}</tr></thead><tbody>{items.map(p=><tr key={p.id}><td className="border-b p-2">{new Date(p.playbackStartedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</td><td className="border-b p-2"><Link className="underline" href={`/admin/screens/${p.displayId}`}>{p.display.name}</Link></td><td className="border-b p-2"><Link className="underline" href={`/admin/campaigns/${p.campaignId}`}>{p.campaignId}</Link><p>{p.creativeId}</p></td><td className="border-b p-2">{p.expectedDuration} / {p.actualDuration??'Unknown'}</td><td className="border-b p-2">{p.status}</td><td className="border-b p-2">{p.invalidReason??'—'}</td></tr>)}</tbody></table>{!items.length&&<p className="py-8">No plays match these filters.</p>}</div><div className="mt-4 flex gap-4 text-sm"><button disabled={!skip} onClick={()=>setSkip(Math.max(0,skip-50))}>Previous</button><span>{skip+1}–{Math.min(skip+50,total)} / {total}</span><button disabled={skip+50>=total} onClick={()=>setSkip(skip+50)}>Next</button></div></SectionCard>}</div>;
+export function ProofReport() {
+  const [items, setItems] = useState<Proof[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [skip, setSkip] = useState(0);
+  const [error, setError] = useState("");
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [query, setQuery] = useState("");
+
+  const load = useCallback(async () => {
+    setError("");
+    setItems(null);
+    try {
+      const response = await fetch(`/api/admin/proof-of-play?${query}${query ? "&" : ""}skip=${skip}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(`${payload.error?.message || "Proof of play could not be loaded."}${payload.requestId ? ` · Reference ${payload.requestId}` : ""}`);
+      setItems(payload.data.items);
+      setTotal(payload.data.total);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Proof of play could not be loaded.");
+    }
+  }, [query, skip]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSkip(0);
+    const normalized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(filters)) {
+      if (!value) continue;
+      normalized[key] = ["from", "to"].includes(key) && value.includes("T") ? new Date(`${value}+05:30`).toISOString() : value;
+    }
+    setQuery(new URLSearchParams(normalized).toString());
+  }
+
+  function clearFilters() {
+    setFilters({});
+    setQuery("");
+    setSkip(0);
+  }
+
+  const fields = [
+    { key: "campaignId", label: "Campaign ID", placeholder: "Paste campaign ID" },
+    { key: "creativeId", label: "Creative ID", placeholder: "Paste creative ID" },
+    { key: "displayId", label: "Screen ID", placeholder: "Paste screen ID" },
+    { key: "vehicleId", label: "Vehicle ID", placeholder: "Paste vehicle ID" },
+    { key: "routeId", label: "Route ID", placeholder: "Paste route ID" },
+  ];
+  const input = "mt-1.5 min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-[#dfff00] focus:ring-2 focus:ring-[#dfff00]/20";
+
+  return <div className="space-y-7 sm:space-y-8">
+    <PageHeader eyebrow="Admin / Ad operations" title="Proof of play" description="See what each screen reported, when it played, and whether the creative completed successfully." />
+    <AdminSubnav />
+    <SectionCard title="Filter playback records" description="Use one or more IDs, a time range, or a result. Filters run on the server before records load.">
+      <form onSubmit={applyFilters} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{fields.map(field => <label key={field.key} className="block text-sm font-medium text-neutral-200">{field.label}<input type="text" inputMode="text" autoComplete="off" placeholder={field.placeholder} className={input} value={filters[field.key] ?? ""} onChange={event => setFilters(current => ({ ...current, [field.key]: event.target.value }))}/></label>)}
+          <label className="block text-sm font-medium text-neutral-200">From (IST)<input aria-label="From date and time, IST" type="datetime-local" className={input} value={filters.from ?? ""} onChange={event => setFilters(current => ({ ...current, from: event.target.value }))}/></label>
+          <label className="block text-sm font-medium text-neutral-200">To (IST)<input aria-label="To date and time, IST" type="datetime-local" className={input} value={filters.to ?? ""} onChange={event => setFilters(current => ({ ...current, to: event.target.value }))}/></label>
+          <label className="block text-sm font-medium text-neutral-200">Playback result<select className={input} value={filters.success ?? ""} onChange={event => setFilters(current => ({ ...current, success: event.target.value }))}><option value="">All results</option><option value="true">Successful</option><option value="false">Failed</option></select></label>
+        </div>
+        <div className="flex flex-col-reverse gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between"><button type="button" onClick={clearFilters} className="min-h-10 rounded-lg px-3 text-sm font-medium text-neutral-400 hover:bg-white/[.05] hover:text-neutral-100">Clear filters</button><button className="min-h-11 rounded-lg bg-[var(--brand-yellow)] px-5 text-sm font-semibold text-black">Apply filters</button></div>
+      </form>
+    </SectionCard>
+
+    {error ? <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200"><p>{error}</p><button type="button" onClick={() => void load()} className="shrink-0 font-semibold underline underline-offset-4">Retry</button></div> : items === null ? <div className="h-48 animate-pulse rounded-2xl border border-white/10 bg-[#191f24]" aria-label="Loading playback records"/> : <SectionCard title="Playback records" description={`${total.toLocaleString("en-IN")} recorded plays · Expected and actual durations are shown in milliseconds.`}>
+      {items.length ? <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-y border-neutral-200 text-xs text-neutral-500">{["Time (IST)", "Screen", "Campaign / creative", "Expected / actual", "Result", "Failure details"].map(label => <th key={label} className="px-3 py-3 font-semibold">{label}</th>)}</tr></thead><tbody>{items.map(item => <tr key={item.id} className="border-b border-neutral-100 align-top"><td className="whitespace-nowrap px-3 py-4 text-xs text-neutral-300">{new Date(item.playbackStartedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td><td className="px-3 py-4"><Link className="font-medium text-[#dfff00] underline underline-offset-4" href={`/admin/screens/${item.displayId}`}>{item.display.name}</Link><span className="mt-1 block font-mono text-[10px] text-neutral-500">ID · {item.displayId.slice(-8)}</span></td><td className="px-3 py-4"><Link className="font-mono text-xs text-neutral-200 underline underline-offset-4" href={`/admin/campaigns/${item.campaignId}`}>Campaign · {item.campaignId.slice(-8)}</Link><span className="mt-1 block font-mono text-[10px] text-neutral-500">Creative · {item.creativeId.slice(-8)}</span></td><td className="whitespace-nowrap px-3 py-4 tabular-nums text-neutral-200">{item.expectedDuration.toLocaleString("en-IN")} / {item.actualDuration === null ? "—" : item.actualDuration.toLocaleString("en-IN")} ms</td><td className="px-3 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.status === "VALID" ? "bg-lime-400/10 text-lime-200" : "bg-red-400/10 text-red-200"}`}>{item.status.replaceAll("_", " ")}</span></td><td className="max-w-[240px] px-3 py-4 text-xs leading-5 text-neutral-400">{item.invalidReason || "—"}</td></tr>)}</tbody></table></div> : <div className="rounded-xl border border-dashed border-neutral-200 px-5 py-12 text-center"><p className="text-sm font-semibold text-neutral-200">No playback records found</p><p className="mt-1 text-xs text-neutral-500">Try widening the time range or clearing one of the filters.</p></div>}
+      <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-neutral-500">Showing {total === 0 ? 0 : skip + 1}–{Math.min(skip + 50, total)} of {total.toLocaleString("en-IN")}</p><div className="flex items-center gap-2"><button type="button" disabled={!skip} onClick={() => setSkip(Math.max(0, skip - 50))} className="min-h-10 rounded-lg border border-neutral-300 px-3 text-sm disabled:opacity-40">Previous</button><button type="button" disabled={skip + 50 >= total} onClick={() => setSkip(skip + 50)} className="min-h-10 rounded-lg border border-neutral-300 px-3 text-sm disabled:opacity-40">Next</button></div></div>
+    </SectionCard>}
+  </div>;
 }
 export function AuditReport(){const [items,setItems]=useState<Record<string,unknown>[]|null>(null),[skip,setSkip]=useState(0),[error,setError]=useState('');useEffect(()=>{setItems(null);setError('');void fetch(`/api/admin/audit-log?skip=${skip}`).then(async r=>{const p=await r.json();if(!r.ok)throw new Error(p.error?.message);setItems(p.data);}).catch(e=>setError(String(e)));},[skip]);return <div className="space-y-5"><PageHeader eyebrow="Admin / System" title="Audit log" description="Actor, request, and before/after state for operational changes."/>{error?<p role="alert">{error}</p>:!items?<p>Loading audit log…</p>:<>{items.map(item=><details key={String(item.id)} className="border bg-white p-4 text-sm"><summary>{String(item.createdAt)} · {String(item.action)} · {String(item.actorId??item.actorRole??'Unknown actor')}</summary><pre className="mt-3 overflow-auto text-xs">{JSON.stringify(item,null,2)}</pre></details>)}{!items.length&&<p>No events.</p>}<div className="flex gap-4"><button disabled={!skip} onClick={()=>setSkip(Math.max(0,skip-50))}>Previous</button><button disabled={items.length<50} onClick={()=>setSkip(skip+50)}>Next</button></div></>}</div>;}
