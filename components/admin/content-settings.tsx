@@ -49,6 +49,8 @@ export function ContentSettings() {
 
   useEffect(() => {
     if (!screenId) { setZone(initialZone); return; }
+    setZone(initialZone);
+    setError("");
     let active = true;
     setSaved("");
     fetch(`/api/admin/screens/${screenId}/zones`, { cache: "no-store" })
