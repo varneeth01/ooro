@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Check, Plus, Search } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/app/app-ui";
 import { AdminSubnav } from "@/components/admin/admin-ui";
@@ -56,7 +56,7 @@ export default function Page() {
     setIds(current => current.includes(screenId) ? current.filter(value => value !== screenId) : [...current, screenId]);
   }
 
-  async function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim() || busy) return;
     setBusy(true);
