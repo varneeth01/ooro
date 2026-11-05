@@ -16,6 +16,7 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     const creatives = input.rules.creativeIds.map(id => campaign.creatives.find(c => c.id === id))
     if (creatives.some(c => !c || c.status !== 'APPROVED' || !c.asset?.active || !c.asset.url)) warn('CREATIVE_NOT_APPROVED','Every selected creative must be approved and available')
     if (creatives.some(c => c && (!['IMAGE','VIDEO'].includes(c.type.toUpperCase()) || (c.type.toUpperCase() === 'VIDEO' && !c.asset?.durationSeconds)))) warn('INCOMPATIBLE_MEDIA','Video duration must be known and media must be IMAGE or VIDEO')
+    if (campaign.deliverySlot === 'SPONSORED' && creatives.some(c => c?.type.toUpperCase() !== 'IMAGE')) warn('SPONSOR_IMAGE_REQUIRED','Sponsored placement accepts approved static image creatives only')
     const target = input.target
     const constrained = target.all || target.screenIds.length || target.groupIds.length || target.vehicleIds.length || target.routeId || target.depotId || target.city || target.area || target.vehicleType || target.tags.length || target.geofence
     if (!constrained) throw new ApiError('EMPTY_TARGET','Select a target',422)

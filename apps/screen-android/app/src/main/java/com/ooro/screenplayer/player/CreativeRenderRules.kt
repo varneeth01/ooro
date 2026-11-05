@@ -18,7 +18,16 @@ data class AdRegionFraction(val width: Float, val height: Float) {
 
 data class FittedContentBounds(val width: Int, val height: Int)
 data class Sidebar80Geometry(val adWidth: Int, val sidebarWidth: Int, val offerHeight: Int, val navigationHeight: Int, val mediaHeight: Int, val tickerHeight: Int)
+data class SponsoredLayoutGeometry(val mainAdWidth: Int, val sidebarWidth: Int, val mainAdHeight: Int, val sponsoredHeight: Int, val qrHeight: Int, val mapHeight: Int)
 fun usesSidebar80(layout: DisplayLayout, version: Int) = version >= 2 && (layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER)
+fun usesSponsoredLayout(layout: DisplayLayout, version: Int) = version >= 3 && (layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER)
+fun sponsoredLayoutGeometry(width: Int, height: Int): SponsoredLayoutGeometry {
+    val mainWidth = (width * 0.8f).toInt()
+    val sidebar = width - mainWidth
+    val mainHeight = (height * 0.85f).toInt()
+    val qr = height / 2
+    return SponsoredLayoutGeometry(mainWidth, sidebar, mainHeight, height - mainHeight, qr, height - qr)
+}
 fun sidebar80Geometry(width: Int, height: Int, config: LayoutConfig): Sidebar80Geometry {
     val adWidth = (width * 0.8f).toInt()
     val ticker = (height * (100 - config.safeAdHeight) / 100f).toInt()
@@ -37,6 +46,7 @@ fun fittedContentBounds(sourceWidth: Int, sourceHeight: Int, regionWidth: Int, r
 }
 
 fun adRegionFraction(layout: DisplayLayout, config: LayoutConfig, contractVersion: Int = 1): AdRegionFraction = when {
+    usesSponsoredLayout(layout, contractVersion) -> AdRegionFraction(0.8f, 0.85f)
     usesSidebar80(layout, contractVersion) -> AdRegionFraction(0.8f, config.safeAdHeight / 100f)
     layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER -> AdRegionFraction(config.safePrimaryWidth / 100f, config.safeAdHeight / 100f)
     layout == DisplayLayout.SPLIT_50_25_25 -> AdRegionFraction(0.5f, 1f)

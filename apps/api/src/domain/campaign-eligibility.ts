@@ -6,9 +6,16 @@ import { scheduleRules, intervalSeconds } from './scheduling.js'
 import { safeDestination } from './qr-destination.js'
 
 export type ManifestReason = 'NO_ASSIGNMENT' | 'DISPLAY_DISABLED' | 'NO_ACTIVE_CAMPAIGN' | 'OUTSIDE_SCHEDULE' | 'NO_ELIGIBLE_CREATIVE'
-export type DisplayManifest = { manifestId: string; version: number; generatedAt: string; expiresAt: string; layout: string | { type: string; contractVersion: number; primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number }; news: { scrollSpeed: number; announcements: Array<{ id: string; text: string; priority: number }> }; items: Array<{ id: string; campaignId: string; creativeId: string; assetId: string; type: string; url: string; checksum: string | null; durationSeconds: number; priority: number; playsPerLoop: number; exclusive?: boolean; sequence?: number; intervalSeconds?: number; scheduleId?: string; startAt: string | null; endAt: string | null; daysOfWeek: number[]; startTime: string | null; endTime: string | null; fitMode: string; qrEnabled: boolean; qrTargetUrl: string | null; qrLabel: string | null; qrVersion: number; offer: Record<string, unknown> }> }
+export type DisplayManifestItem = { id: string; campaignId: string; creativeId: string; assetId: string; type: string; url: string; checksum: string | null; durationSeconds: number; priority: number; playsPerLoop: number; exclusive?: boolean; sequence?: number; intervalSeconds?: number; scheduleId?: string; startAt: string | null; endAt: string | null; daysOfWeek: number[]; startTime: string | null; endTime: string | null; fitMode: string; qrEnabled: boolean; qrTargetUrl: string | null; qrLabel: string | null; qrVersion: number; offer: Record<string, unknown> }
+export type DisplayManifest = { manifestId: string; version: number; generatedAt: string; expiresAt: string; layout: string | { type: string; contractVersion: number; primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number }; news: { scrollSpeed: number; announcements: Array<{ id: string; text: string; priority: number }> }; items: DisplayManifestItem[]; sponsoredItem?: DisplayManifestItem | null }
 export const MANIFEST_AUTHORIZATION_LEASE_MS = 15 * 60_000
 export const manifestValidUntil = (now: Date) => new Date(now.getTime() + MANIFEST_AUTHORIZATION_LEASE_MS)
+export function selectManifestDeliverySlots<T extends { campaignId: string; type: string; priority: number; id: string }>(items: T[], campaigns: Array<{ id: string; deliverySlot?: string | null }>, v3: boolean) {
+  const slots = new Map(campaigns.map(campaign => [campaign.id, campaign.deliverySlot ?? 'MAIN']))
+  const mainItems = items.filter(item => slots.get(item.campaignId) !== 'SPONSORED')
+  const sponsoredItem = v3 ? items.filter(item => slots.get(item.campaignId) === 'SPONSORED' && item.type.toUpperCase() === 'IMAGE').sort((a,b) => b.priority - a.priority || a.campaignId.localeCompare(b.campaignId) || a.id.localeCompare(b.id))[0] ?? null : null
+  return { mainItems, sponsoredItem }
+}
 export function authorizedAllocationWindow(scheduleStart: Date, scheduleEnd: Date, allocationDate: Date, campaignStart: Date | null, campaignEnd: Date | null) {
   const startAt = new Date(Math.max(scheduleStart.getTime(), allocationDate.getTime(), campaignStart?.getTime() ?? Number.NEGATIVE_INFINITY))
   const endAt = new Date(Math.min(scheduleEnd.getTime(), allocationDate.getTime() + 86_400_000, campaignEnd?.getTime() ?? Number.POSITIVE_INFINITY))
@@ -91,12 +98,15 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
   // Restore the established passenger layout for legacy campaigns that still
   // carry the old fullscreen default.
   const configured = display.zoneConfig
-  const layout = { type: 'FOUR_ZONE', contractVersion: 2, primaryWidthPercent: configured?.primaryWidthPercent ?? 67, adHeightPercent: configured?.adHeightPercent ?? 86, qrHeightPercent: configured?.qrHeightPercent ?? 47, newsScrollSpeed: configured?.newsScrollSpeed ?? 42 }
+  const contractVersion = configured?.layoutContractVersion ?? 2
+  const v3 = contractVersion >= 3
+  const layout = { type: 'FOUR_ZONE', contractVersion, primaryWidthPercent: v3 ? 80 : configured?.primaryWidthPercent ?? 67, adHeightPercent: v3 ? 85 : configured?.adHeightPercent ?? 86, qrHeightPercent: v3 ? 50 : configured?.qrHeightPercent ?? 47, newsScrollSpeed: configured?.newsScrollSpeed ?? 42 }
   const city = display.vehicle?.city
-  const announcements = await prisma.newsAnnouncement.findMany({ where: { active: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, display.vehicleId ? { OR: [{ vehicleId: null }, { vehicleId: display.vehicleId }] } : { vehicleId: null }, city ? { OR: [{ city: null }, { city }] } : { city: null }] }, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: 12, select: { id: true, text: true, priority: true } })
-  const versionItems = items.map((item) => ({ ...item, offer: Object.fromEntries(Object.entries(item.offer).filter(([key]) => key !== 'scanCount')) }))
+  const announcements = v3 ? [] : await prisma.newsAnnouncement.findMany({ where: { active: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, display.vehicleId ? { OR: [{ vehicleId: null }, { vehicleId: display.vehicleId }] } : { vehicleId: null }, city ? { OR: [{ city: null }, { city }] } : { city: null }] }, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: 12, select: { id: true, text: true, priority: true } })
+  const { mainItems, sponsoredItem } = selectManifestDeliverySlots(scheduledItems, eligible.map(({ campaign }) => ({ id: campaign.id, deliverySlot: campaign.deliverySlot })), v3)
+  const versionItems = mainItems.map((item) => ({ ...item, offer: Object.fromEntries(Object.entries(item.offer).filter(([key]) => key !== 'scanCount')) }))
   const news = { scrollSpeed: layout.newsScrollSpeed, announcements }
-  const digest = createHash('sha256').update(JSON.stringify({ displayId, layout, news, items: versionItems })).digest('hex')
-  return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout, news, items }, reasons }
+  const digest = createHash('sha256').update(JSON.stringify({ displayId, layout, news, items: versionItems, ...(v3 ? { sponsoredItem } : {}) })).digest('hex')
+  return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout, news, items: mainItems, ...(v3 ? { sponsoredItem } : {}) }, reasons }
 }
 const emptyManifest = (now: Date): DisplayManifest => ({ manifestId: 'manifest-empty', version: 0, generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout: { type: 'FOUR_ZONE', contractVersion: 2, primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42 }, news: { scrollSpeed: 42, announcements: [] }, items: [] })

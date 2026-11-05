@@ -7,6 +7,8 @@ import com.ooro.screenplayer.player.CreativeScaleBehavior
 import com.ooro.screenplayer.player.adRegionFraction
 import com.ooro.screenplayer.player.creativeScaleBehavior
 import com.ooro.screenplayer.player.fittedContentBounds
+import com.ooro.screenplayer.player.sponsoredLayoutGeometry
+import com.ooro.screenplayer.player.usesSponsoredLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -34,6 +36,21 @@ class CreativeRenderRulesTest {
         assertEquals(0.8f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 2).width, 0f)
         assertEquals(0.67f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 1).width, 0f)
         assertEquals(0.5f, adRegionFraction(DisplayLayout.SPLIT_50_25_25, LayoutConfig(), 2).width, 0f)
+    }
+
+    @Test fun contractV3ReservesEightyTwentyColumnsAnd85_15MainSponsorStrip() {
+        val bounds = sponsoredLayoutGeometry(1280, 720)
+        assertEquals(1024, bounds.mainAdWidth)
+        assertEquals(256, bounds.sidebarWidth)
+        assertEquals(612, bounds.mainAdHeight)
+        assertEquals(108, bounds.sponsoredHeight)
+        assertEquals(360, bounds.qrHeight)
+        assertEquals(360, bounds.mapHeight)
+        assertTrue(usesSponsoredLayout(DisplayLayout.FOUR_ZONE, 3))
+        assertTrue(usesSponsoredLayout(DisplayLayout.AD_NAV_OFFER, 3))
+        assertTrue(!usesSponsoredLayout(DisplayLayout.FOUR_ZONE, 2))
+        assertTrue(!usesSponsoredLayout(DisplayLayout.SPLIT_50_25_25, 3))
+        assertEquals(0.85f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 3).height, 0.0001f)
     }
 
     @Test fun fitBoundsContainLandscapePortraitSquareUltrawideAndNonstandardMedia() {

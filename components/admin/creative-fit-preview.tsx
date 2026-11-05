@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { aspectRatioWarning, creativePlacement, type PreviewLayout } from "@/lib/admin/creative-fit";
 
-type Props = { file: File | null; layout: PreviewLayout; onLayoutChange: (layout: PreviewLayout) => void };
+type Props = { file: File | null; layout: PreviewLayout; slot?: "MAIN" | "SPONSORED"; onLayoutChange: (layout: PreviewLayout) => void };
 
-export function CreativeFitPreview({ file, layout, onLayoutChange }: Props) {
+export function CreativeFitPreview({ file, layout, slot = "MAIN", onLayoutChange }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const placement = creativePlacement(layout);
+  const placement = creativePlacement(layout, slot);
   useEffect(() => {
     if (!file) { setUrl(null); setDimensions(null); return; }
     const objectUrl = URL.createObjectURL(file);
@@ -31,10 +31,11 @@ export function CreativeFitPreview({ file, layout, onLayoutChange }: Props) {
   const warning = dimensions && aspectRatioWarning(dimensions.width, dimensions.height, placement.aspectRatio);
   return <section className="mt-4 rounded border border-neutral-200 p-4" aria-label="Creative fit preview">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-medium">Screen fit preview</p><p className="text-xs text-neutral-500">Contain preserves the full creative; mismatched ratios show letterboxing.</p></div>
-      <label className="text-xs">Preview layout <select aria-label="Preview layout" value={layout} onChange={event => onLayoutChange(event.target.value as PreviewLayout)} className="ml-2 rounded border px-2 py-1"><option value="FOUR_ZONE">Four-zone ad placement</option><option value="SPLIT_50_25_25">Split-screen ad placement</option><option value="FULLSCREEN_AD">Fullscreen ad</option></select></label>
+      <label className="text-xs">Preview layout <select aria-label="Preview layout" value={layout} onChange={event => onLayoutChange(event.target.value as PreviewLayout)} className="ml-2 rounded border px-2 py-1"><option value="FOUR_ZONE">Four-zone ad placement</option><option value="FOUR_ZONE_V3">V3 · sponsored strip + sidebar</option><option value="SPLIT_50_25_25">Split-screen ad placement</option><option value="FULLSCREEN_AD">Fullscreen ad</option></select></label>
     </div>
     <div className="relative mx-auto mt-3 aspect-video w-full max-w-2xl overflow-hidden border border-neutral-500 bg-[#080b0e]" aria-label={`Screen preview ${layout}`}>
       {layout === "FOUR_ZONE" && <><div className="absolute right-0 top-0 h-[32%] w-[33%] border-b border-l bg-[#20252b]"/><div className="absolute bottom-0 left-0 h-[12%] w-[67%] border-t bg-[#1c232a]"/><div className="absolute bottom-0 right-0 h-[68%] w-[33%] border-l border-t bg-[#121820]"/></>}
+      {layout === "FOUR_ZONE_V3" && <><div className="absolute bottom-0 left-0 h-[15%] w-[80%] border-t bg-[#20252b]"/><div className="absolute right-0 top-0 h-1/2 w-[20%] border-b border-l bg-[#20252b]"/><div className="absolute bottom-0 right-0 h-1/2 w-[20%] border-l border-t bg-[#121820]"/></>}
       {layout === "SPLIT_50_25_25" && <><div className="absolute right-0 top-0 h-1/2 w-1/4 border-b border-l bg-[#121820]"/><div className="absolute bottom-0 right-0 h-1/2 w-1/4 border-l border-t bg-[#20252b]"/></>}
       <div className="absolute overflow-hidden bg-black" style={{ left: `${placement.x * 100}%`, top: `${placement.y * 100}%`, width: `${placement.width * 100}%`, height: `${placement.height * 100}%` }}>
         {file && url && file.type.startsWith("image/") && <Image src={url} alt="Creative preview with contain fit" fill unoptimized className="object-contain"/>}

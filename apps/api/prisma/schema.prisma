@@ -411,6 +411,7 @@ model Campaign {
   endsAt                  DateTime?
   timezone                String                      @default("Asia/Kolkata")
   layout                  String                      @default("FULLSCREEN_AD")
+  deliverySlot            String                      @default("MAIN")
   priority                Int                         @default(0)
   campaignCenterLat       Float?
   campaignCenterLng       Float?
@@ -443,6 +444,7 @@ model Campaign {
 model DisplayZoneConfig {
   id                  String   @id @default(uuid()) @db.Uuid
   displayId           String   @unique @db.Uuid
+  layoutContractVersion Int    @default(2)
   primaryWidthPercent Int      @default(67)
   adHeightPercent     Int      @default(86)
   qrHeightPercent     Int      @default(47)
@@ -983,6 +985,7 @@ model ProofOfPlay {
   actualDuration     Int?
   manifestVersion    Int?
   playerVersion      String?
+  slot               String           @default("MAIN")
   playbackCompleted  Boolean
   status             String           @default("PENDING")
   invalidReason      String?

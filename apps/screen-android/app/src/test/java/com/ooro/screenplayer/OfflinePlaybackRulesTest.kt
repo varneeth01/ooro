@@ -3,6 +3,7 @@ package com.ooro.screenplayer
 import com.ooro.screenplayer.api.ManifestCodec
 import com.ooro.screenplayer.model.CreativeType
 import com.ooro.screenplayer.model.DeviceManifest
+import com.ooro.screenplayer.model.DisplayLayout
 import com.ooro.screenplayer.model.FitMode
 import com.ooro.screenplayer.model.ManifestItem
 import com.ooro.screenplayer.player.downloadVerifiedAsset
@@ -94,6 +95,17 @@ class OfflinePlaybackRulesTest {
         assertTrue(manifestIsAuthorizedAt(manifest(listOf(item("a")), now.plusNanos(1)), now))
         assertFalse(manifestIsAuthorizedAt(manifest(listOf(item("a")), now), now))
         assertFalse(manifestIsAuthorizedAt(manifest(listOf(item("a")), now.minusNanos(1)), now))
+    }
+
+    @Test fun sponsoredOfflineAssetRequiresV3LeaseScheduleImageAndVerifiedChecksum() {
+        val sponsor = item("sponsor").copy(startAt = now.minusSeconds(5), endAt = now.plusSeconds(50))
+        val v3 = manifest(emptyList()).copy(layout = DisplayLayout.FOUR_ZONE, layoutContractVersion = 3, sponsoredItem = sponsor)
+        assertEquals("sponsor", eligibleSponsoredItem(v3, now, setOf("sponsor"))?.id)
+        assertNull(eligibleSponsoredItem(v3, now, emptySet()))
+        assertNull(eligibleSponsoredItem(v3.copy(validUntil = now), now, setOf("sponsor")))
+        assertNull(eligibleSponsoredItem(v3, now.plusSeconds(50), setOf("sponsor")))
+        assertNull(eligibleSponsoredItem(v3.copy(layoutContractVersion = 2), now, setOf("sponsor")))
+        assertNull(eligibleSponsoredItem(v3.copy(sponsoredItem = sponsor.copy(type = CreativeType.VIDEO)), now, setOf("sponsor")))
     }
 
     @Test fun manifestRefreshIsScheduledTwoMinutesBeforeTheServerLeaseExpires() {

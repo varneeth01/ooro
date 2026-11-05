@@ -6,6 +6,7 @@ package com.ooro.screenplayer
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -62,6 +63,7 @@ import com.ooro.screenplayer.player.creativeScaleBehavior
 import com.ooro.screenplayer.player.decodeCreativeImage
 import com.ooro.screenplayer.player.fittedContentBounds
 import com.ooro.screenplayer.player.usesSidebar80
+import com.ooro.screenplayer.player.usesSponsoredLayout
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -73,6 +75,7 @@ import org.maplibre.android.maps.Style
 import kotlinx.coroutines.flow.flowOf
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 class MainActivity : ComponentActivity() {
     private val vm: ScreenViewModel by viewModels { ScreenViewModel.factory(applicationContext) }
@@ -203,6 +206,19 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     val scheduledItem = remember(manifest, playbackOffset, verifiedAssetIds, manifestExpired, vm) {
         if (manifestExpired) null else vm?.currentItem(manifest, playbackOffset, verifiedAssetIds)
     }
+    val sponsorCandidate = manifest.sponsoredItem?.takeIf { !manifestExpired && it.id in verifiedAssetIds && it.type == CreativeType.IMAGE }
+    var sponsorClock by remember(manifest.version) { mutableStateOf(Instant.now()) }
+    LaunchedEffect(sponsorCandidate?.id, sponsorCandidate?.startAt, sponsorCandidate?.endAt, sponsorCandidate?.daysOfWeek, sponsorCandidate?.startTime, sponsorCandidate?.endTime, manifest.timezone) {
+        sponsorClock = Instant.now()
+        val item = sponsorCandidate ?: return@LaunchedEffect
+        val zone = runCatching { ZoneId.of(manifest.timezone) }.getOrDefault(ZoneId.of(BuildConfig.DEFAULT_TIMEZONE))
+        while (true) {
+            val boundary = nextScheduleBoundary(item, sponsorClock, zone) ?: return@LaunchedEffect
+            kotlinx.coroutines.delay(Duration.between(sponsorClock, boundary).toMillis().coerceAtLeast(1L))
+            sponsorClock = Instant.now()
+        }
+    }
+    val sponsoredItem = remember(sponsorCandidate, sponsorClock, verifiedAssetIds, manifest.layoutContractVersion, manifest.validUntil) { eligibleSponsoredItem(manifest, sponsorClock, verifiedAssetIds) }
     val item = preview?.let { state -> manifest.items.firstOrNull { it.id == state.itemId } } ?: scheduledItem
     val displayedOffer = if (preview != null) item else if (manifestExpired) null else presentationItem ?: item
     val rootModifier = if (preview == null) Modifier.fillMaxSize().background(Color.Black).clickable {
@@ -214,8 +230,13 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
             val adWidth = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 80 else manifest.layoutConfig.safePrimaryWidth
             val sidebarSplit = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 50 else manifest.layoutConfig.safeQrHeight
             Column(Modifier.weight(adWidth.toFloat()).fillMaxHeight().clipToBounds()) {
-                Box(Modifier.weight(manifest.layoutConfig.safeAdHeight.toFloat()).fillMaxWidth().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
-                NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - manifest.layoutConfig.safeAdHeight).toFloat()).fillMaxWidth().clipToBounds())
+                val mainHeight = if (usesSponsoredLayout(manifest.layout, manifest.layoutContractVersion)) 85 else manifest.layoutConfig.safeAdHeight
+                Box(Modifier.weight(mainHeight.toFloat()).fillMaxWidth().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
+                if (usesSponsoredLayout(manifest.layout, manifest.layoutContractVersion)) {
+                    Box(Modifier.weight(15f).fillMaxWidth().clipToBounds()) { SponsoredAdRegion(vm, sponsoredItem, Modifier.fillMaxSize()) }
+                } else {
+                    NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - mainHeight).toFloat()).fillMaxWidth().clipToBounds())
+                }
             }
             Column(Modifier.weight((100 - adWidth).toFloat()).fillMaxHeight().clipToBounds()) {
                 Box(Modifier.weight(sidebarSplit.toFloat()).fillMaxWidth().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
@@ -227,6 +248,52 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
             Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
         } else PrimaryAdRegion(vm, Modifier.fillMaxSize().clipToBounds(), item, playbackOffset, preview)
     }
+}
+
+@Composable private fun SponsoredAdRegion(vm: ScreenViewModel?, item: ManifestItem?, modifier: Modifier) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+    if (item == null || vm == null) {
+        Box(modifier.background(Color(0xFF101418)).clipToBounds())
+        return
+    }
+    var path by remember(item.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(item.id) { path = vm.localFile(item) }
+    BoxWithConstraints(modifier.background(Color.Black).clipToBounds(), contentAlignment = Alignment.Center) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
+        val heightPx = with(density) { maxHeight.roundToPx().coerceAtLeast(1) }
+        val bitmap by produceState<Bitmap?>(null, item.id, path, widthPx, heightPx) {
+            value = path?.let { withContext(Dispatchers.IO) { decodeCreativeImage(it, widthPx, heightPx) } }
+        }
+        DisposableEffect(bitmap) { onDispose { bitmap?.takeUnless(Bitmap::isRecycled)?.recycle() } }
+        LaunchedEffect(item.id, bitmap, lifecycleState) {
+            if (bitmap != null && lifecycleState == Lifecycle.State.RESUMED) {
+                val startedAt = SystemClock.elapsedRealtime()
+                kotlinx.coroutines.delay(item.durationSeconds.coerceAtLeast(1) * 1_000L)
+                vm.sponsoredDisplayCompleted(item, (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L))
+            }
+        }
+        if (bitmap != null) Image(bitmap!!.asImageBitmap(), "Sponsored advertisement", Modifier.fillMaxSize().clipToBounds(), contentScale = ContentScale.Fit)
+        else Box(Modifier.fillMaxSize().background(Color(0xFF101418)))
+    }
+}
+
+internal fun nextScheduleBoundary(item: ManifestItem, now: Instant, zone: ZoneId): Instant? {
+    val candidates = buildList {
+        item.startAt?.takeIf { it.isAfter(now) }?.let(::add)
+        item.endAt?.takeIf { it.isAfter(now) }?.let(::add)
+        if (item.daysOfWeek.isNotEmpty() || item.startTime != null || item.endTime != null) {
+            val localDate = now.atZone(zone).toLocalDate()
+            for (offset in 0..8) {
+                val date = localDate.plusDays(offset.toLong())
+                if (item.daysOfWeek.isNotEmpty()) date.atStartOfDay(zone).toInstant().takeIf { it.isAfter(now) }?.let(::add)
+                item.startTime?.let { date.atTime(it).atZone(zone).toInstant().takeIf { instant -> instant.isAfter(now) }?.let(::add) }
+                item.endTime?.let { date.atTime(it).atZone(zone).toInstant().takeIf { instant -> instant.isAfter(now) }?.let(::add) }
+            }
+        }
+    }
+    return candidates.minOrNull()
 }
 
 @Composable private fun NewsTicker(news: NewsConfig, modifier: Modifier) {

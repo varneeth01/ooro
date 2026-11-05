@@ -23,6 +23,8 @@ import com.ooro.screenplayer.player.PlaybackStateTracker
 import com.ooro.screenplayer.sync.CommandProcessor
 import com.ooro.screenplayer.sync.ProofSyncScheduler
 import android.util.Log
+import android.net.ConnectivityManager
+import android.net.Network
 import com.ooro.screenplayer.location.LocationReporter
 import com.ooro.screenplayer.location.LocationSnapshot
 import java.time.Instant
@@ -68,9 +70,23 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     private var reconnectJob: Job? = null
     private var manifestRefreshJob: Job? = null
     private var reconnectAttempt = 0
+    private var lastNetworkRecoveryAt = 0L
+    @Volatile private var networkRecoveryReady = false
+    private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            val now = System.currentTimeMillis()
+            if (!networkRecoveryReady || now - lastNetworkRecoveryAt < 30_000L || store.credentials() == null) return
+            lastNetworkRecoveryAt = now
+            reconnectJob?.cancel()
+            reconnectJob = null
+            sync()
+        }
+    }
     @Volatile private var repairMode = false
     private val syncMutex = Mutex()
     init {
+        runCatching { connectivityManager?.registerDefaultNetworkCallback(networkCallback) }
         location.start()
         viewModelScope.launch {
             while (true) {
@@ -81,7 +97,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
                     currentLongitude = fix?.longitude,
                     updatedAt = fix?.occurredAt?.let(Instant::ofEpochMilli),
                 )
-                if (repairMode) { delay(1_000); continue }
+                if (repairMode) { delay(BuildConfig.SYNC_INTERVAL_SECONDS * 1_000L); continue }
                 val credentials = store.credentials()
                 if (credentials != null) {
                     val current = session
@@ -116,8 +132,9 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             }.getOrNull() }
             active?.takeIf { store.credentials() != null }?.let(::scheduleManifestRefresh)
             _verifiedAssetIds.value = active?.let { manifest ->
-                runCatching { assets.verifiedItemIds(manifest.items) }.getOrDefault(emptySet())
+                runCatching { assets.verifiedItemIds(manifest.items + listOfNotNull(manifest.sponsoredItem)) }.getOrDefault(emptySet())
             } ?: emptySet()
+            networkRecoveryReady = true
             if (store.credentials() != null) sync()
             ManifestRefreshBus.events.collect { sync() }
         }
@@ -160,8 +177,10 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
             val receivedAt = Instant.now()
             check(manifestIsAuthorizedAt(incoming, receivedAt)) { "manifest authorization is missing or expired" }
             val required = incoming.items.filter { it.url.isNotBlank() }
-            val cachedIds = required.mapNotNull { item -> assets.ensure(item)?.let { item.id } }.toSet()
-            if (!canCommitManifestResponse(incoming, required.size, cachedIds.size, Instant.now())) error("manifest is expired or required assets are unavailable")
+            val cachedMainIds = required.mapNotNull { item -> assets.ensure(item)?.let { item.id } }.toSet()
+            val sponsorCached = incoming.sponsoredItem?.let { item -> runCatching { assets.ensure(item) }.getOrNull() != null } == true
+            val cachedIds = cachedMainIds + if (sponsorCached) setOfNotNull(incoming.sponsoredItem?.id) else emptySet()
+            if (!canCommitManifestResponse(incoming, required.size, cachedMainIds.size, Instant.now())) error("manifest is expired or required assets are unavailable")
             db.manifestDao().put(ManifestEntity(version=incoming.version,timezone=incoming.timezone,validUntil=incoming.validUntil?.toString(),json=ManifestCodec.encode(incoming)))
             active=incoming
             _verifiedAssetIds.value = cachedIds
@@ -249,6 +268,14 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     fun creativeStarted(item: ManifestItem) { if (!playback.start(PlaybackSession(java.util.UUID.randomUUID().toString(), item.id, item.campaignId, item.creativeId, item.assetId, Instant.now(), item.durationSeconds * 1000L))) return; scheduler.recordStarted(item); _currentCreative.value = item; playbackPositionMs = 0; reportPlayback(item, "PLAYING") }
     fun creativePosition(item: ManifestItem, positionMs: Long) { if (session?.itemId == item.id) playbackPositionMs = positionMs.coerceAtLeast(0) }
     fun creativeFinished(item: ManifestItem, actualMs: Long, success: Boolean, reason: String? = null) { val s = playback.finish(item.id) ?: return; val accepted = success && (item.type != CreativeType.VIDEO || ProofPolicy().videoSuccess(s.expectedDurationMs, actualMs)); reportPlayback(item, if (accepted) "IDLE" else "FAILED", actualMs); playbackPositionMs = null; if (_currentCreative.value?.id == item.id) _currentCreative.value = null; _playbackOffset.value = _playbackOffset.value + 1; viewModelScope.launch { proof.record(ProofOfPlay(eventId = s.eventId, screenId = store.credentials()?.screenId ?: "", deviceId = deviceId, campaignId = s.campaignId, creativeId = s.creativeId, scheduleItemId = s.itemId, startedAt = s.startedAt, endedAt = Instant.now(), expectedDurationMs = s.expectedDurationMs, actualPlayedMs = actualMs, success = accepted, failureReason = reason ?: if (!accepted) "PLAYBACK_BELOW_COMPLETION_POLICY" else null, appVersion = BuildConfig.VERSION_NAME, assetId = s.assetId)) } }
+    fun sponsoredDisplayCompleted(item: ManifestItem, displayedMs: Long) {
+        val credentials = store.credentials() ?: return
+        if (displayedMs < 1_000L || item.type != CreativeType.IMAGE) return
+        viewModelScope.launch {
+            val endedAt = Instant.now()
+            proof.record(ProofOfPlay(screenId = credentials.screenId, deviceId = deviceId, campaignId = item.campaignId, creativeId = item.creativeId, scheduleItemId = item.id, startedAt = endedAt.minusMillis(displayedMs), endedAt = endedAt, expectedDurationMs = item.durationSeconds * 1_000L, actualPlayedMs = displayedMs, success = true, appVersion = BuildConfig.VERSION_NAME, assetId = item.assetId, slot = "SPONSORED"))
+        }
+    }
     fun setNavigationState(state: NavigationState) { _navigation.value = state.copy(currentLatitude = _location.value?.latitude, currentLongitude = _location.value?.longitude) }
     fun reportMapHealth(rendered: Boolean, error: String? = null) { _mapTilesRendered.value = rendered; _mapTileError.value = error }
     private fun reportPlayback(item: ManifestItem, state: String, positionMs: Long? = null) { viewModelScope.launch { store.credentials()?.let { credentials -> runCatching { api.heartbeat(credentials, if (state == "PLAYING") PlayerStatus.PLAYING else if (state == "FAILED") PlayerStatus.ERROR else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(location.current(), item.campaignId, item.creativeId, item.assetId, state, session?.startedAt, positionMs, item.durationSeconds * 1000L)) } } } }
@@ -300,7 +327,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     } }
     fun retryQueue() { ProofSyncScheduler.enqueue(context, "diagnostic-retry") }
     private fun fallback(c: DeviceCredentials) = DeviceManifest(0,c.screenId,BuildConfig.DEFAULT_TIMEZONE,emptyList(),null)
-    override fun onCleared() { manifestRefreshJob?.cancel(); reconnectJob?.cancel(); location.stop(); super.onCleared() }
+    override fun onCleared() { runCatching { connectivityManager?.unregisterNetworkCallback(networkCallback) }; manifestRefreshJob?.cancel(); reconnectJob?.cancel(); location.stop(); super.onCleared() }
     companion object { fun factory(context: Context) = object: ViewModelProvider.Factory { override fun <T:ViewModel> create(type:Class<T>):T = ScreenViewModel(context,DeviceStore(context),ApiProvider(DeviceStore(context)).api,OoroDatabase.get(context),AssetManager(context)) as T } }
 }
 

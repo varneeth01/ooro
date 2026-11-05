@@ -1,12 +1,27 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { authorizedAllocationWindow, deliveryAssetUrl, manifestValidUntil, MANIFEST_AUTHORIZATION_LEASE_MS, manifestVersionFor, manifestVersionFromDigest } from './campaign-eligibility.js'
+import { authorizedAllocationWindow, deliveryAssetUrl, manifestValidUntil, MANIFEST_AUTHORIZATION_LEASE_MS, manifestVersionFor, manifestVersionFromDigest, selectManifestDeliverySlots } from './campaign-eligibility.js'
 import { safeDestination } from './qr-destination.js'
 
 test('manifest versions fit persisted signed INT4 fields', () => {
   const version = manifestVersionFromDigest('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
   assert.equal(version, 268435455)
   assert.ok(version > 0 && version <= 2_147_483_647)
+})
+
+test('sponsored creative is selected independently and never promoted from a main slot', () => {
+  const items = [
+    { id: 'main-a', campaignId: 'main', type: 'IMAGE', priority: 3 },
+    { id: 'sponsor-video', campaignId: 'sponsor-video', type: 'VIDEO', priority: 99 },
+    { id: 'sponsor-image', campaignId: 'sponsor-image', type: 'IMAGE', priority: 2 },
+  ]
+  const campaigns = [{ id: 'main', deliverySlot: 'MAIN' }, { id: 'sponsor-video', deliverySlot: 'SPONSORED' }, { id: 'sponsor-image', deliverySlot: 'SPONSORED' }]
+  const v3 = selectManifestDeliverySlots(items, campaigns, true)
+  assert.deepEqual(v3.mainItems.map(item => item.id), ['main-a'])
+  assert.equal(v3.sponsoredItem?.id, 'sponsor-image')
+  const v2 = selectManifestDeliverySlots(items, campaigns, false)
+  assert.deepEqual(v2.mainItems.map(item => item.id), ['main-a'])
+  assert.equal(v2.sponsoredItem, null)
 })
 
 test('manifest lease is a fixed 15 minutes; creative schedule dates remain separate playback gates', () => {

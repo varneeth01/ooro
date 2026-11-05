@@ -3,6 +3,8 @@ package com.ooro.screenplayer
 import com.ooro.screenplayer.model.DeviceManifest
 import com.ooro.screenplayer.model.ManifestItem
 import com.ooro.screenplayer.player.ScheduleEngine
+import com.ooro.screenplayer.model.CreativeType
+import com.ooro.screenplayer.model.DisplayLayout
 import java.time.Duration
 import java.time.Instant
 
@@ -51,6 +53,14 @@ internal fun nextVerifiedManifestItem(
 ): ManifestItem? {
     if (!manifestIsAuthorizedAt(manifest, now)) return null
     return scheduler.next(manifest, now, offset, verifiedItemIds)
+}
+
+internal fun eligibleSponsoredItem(manifest: DeviceManifest, now: Instant, verifiedItemIds: Set<String>): ManifestItem? {
+    if (manifest.layoutContractVersion < 3 || manifest.layout !in setOf(DisplayLayout.FOUR_ZONE, DisplayLayout.AD_NAV_OFFER) || !manifestIsAuthorizedAt(manifest, now)) return null
+    val item = manifest.sponsoredItem ?: return null
+    if (item.type != CreativeType.IMAGE || item.id !in verifiedItemIds) return null
+    val zone = runCatching { java.time.ZoneId.of(manifest.timezone) }.getOrNull() ?: return null
+    return item.takeIf { it.isActive(now, zone) }
 }
 
 internal fun acknowledgedProofEventIds(selectedIds: Set<String>, serverAcceptedIds: Set<String>): Set<String> =
