@@ -15,9 +15,9 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Exercises a granted optional permission on an isolated AVD; run separately because it changes package permission state. */
+/** Runs last because granting this optional permission persists across tests on the same AVD. */
 @RunWith(AndroidJUnit4::class)
-class GrantedLocationPermissionTest {
+class ZGrantedLocationPermissionTest {
     @Test fun grantedLocationShowsCurrentStateWithoutLaunchingConsentDialog() {
         assumeTrue(Build.PRODUCT.startsWith("sdk_", ignoreCase = true) || Build.DEVICE.startsWith("emu", ignoreCase = true))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -35,9 +35,17 @@ class GrantedLocationPermissionTest {
             assertTrue(device.wait(Until.hasObject(By.desc("Location permission status: Allowed")), 5_000))
             assertFalse("granted permission showed a runtime prompt", device.hasObject(By.textContains("Allow OORO Screen Player")))
             scenario.recreate()
-            device.waitForIdle()
+            assertTrue("technician console did not return after recreation", device.wait(Until.hasObject(By.textContains("TECHNICIAN CONSOLE")), 5_000))
+            clickSettings(device)
+            assertTrue("granted permission state did not recover after recreation", device.wait(Until.hasObject(By.desc("Location permission status: Allowed")), 5_000))
             assertEquals(context.packageName, device.currentPackageName)
             assertFalse("recreation repeated a permission prompt", device.hasObject(By.textContains("Allow OORO Screen Player")))
         }
+    }
+
+    private fun clickSettings(device: UiDevice) {
+        val settings = device.wait(Until.findObject(By.desc("Settings section")), 3_000)
+        assertTrue("Settings section is unavailable after recreation", settings != null)
+        settings!!.click()
     }
 }
