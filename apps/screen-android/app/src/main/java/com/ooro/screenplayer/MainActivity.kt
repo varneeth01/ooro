@@ -275,7 +275,9 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
         val bitmap by produceState<Bitmap?>(null, item.id, path, widthPx, heightPx) {
             value = path?.let { withContext(Dispatchers.IO) { decodeCreativeImage(it, widthPx, heightPx) } }
         }
-        DisposableEffect(bitmap) { onDispose { bitmap?.takeUnless(Bitmap::isRecycled)?.recycle() } }
+        // Compose can retain a recorded display list briefly after this node is disposed.
+        // Do not recycle the backing bitmap here; let it be collected after Compose drops it.
+        val imageBitmap = remember(bitmap) { bitmap?.asImageBitmap() }
         LaunchedEffect(item.id, bitmap, lifecycleState) {
             if (vm != null && bitmap != null && lifecycleState == Lifecycle.State.RESUMED) {
                 val startedAt = SystemClock.elapsedRealtime()
@@ -283,7 +285,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
                 vm.sponsoredDisplayCompleted(item, (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L))
             }
         }
-        if (bitmap != null) Image(bitmap!!.asImageBitmap(), if (previewAssetPath == null) "Sponsored advertisement" else "Sponsored test advertisement", Modifier.fillMaxSize().clipToBounds().then(
+        if (imageBitmap != null) Image(imageBitmap, if (previewAssetPath == null) "Sponsored advertisement" else "Sponsored test advertisement", Modifier.fillMaxSize().clipToBounds().then(
             if (previewAssetPath == null) Modifier else Modifier.onSizeChanged { bounds ->
                 val content = fittedContentBounds(bitmap!!.width, bitmap!!.height, bounds.width, bounds.height)
                 Log.i("OoroRenderTest", "sponsored sourcePx=${bitmap!!.width}x${bitmap!!.height} mediaPx=${content.width}x${content.height} viewportPx=${bounds.width}x${bounds.height} fit=FIT proofsDisabled=true")
@@ -388,7 +390,9 @@ internal fun nextScheduleBoundary(item: ManifestItem, now: Instant, zone: ZoneId
                         bitmapState.value = decoded; decoded = null
                     } finally { decoded?.recycle(); doneState.value = true }
                 }
-                DisposableEffect(bitmap) { onDispose { bitmap?.takeUnless(Bitmap::isRecycled)?.recycle() } }
+                // Compose may draw a retained display list after disposal. Recycling the
+                // bitmap synchronously can crash that frame; allow the bitmap to be GC'd.
+                val imageBitmap = remember(bitmap) { bitmap?.asImageBitmap() }
                 LaunchedEffect(item.id, playbackKey, path, widthPx, heightPx) {
                     val loaded = snapshotFlow { bitmapState.value to doneState.value }.first { it.first != null || it.second }
                     if (preview == null) {
@@ -397,11 +401,11 @@ internal fun nextScheduleBoundary(item: ManifestItem, now: Instant, zone: ZoneId
                         else { kotlinx.coroutines.delay(item.durationSeconds * 1000L); vm?.creativeFinished(item, item.durationSeconds * 1000L, true) }
                     }
                 }
-                if (bitmap != null) Image(
-                    bitmap.asImageBitmap(), "OORO creative", Modifier.fillMaxSize().clipToBounds().then(
+                if (imageBitmap != null) Image(
+                    imageBitmap, "OORO creative", Modifier.fillMaxSize().clipToBounds().then(
                         if (preview == null) Modifier else Modifier.onSizeChanged { bounds ->
-                            val content = fittedContentBounds(bitmap.width, bitmap.height, bounds.width, bounds.height)
-                            Log.i("OoroRenderTest", "image creativeId=${item.creativeId} sourcePx=${bitmap.width}x${bitmap.height} mediaPx=${content.width}x${content.height} viewportPx=${bounds.width}x${bounds.height} fit=${item.fitMode}")
+                            val content = fittedContentBounds(bitmap!!.width, bitmap!!.height, bounds.width, bounds.height)
+                            Log.i("OoroRenderTest", "image creativeId=${item.creativeId} sourcePx=${bitmap!!.width}x${bitmap!!.height} mediaPx=${content.width}x${content.height} viewportPx=${bounds.width}x${bounds.height} fit=${item.fitMode}")
                         }
                     ), contentScale = item.fitMode.toContentScale()
                 )
@@ -639,7 +643,8 @@ private fun distanceMeters(start: LatLng, end: LatLng): Double {
             }
         }
         val qr = qrState.value
-        DisposableEffect(qr) { onDispose { qr?.takeUnless(Bitmap::isRecycled)?.recycle() } }
+        // Let Compose release QR bitmaps after its retained display lists are discarded.
+        val qrImage = remember(qr) { qr?.asImageBitmap() }
         Row(Modifier.fillMaxSize().clipToBounds(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(0.48f).padding(end = 8.dp), verticalArrangement = Arrangement.Center) {
                 if (promotionalText != null) {
@@ -653,7 +658,7 @@ private fun distanceMeters(start: LatLng, end: LatLng): Double {
                 if (qr != null && !offer.ctaLabel.isNullOrBlank()) Text(offer.ctaLabel!!.trim(), color = Color(0xFFB8C0C8), fontSize = 11.sp, maxLines = 2, modifier = Modifier.padding(top = 5.dp))
             }
             Box(Modifier.weight(0.52f).fillMaxHeight(), contentAlignment = Alignment.CenterEnd) {
-                if (qr != null) Image(qr.asImageBitmap(), "Advertisement QR code", Modifier.size(qrSize), contentScale = ContentScale.Fit)
+                if (qrImage != null) Image(qrImage, "Advertisement QR code", Modifier.size(qrSize), contentScale = ContentScale.Fit)
             }
         }
     }

@@ -39,7 +39,14 @@ class V3RenderScreenshotTest {
             assertTrue("main test creative did not load", device.wait(Until.hasObject(By.desc("OORO creative")), 10_000))
             if (scenarioName == "V3_SPONSORED") {
                 assertTrue("sponsor test creative did not load", device.wait(Until.hasObject(By.desc("Sponsored test advertisement")), 10_000))
+            } else {
+                assertTrue("expired sponsor was rendered", device.findObject(By.desc("Sponsored advertisement")) == null)
             }
+            // Android can show an immersive-mode education dialog on first launch. Dismiss it
+            // so the captured image represents the player rather than system onboarding.
+            device.wait(Until.findObject(By.text("Got it")), 1_000)?.click()
+            device.waitForIdle()
+            android.os.SystemClock.sleep(400)
             assertV3RegionBounds(device)
             val outputDirectory = File(context.getExternalFilesDir(null), "render-test-screenshots")
             assertTrue("screenshot directory could not be created", outputDirectory.mkdirs() || outputDirectory.isDirectory)
