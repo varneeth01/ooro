@@ -4,6 +4,7 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
+import java.net.URI
 import java.util.UUID
 
 enum class PlayerStatus { UNPAIRED, SYNCING, READY, PLAYING, OFFLINE, DEGRADED, ERROR }
@@ -30,8 +31,19 @@ data class OfferMetadata(
     val scanCountDisplayEnabled: Boolean = false,
     val accentColor: String? = null
 ) {
-    val validQrUrl: String? get() = (qrUrl ?: ctaUrl)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+    /** Accept only navigable web destinations. Server-side offer authorization remains authoritative. */
+    val validQrUrl: String? get() = sequenceOf(qrUrl, ctaUrl).mapNotNull(::normalizedWebUrl).firstOrNull()
     val hasOffer: Boolean get() = listOf(brandName, offerTitle, offerValue, offerSubtitle, ctaLabel).any { !it.isNullOrBlank() }
+}
+
+private fun normalizedWebUrl(value: String?): String? {
+    val candidate = value?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    return runCatching {
+        val uri = URI(candidate)
+        candidate.takeIf {
+            uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true)
+        }?.takeIf { !uri.host.isNullOrBlank() && uri.userInfo == null }
+    }.getOrNull()
 }
 
 data class DeviceCredentials(val deviceId: String, val screenId: String, val workspaceId: String, val token: String, val name: String)

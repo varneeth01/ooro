@@ -79,7 +79,7 @@ class RenderTestActivity : ComponentActivity() {
                 RenderTestScreen(
                     previewDirectory.absolutePath,
                     initialAsset = intent.getStringExtra("asset"),
-                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR", "V1_LOCAL_V3")) DisplayLayout.FOUR_ZONE.name else null,
+                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR", "V1_LOCAL_V3") || scenario.startsWith("OFFER_")) DisplayLayout.FOUR_ZONE.name else null,
                     controlsInitiallyVisible = intent.getBooleanExtra("controls", false),
                     initialMapEnabled = intent.getBooleanExtra("map", false),
                     initialTickerEnabled = intent.getBooleanExtra("ticker", scenario == "TICKER_OVERFLOW"),
@@ -182,28 +182,35 @@ private fun RenderTestScreen(
     var selected by remember { mutableIntStateOf(assets.indexOfFirst { it.name == initialAsset }.takeIf { it >= 0 } ?: 0) }
     var layout by remember { mutableStateOf(DisplayLayout.entries.firstOrNull { it.name == initialLayout } ?: DisplayLayout.FULLSCREEN_AD) }
     val idleOnly = scenario == "EMPTY_IDLE"
+    val offerFallback = scenario == "OFFER_FALLBACK"
+    val offerFixture = scenario.startsWith("OFFER_")
     val v3Sponsored = scenario == "V3_SPONSORED" || scenario == "V3_EXPIRED_SPONSOR"
     val localV3Presentation = scenario == "V1_LOCAL_V3"
     val controlsAllowed = !idleOnly
     var mapEnabled by remember { mutableStateOf(initialMapEnabled && !idleOnly) }
     var tickerEnabled by remember { mutableStateOf(initialTickerEnabled && !idleOnly) }
-    var qrEnabled by remember { mutableStateOf((initialQrEnabled || v3Sponsored) && !idleOnly) }
+    var qrEnabled by remember { mutableStateOf((initialQrEnabled || v3Sponsored || offerFixture) && !idleOnly) }
     var controlsVisible by remember { mutableStateOf(controlsInitiallyVisible && controlsAllowed) }
     val selectedAsset = assets[selected]
-    val itemList = remember(assets, qrEnabled) {
+    val itemList = remember(assets, qrEnabled, scenario) {
         assets.map { asset ->
             val fileName = asset.name + when { asset.video -> ".mp4"; asset.name == "jpeg-exif-rotated" -> ".jpg"; else -> ".png" }
+            val offer = when (scenario) {
+                "OFFER_LONG_BRAND" -> OfferMetadata(brandName = "THE EXTRAORDINARILY LONG SYNTHETIC BRAND NAME", promotionalText = "Sample message for layout verification", ctaLabel = "TEST LINK", qrUrl = "https://example.invalid/long-brand")
+                "OFFER_LONG_TITLE" -> OfferMetadata(brandName = "OORO TEST PARTNER", offerTitle = "A deliberately long synthetic promotional title that must truncate safely in the offer panel", ctaLabel = "TEST LINK", qrUrl = "https://example.invalid/long-title")
+                "OFFER_BRAND_ONLY" -> OfferMetadata(brandName = "SYNTHETIC BRAND ONLY", ctaLabel = "VISIT BRAND", qrUrl = "https://example.invalid/brand-only")
+                "OFFER_MISSING_QR" -> OfferMetadata(brandName = "SYNTHETIC BRAND", promotionalText = "No authorized destination", ctaLabel = "TEST ONLY")
+                "OFFER_INVALID_QR" -> OfferMetadata(brandName = "SYNTHETIC BRAND", promotionalText = "Invalid destination fixture", qrUrl = "javascript:alert(1)")
+                "OFFER_EXPIRED" -> OfferMetadata(brandName = "EXPIRED TEST BRAND", promotionalText = "This offer must not be shown", qrUrl = "https://example.invalid/expired")
+                else -> OfferMetadata(brandName = "SYNTHETIC TEST BRAND", promotionalText = "Synthetic offer message", offerTitle = "Synthetic offer", ctaLabel = "TEST LINK", qrUrl = if (qrEnabled) "https://example.invalid/offer" else null)
+            }
             ManifestItem(
                 id = "render-test-${asset.name}", campaignId = "local-render-test", creativeId = "local-${asset.name}",
                 type = if (asset.video) CreativeType.VIDEO else CreativeType.IMAGE,
                 url = "render-test://$fileName", checksum = null, durationSeconds = 60, priority = 0,
-                startAt = null, endAt = null, daysOfWeek = emptySet(), startTime = null, endTime = null,
+                startAt = null, endAt = if (scenario == "OFFER_EXPIRED") Instant.now().minusSeconds(1) else null, daysOfWeek = emptySet(), startTime = null, endTime = null,
                 assetId = "local-asset-${asset.name}", fitMode = FitMode.FIT,
-                offer = OfferMetadata(
-                    brandName = "OORO FIT TEST", promotionalText = "Edges must remain visible",
-                    offerTitle = "Synthetic preview", offerValue = "FIT", ctaLabel = "TEST ONLY",
-                    qrUrl = if (qrEnabled) "https://example.invalid/render-test" else null
-                )
+                offer = offer
             )
         }
     }
@@ -222,10 +229,14 @@ private fun RenderTestScreen(
         offer = OfferMetadata(brandName = "OORO SPONSOR TEST", promotionalText = "Separate fixed sponsor fixture")
     ) else null
     val manifest = DeviceManifest(
-        version = 0, screenId = "LOCAL_RENDER_TEST", timezone = "UTC", items = if (idleOnly) emptyList() else itemList,
+        version = 0, screenId = "LOCAL_RENDER_TEST", timezone = "UTC", items = if (idleOnly || offerFallback) emptyList() else itemList,
         validUntil = Instant.now().plusSeconds(15 * 60), layout = layout, layoutConfig = LayoutConfig(67, 89, 32, 42),
-        news = if (v3Sponsored) NewsConfig() else news,
-        layoutContractVersion = if (v3Sponsored) 3 else 1,
+        news = if (v3Sponsored || offerFixture) NewsConfig() else news,
+        layoutContractVersion = when (scenario) {
+            "OFFER_V2_LEGACY" -> 2
+            "OFFER_V1_LEGACY" -> 1
+            else -> if (v3Sponsored || offerFixture) 3 else 1
+        },
         sponsoredItem = sponsorItem
     )
     val paths = remember(assetDirectory, assets) {
@@ -241,7 +252,7 @@ private fun RenderTestScreen(
         nextInstruction = "MapLibre test · no route requested"
     )
     val preview = PlayerPreviewConfig(
-        itemId = if (idleOnly) "empty-idle-no-item" else "render-test-${selectedAsset.name}", assetPaths = paths,
+        itemId = if (idleOnly || offerFallback) "empty-idle-no-item" else "render-test-${selectedAsset.name}", assetPaths = paths,
         sponsoredItemId = sponsorItem?.id,
         sponsoredAssetPath = sponsorItem?.let { File(assetDirectory, "${SponsoredPreviewAsset.name}.png").absolutePath },
         navigation = nav,
