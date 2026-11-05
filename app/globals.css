@@ -91,3 +91,21 @@ summary::-webkit-details-marker { display: none; }
 .admin-login .text-neutral-500 { color: #a2abb2; }
 .admin-login .text-red-700, .admin-login [role="alert"] { color: #ffaaa1; }
 .admin-login a:hover { color: #dfff00; }
+
+
+/* Admin dark-surface normalization for legacy pages that still use light utility colors. */
+.ooro-admin .bg-\[\#f2f4ec\], .ooro-admin .bg-\[\#f7f7f4\], .ooro-admin .bg-\[\#f7fadf\], .ooro-admin .bg-\[\#f8fbdc\] {
+  background-color: #151a1e !important;
+  border-color: var(--admin-border) !important;
+}
+.ooro-admin .bg-amber-50 { background-color: #2d2417 !important; }
+.ooro-admin .border-amber-200 { border-color: #6d5525 !important; }
+.ooro-admin .text-amber-950 { color: #ffe2a7 !important; }
+.ooro-admin .text-amber-900 { color: #ffd58b !important; }
+.ooro-admin .bg-lime-50 { background-color: #202a15 !important; }
+.ooro-admin .border-lime-200 { border-color: #42551f !important; }
+.ooro-admin .text-lime-950 { color: #e1f5ac !important; }
+.ooro-admin select option { background: #151a1e; color: #f1f3ef; }
+.ooro-admin input[type="checkbox"], .ooro-admin input[type="radio"] { accent-color: #dfff00; }
+.ooro-admin :where(table) tbody tr:hover { background-color: rgba(255,255,255,.035); }
+.ooro-admin :where(button, a, input, textarea, select):focus-visible { outline: 2px solid #dfff00; outline-offset: 2px; }

@@ -75,6 +75,7 @@ export function DeviceOsDeployments() {
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [releasesLoading, setReleasesLoading] = useState(false);
 
   const load = () => Promise.all([
@@ -109,12 +110,13 @@ export function DeviceOsDeployments() {
   const validationErrors = validateDeploymentForm(form, apps, releases, devices, groups, deviceIds);
   const valid = Object.keys(validationErrors).length === 0;
   const enrolledDevices = devices.filter(device => device.enrollmentStatus === "ENROLLED");
-  const showFieldError = (field: string) => validationErrors[field]
-    ? <p className="mt-1 text-xs text-red-700">{validationErrors[field]}</p>
+  const showFieldError = (field: string) => submitAttempted && validationErrors[field]
+    ? <p className="mt-1 text-xs font-medium text-red-700">{validationErrors[field]}</p>
     : null;
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
+    setSubmitAttempted(true);
     setError("");
     if (!valid || pending) return;
     setPending(true);
@@ -147,6 +149,7 @@ export function DeviceOsDeployments() {
       setDeviceIds([]);
       setReleases([]);
       setIdempotencyKey("");
+      setSubmitAttempted(false);
       await load();
     } catch (e) {
       const requestError = e as Error & { status?: number; code?: string };
@@ -176,8 +179,9 @@ export function DeviceOsDeployments() {
 
   return <div className="space-y-7">
     <PageHeader eyebrow="Admin / DeviceOS" title="Deployment campaigns" description="Assignments are durable in PostgreSQL and remain auditable when devices are offline."/>
-    <SectionCard title="Create deployment">
+    <SectionCard title="Create deployment" description="Choose an approved application release, target the enrolled devices, and set rollout safeguards.">
       <form onSubmit={create} className="grid gap-4 md:grid-cols-2" noValidate>
+        {submitAttempted && !valid && <p role="status" className="rounded-lg border border-amber-400/30 bg-amber-400/[.06] px-4 py-3 text-sm text-amber-100 md:col-span-2">Complete the highlighted fields to create this deployment.</p>}
         <label className="text-sm">Campaign name
           <input className="mt-1 block w-full rounded border px-3 py-2" placeholder="Campaign name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}/>
           {showFieldError("name")}
@@ -243,7 +247,7 @@ export function DeviceOsDeployments() {
           {showFieldError("maintenanceWindowEnd")}
         </label>
         {error && <p role="alert" className="text-sm text-red-700 md:col-span-2">{error}</p>}
-        <PrimaryButton type="submit" disabled={!valid || pending}>{pending ? "Creating deployment…" : "Create deployment"}</PrimaryButton>
+        <PrimaryButton type="submit" disabled={pending}>{pending ? "Creating deployment…" : "Create deployment"}</PrimaryButton>
       </form>
     </SectionCard>
     <SectionCard title="Campaign history"><div className="divide-y">{items.map(item => <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" key={item.id}><div><p className="font-medium">{item.name}</p><p className="text-xs text-neutral-500">{item.application.displayName} · v{item.release.versionName} · {item.targetingMode}</p><p className="mt-1 text-xs text-neutral-500">{Object.entries(item.targetSummary || {}).map(([state, count]) => `${state}: ${count}`).join(" · ") || "No target events"}</p></div><div className="flex items-center gap-3"><StatusBadge tone={item.state === "ACTIVE" ? "yellow" : "neutral"}>{item.state}</StatusBadge><SecondaryButton onClick={() => void showDetail(item.id)}>View logs</SecondaryButton>{["ACTIVE", "PAUSED"].includes(item.state) && <SecondaryButton onClick={() => void toggle(item)}>{item.state === "PAUSED" ? "Resume" : "Pause"}</SecondaryButton>}</div></div>)}</div>{!items.length && <p className="py-8 text-sm text-neutral-500">No deployment campaigns created.</p>}</SectionCard>
