@@ -20,6 +20,7 @@ SIZES = {
     "square": (1200, 1200),
     "ultrawide": (2560, 800),
     "nonstandard": (1000, 700),
+    "sponsor-strip": (2560, 480),
 }
 
 

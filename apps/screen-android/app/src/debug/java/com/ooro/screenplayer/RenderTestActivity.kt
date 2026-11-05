@@ -59,6 +59,7 @@ import java.util.concurrent.atomic.AtomicLong
 import androidx.compose.foundation.gestures.detectTapGestures
 
 private data class PreviewAsset(val name: String, val width: Int, val height: Int, val video: Boolean = false)
+private val SponsoredPreviewAsset = PreviewAsset("sponsor-strip", 2560, 480)
 
 class RenderTestActivity : ComponentActivity() {
     private lateinit var previewDirectory: File
@@ -78,7 +79,7 @@ class RenderTestActivity : ComponentActivity() {
                 RenderTestScreen(
                     previewDirectory.absolutePath,
                     initialAsset = intent.getStringExtra("asset"),
-                    initialLayout = intent.getStringExtra("layout") ?: if (scenario == "TICKER_OVERFLOW") DisplayLayout.FOUR_ZONE.name else null,
+                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR")) DisplayLayout.FOUR_ZONE.name else null,
                     controlsInitiallyVisible = intent.getBooleanExtra("controls", false),
                     initialMapEnabled = intent.getBooleanExtra("map", false),
                     initialTickerEnabled = intent.getBooleanExtra("ticker", scenario == "TICKER_OVERFLOW"),
@@ -181,10 +182,11 @@ private fun RenderTestScreen(
     var selected by remember { mutableIntStateOf(assets.indexOfFirst { it.name == initialAsset }.takeIf { it >= 0 } ?: 0) }
     var layout by remember { mutableStateOf(DisplayLayout.entries.firstOrNull { it.name == initialLayout } ?: DisplayLayout.FULLSCREEN_AD) }
     val idleOnly = scenario == "EMPTY_IDLE"
+    val v3Sponsored = scenario == "V3_SPONSORED" || scenario == "V3_EXPIRED_SPONSOR"
     val controlsAllowed = !idleOnly
     var mapEnabled by remember { mutableStateOf(initialMapEnabled && !idleOnly) }
     var tickerEnabled by remember { mutableStateOf(initialTickerEnabled && !idleOnly) }
-    var qrEnabled by remember { mutableStateOf(initialQrEnabled && !idleOnly) }
+    var qrEnabled by remember { mutableStateOf((initialQrEnabled || v3Sponsored) && !idleOnly) }
     var controlsVisible by remember { mutableStateOf(controlsInitiallyVisible && controlsAllowed) }
     val selectedAsset = assets[selected]
     val itemList = remember(assets, qrEnabled) {
@@ -208,12 +210,25 @@ private fun RenderTestScreen(
         List(24) { "SYNTHETIC OVERFLOW EDGE-CHECK ${it + 1}" }.joinToString(" · ")
     } else "SYNTHETIC TICKER · OFFLINE TEST"
     val news = if (tickerEnabled && !idleOnly) NewsConfig(42, listOf(NewsAnnouncement("render-test-news", tickerText, 1))) else NewsConfig()
+    val sponsorItemId = "render-test-sponsored-strip"
+    val sponsorItem = if (v3Sponsored) ManifestItem(
+        id = sponsorItemId, campaignId = "local-sponsored-test", creativeId = "local-sponsored-image",
+        type = CreativeType.IMAGE, url = "render-test://sponsor-strip.png", checksum = null,
+        durationSeconds = 60, priority = 1, startAt = if (scenario == "V3_EXPIRED_SPONSOR") Instant.now().minusSeconds(60) else Instant.now().minusSeconds(1),
+        endAt = if (scenario == "V3_EXPIRED_SPONSOR") Instant.now().minusSeconds(1) else Instant.now().plusSeconds(15 * 60),
+        daysOfWeek = emptySet(), startTime = null, endTime = null, assetId = "local-sponsored-asset",
+        fitMode = FitMode.FIT,
+        offer = OfferMetadata(brandName = "OORO SPONSOR TEST", promotionalText = "Separate fixed sponsor fixture")
+    ) else null
     val manifest = DeviceManifest(
         version = 0, screenId = "LOCAL_RENDER_TEST", timezone = "UTC", items = if (idleOnly) emptyList() else itemList,
-        validUntil = Instant.now().plusSeconds(15 * 60), layout = layout, layoutConfig = LayoutConfig(67, 89, 32, 42), news = news
+        validUntil = Instant.now().plusSeconds(15 * 60), layout = layout, layoutConfig = LayoutConfig(67, 89, 32, 42),
+        news = if (v3Sponsored) NewsConfig() else news,
+        layoutContractVersion = if (v3Sponsored) 3 else 1,
+        sponsoredItem = sponsorItem
     )
     val paths = remember(assetDirectory, assets) {
-        assets.associate { asset ->
+        (assets + SponsoredPreviewAsset).associate { asset ->
             val fileName = asset.name + when { asset.video -> ".mp4"; asset.name == "jpeg-exif-rotated" -> ".jpg"; else -> ".png" }
             "render-test-${asset.name}" to File(assetDirectory, fileName).absolutePath
         }
@@ -225,13 +240,16 @@ private fun RenderTestScreen(
         nextInstruction = "MapLibre test · no route requested"
     )
     val preview = PlayerPreviewConfig(
-        itemId = if (idleOnly) "empty-idle-no-item" else "render-test-${selectedAsset.name}", assetPaths = paths, navigation = nav,
+        itemId = if (idleOnly) "empty-idle-no-item" else "render-test-${selectedAsset.name}", assetPaths = paths,
+        sponsoredItemId = sponsorItem?.id,
+        sponsoredAssetPath = sponsorItem?.let { File(assetDirectory, "${SponsoredPreviewAsset.name}.png").absolutePath },
+        navigation = nav,
         onMapHealth = { loaded, error -> Log.i("OoroRenderTest", "map active=$mapEnabled loaded=$loaded error=${error ?: "none"}") }
     )
 
     LaunchedEffect(controlsVisible, selected, layout, mapEnabled, tickerEnabled, qrEnabled) {
         if (controlsVisible) { kotlinx.coroutines.delay(5_000); controlsVisible = false }
-        Log.i("OoroRenderTest", "case scenario=$scenario creative=${if (idleOnly) "none" else selectedAsset.name} source=${if (idleOnly) "none" else "${selectedAsset.width}x${selectedAsset.height}"} type=${if (idleOnly) "NONE" else if (selectedAsset.video) "VIDEO" else "IMAGE"} layout=$layout map=$mapEnabled ticker=$tickerEnabled qr=$qrEnabled fit=FIT manifestItems=${manifest.items.size}")
+        Log.i("OoroRenderTest", "case scenario=$scenario creative=${if (idleOnly) "none" else selectedAsset.name} source=${if (idleOnly) "none" else "${selectedAsset.width}x${selectedAsset.height}"} type=${if (idleOnly) "NONE" else if (selectedAsset.video) "VIDEO" else "IMAGE"} layout=$layout contract=${manifest.layoutContractVersion} mainItems=${manifest.items.size} sponsor=${manifest.sponsoredItem?.id ?: "none"} sponsorApprovedForTest=${manifest.sponsoredItem != null} map=$mapEnabled ticker=${if (v3Sponsored) "absent" else tickerEnabled} qr=$qrEnabled fit=FIT proofsDisabled=true networkManifestDisabled=true")
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {

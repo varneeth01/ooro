@@ -21,6 +21,8 @@ data class Sidebar80Geometry(val adWidth: Int, val sidebarWidth: Int, val offerH
 data class SponsoredLayoutGeometry(val mainAdWidth: Int, val sidebarWidth: Int, val mainAdHeight: Int, val sponsoredHeight: Int, val qrHeight: Int, val mapHeight: Int)
 fun usesSidebar80(layout: DisplayLayout, version: Int) = version >= 2 && (layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER)
 fun usesSponsoredLayout(layout: DisplayLayout, version: Int) = version >= 3 && (layout == DisplayLayout.FOUR_ZONE || layout == DisplayLayout.AD_NAV_OFFER)
+fun shouldRenderNewsTicker(layout: DisplayLayout, version: Int) =
+    layout in setOf(DisplayLayout.FOUR_ZONE, DisplayLayout.AD_NAV_OFFER) && !usesSponsoredLayout(layout, version)
 fun sponsoredLayoutGeometry(width: Int, height: Int): SponsoredLayoutGeometry {
     val mainWidth = (width * 0.8f).toInt()
     val sidebar = width - mainWidth

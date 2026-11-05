@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +66,7 @@ import com.ooro.screenplayer.player.decodeCreativeImage
 import com.ooro.screenplayer.player.fittedContentBounds
 import com.ooro.screenplayer.player.usesSidebar80
 import com.ooro.screenplayer.player.usesSponsoredLayout
+import com.ooro.screenplayer.player.shouldRenderNewsTicker
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -120,6 +123,8 @@ private val Panel = Color(0xFF121820)
 internal data class PlayerPreviewConfig(
     val itemId: String,
     val assetPaths: Map<String, String>,
+    val sponsoredItemId: String? = null,
+    val sponsoredAssetPath: String? = null,
     val navigation: NavigationState = NavigationState(),
     val onMapHealth: (Boolean, String?) -> Unit = { _, _ -> }
 )
@@ -189,7 +194,9 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     var taps by remember { mutableIntStateOf(0) }
     val playbackOffset by (vm?.playbackOffset ?: flowOf(0)).collectAsState(initial = 0)
     val presentationItem by (vm?.currentCreative ?: flowOf<ManifestItem?>(null)).collectAsState(initial = null)
-    val verifiedAssetIds by (vm?.verifiedAssetIds ?: flowOf(emptySet<String>())).collectAsState(initial = emptySet())
+    val previewVerifiedIds = remember(preview?.sponsoredItemId) { setOfNotNull(preview?.sponsoredItemId) }
+    val verifiedAssetFlow = vm?.verifiedAssetIds ?: remember(previewVerifiedIds) { flowOf(previewVerifiedIds) }
+    val verifiedAssetIds by verifiedAssetFlow.collectAsState(initial = previewVerifiedIds)
     var manifestExpired by remember(manifest.version, manifest.validUntil) {
         mutableStateOf(!manifestIsAuthorizedAt(manifest, Instant.now()))
     }
@@ -231,16 +238,18 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
             val sidebarSplit = if (usesSidebar80(manifest.layout, manifest.layoutContractVersion)) 50 else manifest.layoutConfig.safeQrHeight
             Column(Modifier.weight(adWidth.toFloat()).fillMaxHeight().clipToBounds()) {
                 val mainHeight = if (usesSponsoredLayout(manifest.layout, manifest.layoutContractVersion)) 85 else manifest.layoutConfig.safeAdHeight
-                Box(Modifier.weight(mainHeight.toFloat()).fillMaxWidth().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
+                Box(Modifier.weight(mainHeight.toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:main-ad" }.onSizeChanged { Log.i("OoroRenderTest", "region=main-ad boundsPx=${it.width}x${it.height}") })) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
                 if (usesSponsoredLayout(manifest.layout, manifest.layoutContractVersion)) {
-                    Box(Modifier.weight(15f).fillMaxWidth().clipToBounds()) { SponsoredAdRegion(vm, sponsoredItem, Modifier.fillMaxSize()) }
-                } else {
+                    Box(Modifier.weight(15f).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:sponsored" }.onSizeChanged { Log.i("OoroRenderTest", "region=sponsored boundsPx=${it.width}x${it.height}") })) {
+                        SponsoredAdRegion(vm, sponsoredItem, Modifier.fillMaxSize(), preview?.sponsoredAssetPath)
+                    }
+                } else if (shouldRenderNewsTicker(manifest.layout, manifest.layoutContractVersion)) {
                     NewsTicker(if (manifestExpired) NewsConfig() else manifest.news, Modifier.weight((100 - mainHeight).toFloat()).fillMaxWidth().clipToBounds())
                 }
             }
             Column(Modifier.weight((100 - adWidth).toFloat()).fillMaxHeight().clipToBounds()) {
-                Box(Modifier.weight(sidebarSplit.toFloat()).fillMaxWidth().clipToBounds()) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
-                Box(Modifier.weight((100 - sidebarSplit).toFloat()).fillMaxWidth().clipToBounds()) { NavigationPanel(vm, preview, Modifier.fillMaxSize()) }
+                Box(Modifier.weight(sidebarSplit.toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:qr-offer" }.onSizeChanged { Log.i("OoroRenderTest", "region=qr-offer boundsPx=${it.width}x${it.height}") })) { OfferPanel(displayedOffer, Modifier.fillMaxSize()) }
+                Box(Modifier.weight((100 - sidebarSplit).toFloat()).fillMaxWidth().clipToBounds().then(if (preview == null) Modifier else Modifier.semantics { contentDescription = "OoroV3Region:navigation" }.onSizeChanged { Log.i("OoroRenderTest", "region=navigation boundsPx=${it.width}x${it.height}") })) { NavigationPanel(vm, preview, Modifier.fillMaxSize()) }
             }
         } else if (manifest.layout == DisplayLayout.SPLIT_50_25_25) Row(Modifier.fillMaxSize().clipToBounds()) {
             Box(Modifier.weight(2f).fillMaxHeight().clipToBounds()) { PrimaryAdRegion(vm, Modifier.fillMaxSize(), item, playbackOffset, preview) }
@@ -250,15 +259,15 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     }
 }
 
-@Composable private fun SponsoredAdRegion(vm: ScreenViewModel?, item: ManifestItem?, modifier: Modifier) {
+@Composable private fun SponsoredAdRegion(vm: ScreenViewModel?, item: ManifestItem?, modifier: Modifier, previewAssetPath: String? = null) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
-    if (item == null || vm == null) {
+    if (item == null || (vm == null && previewAssetPath == null)) {
         Box(modifier.background(Color(0xFF101418)).clipToBounds())
         return
     }
     var path by remember(item.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(item.id) { path = vm.localFile(item) }
+    LaunchedEffect(item.id, previewAssetPath) { path = previewAssetPath ?: vm?.localFile(item) }
     BoxWithConstraints(modifier.background(Color.Black).clipToBounds(), contentAlignment = Alignment.Center) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
@@ -268,13 +277,18 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
         }
         DisposableEffect(bitmap) { onDispose { bitmap?.takeUnless(Bitmap::isRecycled)?.recycle() } }
         LaunchedEffect(item.id, bitmap, lifecycleState) {
-            if (bitmap != null && lifecycleState == Lifecycle.State.RESUMED) {
+            if (vm != null && bitmap != null && lifecycleState == Lifecycle.State.RESUMED) {
                 val startedAt = SystemClock.elapsedRealtime()
                 kotlinx.coroutines.delay(item.durationSeconds.coerceAtLeast(1) * 1_000L)
                 vm.sponsoredDisplayCompleted(item, (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L))
             }
         }
-        if (bitmap != null) Image(bitmap!!.asImageBitmap(), "Sponsored advertisement", Modifier.fillMaxSize().clipToBounds(), contentScale = ContentScale.Fit)
+        if (bitmap != null) Image(bitmap!!.asImageBitmap(), if (previewAssetPath == null) "Sponsored advertisement" else "Sponsored test advertisement", Modifier.fillMaxSize().clipToBounds().then(
+            if (previewAssetPath == null) Modifier else Modifier.onSizeChanged { bounds ->
+                val content = fittedContentBounds(bitmap!!.width, bitmap!!.height, bounds.width, bounds.height)
+                Log.i("OoroRenderTest", "sponsored sourcePx=${bitmap!!.width}x${bitmap!!.height} mediaPx=${content.width}x${content.height} viewportPx=${bounds.width}x${bounds.height} fit=FIT proofsDisabled=true")
+            }
+        ), contentScale = ContentScale.Fit)
         else Box(Modifier.fillMaxSize().background(Color(0xFF101418)))
     }
 }

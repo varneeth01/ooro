@@ -56,3 +56,18 @@ adb -s 6c001040f441c941d94 shell am start \
 ```
 
 The fixtures use the production composables, an in-memory manifest and local generated media. The empty fixture forces ticker/map/QR off and has no manifest items; the overflow fixture uses only a synthetic announcement. The preview itself has no view model, network client, pairing flow, heartbeat call, campaign, impression or proof path. An already-running MainActivity/WorkManager task can still do its ordinary scheduled work in the same process; the fixture does not fabricate that work. The Activity emits its scenario and manifest item count in `OoroRenderTest`. A long ticker keeps its animation confined to the ticker layer and is canceled when the Activity is paused or the ticker leaves composition.
+
+## V3 sponsored-slot fixture and screenshots
+
+`V3_SPONSORED` composes a separate synthetic main image and a separate synthetic sponsored-strip image through the production `Player`, `PrimaryAdRegion`, `SponsoredAdRegion`, `OfferPanel`, and `NavigationPanel`. The QR target uses `example.invalid`; navigation is disabled so only the static placeholder is shown; V3 news is empty and the production V3 branch does not compose `NewsTicker`. The local fixture has no `ScreenViewModel`, network request, campaign impression, or proof writer. `V3_EXPIRED_SPONSOR` uses the same asset but an expired item schedule and should show the neutral sponsored fallback.
+
+Generate the extra sponsor edge-card with the existing asset script. Launch a preview manually (only on an approved development target):
+
+```bash
+python3 tools/generate_render_test_assets.py
+adb shell am start -n com.ooro.screenplayer/.RenderTestActivity \
+  --es scenario V3_SPONSORED --es layout FOUR_ZONE --ez controls false \
+  --ez map false --ez ticker false --ez qr true
+```
+
+The debug `V3RenderScreenshotTest` instrumentation captures the normal and expired-sponsor screenshots under the app-specific external `render-test-screenshots` directory and reports `OoroRenderTest` region bounds. The automated screenshot test is compile-ready; run `./gradlew connectedDebugAndroidTest` on an emulator or a thermally cleared, supervised development board. Do not run it on the signage board without the same safety clearance required for loaded playback. At 1280×720, expected measured logs are main `1024x612`, sponsor `1024x108`, QR/offer `256x360`, and navigation `256x360`.

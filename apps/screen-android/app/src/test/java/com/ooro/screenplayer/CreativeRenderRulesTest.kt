@@ -9,6 +9,7 @@ import com.ooro.screenplayer.player.creativeScaleBehavior
 import com.ooro.screenplayer.player.fittedContentBounds
 import com.ooro.screenplayer.player.sponsoredLayoutGeometry
 import com.ooro.screenplayer.player.usesSponsoredLayout
+import com.ooro.screenplayer.player.shouldRenderNewsTicker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,6 +51,13 @@ class CreativeRenderRulesTest {
         assertTrue(usesSponsoredLayout(DisplayLayout.AD_NAV_OFFER, 3))
         assertTrue(!usesSponsoredLayout(DisplayLayout.FOUR_ZONE, 2))
         assertTrue(!usesSponsoredLayout(DisplayLayout.SPLIT_50_25_25, 3))
+        assertTrue(shouldRenderNewsTicker(DisplayLayout.FOUR_ZONE, 1))
+        assertTrue(shouldRenderNewsTicker(DisplayLayout.FOUR_ZONE, 2))
+        assertTrue(!shouldRenderNewsTicker(DisplayLayout.FOUR_ZONE, 3))
+        assertTrue(shouldRenderNewsTicker(DisplayLayout.AD_NAV_OFFER, 1))
+        assertTrue(shouldRenderNewsTicker(DisplayLayout.AD_NAV_OFFER, 2))
+        assertTrue(!shouldRenderNewsTicker(DisplayLayout.AD_NAV_OFFER, 3))
+        assertTrue(!shouldRenderNewsTicker(DisplayLayout.SPLIT_50_25_25, 3))
         assertEquals(0.85f, adRegionFraction(DisplayLayout.FOUR_ZONE, LayoutConfig(), 3).height, 0.0001f)
     }
 
