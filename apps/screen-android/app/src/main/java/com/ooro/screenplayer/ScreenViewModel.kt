@@ -48,7 +48,13 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     val isPaired get() = store.credentials() != null
     val screenId get() = store.credentials()?.screenId ?: "—"
     val manifestVersion get() = active?.version?.toString() ?: "—"
-    fun refreshLocationPermission() { location.start(); if (location.current() == null) _diagnostic.value = "Location permission required for live screen tracking · playback is unaffected" }
+    fun refreshLocationPermission() {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) location.start() else location.stop()
+        _location.value = location.current()
+        if (_location.value == null && granted) _diagnostic.value = "Location fix unavailable · playback is unaffected"
+        else if (!granted) _diagnostic.value = "Location permission unavailable for live screen tracking · playback is unaffected"
+    }
     var online = false; private set
     private var active: DeviceManifest? = null
     private val scheduler = ScheduleEngine(); private val proof = ProofOfPlayRepository(db); private val playback = PlaybackStateTracker(); private val session get() = playback.current

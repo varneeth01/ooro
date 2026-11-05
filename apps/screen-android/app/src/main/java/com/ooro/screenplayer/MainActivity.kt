@@ -7,6 +7,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.SystemClock
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +17,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
@@ -46,6 +52,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
@@ -82,47 +89,74 @@ import kotlinx.coroutines.flow.flowOf
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val vm: ScreenViewModel by viewModels { ScreenViewModel.factory(applicationContext) }
     private var locationPermissionGranted by mutableStateOf(false)
     private var locationPermissionMessage by mutableStateOf<String?>(null)
+    private var locationPermissionState by mutableStateOf(OptionalLocationState.DENIED)
+    private lateinit var permissionHistory: LocationPermissionHistory
     private lateinit var presentationPreferenceStore: PresentationPreferenceStore
     private var presentationPreference by mutableStateOf(PresentationPreference.AUTO_FROM_MANIFEST)
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        locationPermissionGranted = result.values.any { it } || hasLocationPermission()
-        locationPermissionMessage = if (locationPermissionGranted) {
-            "Location access enabled for location-based features."
-        } else {
-            "Location access was not allowed. Pairing and playback still work; live location features are unavailable."
-        }
-        vm.refreshLocationPermission()
+        refreshLocationState()
+        locationPermissionMessage = if (locationPermissionGranted) "Location access enabled for location-based features."
+        else "Location was not allowed. Pairing and playback still work; live location features are unavailable."
+        if (locationPermissionGranted) vm.refreshLocationPermission()
+        Log.i("OoroPermission", "optional_location_result state=${locationPermissionState.name}")
     }
     override fun onCreate(state: android.os.Bundle?) {
         super.onCreate(state)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enterFullscreen()
         OoroDeviceAdminReceiver.initialize(this, this)
-        locationPermissionGranted = hasLocationPermission()
+        permissionHistory = LocationPermissionHistory(this)
+        refreshLocationState()
         presentationPreferenceStore = PresentationPreferenceStore(this)
         presentationPreference = presentationPreferenceStore.read()
         setContent {
             OoroTheme {
-                Root(vm, locationPermissionGranted, locationPermissionMessage, ::requestLocationPermission, presentationPreference) { selected ->
+                Root(vm, locationPermissionGranted, locationPermissionMessage, locationPermissionState, ::requestLocationPermission, ::openAppSettings, presentationPreference) { selected ->
                     presentationPreferenceStore.write(selected)
                     presentationPreference = selected
                 }
             }
         }
     }
-    private fun hasLocationPermission() = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    private fun requestLocationPermission() {
-        if (hasLocationPermission()) {
-            locationPermissionGranted = true
-            locationPermissionMessage = "Location access is already enabled."
-        } else {
-            locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+    override fun onResume() {
+        super.onResume()
+        if (::permissionHistory.isInitialized) {
+            val previous = locationPermissionGranted
+            refreshLocationState()
+            if (previous != locationPermissionGranted) {
+                locationPermissionMessage = "Location access updated from Android settings."
+                vm.refreshLocationPermission()
+            }
         }
+    }
+    private fun hasLocationPermission() = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    private fun refreshLocationState() {
+        locationPermissionGranted = hasLocationPermission()
+        if (locationPermissionGranted && ::permissionHistory.isInitialized) permissionHistory.recordGranted()
+        val available = packageManager.hasSystemFeature(PackageManager.FEATURE_LOCATION_GPS) || packageManager.hasSystemFeature(PackageManager.FEATURE_LOCATION_NETWORK)
+        locationPermissionState = optionalLocationState(locationPermissionGranted, available, if (::permissionHistory.isInitialized) permissionHistory.attempts else 0, shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) || shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION), ::permissionHistory.isInitialized && permissionHistory.wasGranted)
+    }
+    private fun requestLocationPermission() {
+        refreshLocationState()
+        when (locationPermissionState) {
+            OptionalLocationState.GRANTED -> locationPermissionMessage = "Location access is already enabled."
+            OptionalLocationState.UNAVAILABLE -> locationPermissionMessage = "This device does not provide a supported location provider."
+            OptionalLocationState.PERMANENTLY_DENIED -> locationPermissionMessage = "Android will not show another permission prompt. Open app settings to change location access."
+            OptionalLocationState.DENIED -> {
+                permissionHistory.recordRequest()
+                Log.i("OoroPermission", "optional_location_request source=technician_settings")
+                locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            }
+        }
+    }
+    private fun openAppSettings() {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
     }
     override fun onWindowFocusChanged(focus: Boolean) { super.onWindowFocusChanged(focus); if (focus) enterFullscreen() }
     private fun enterFullscreen() { WindowCompat.setDecorFitsSystemWindows(window,false); WindowInsetsControllerCompat(window, window.decorView).apply { hide(WindowInsetsCompat.Type.systemBars()); systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE } }
@@ -152,29 +186,41 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     else -> "Granted · waiting for location fix"
 }
 @Composable private fun OoroTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = darkColorScheme(primary = Yellow, background = Color.Black, surface = Panel), content = content)
-@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit, presentationPreference: PresentationPreference, onPresentationPreferenceChanged: (PresentationPreference) -> Unit) { SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.ROOT_COMPOSITION) }; val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage, onRequestLocation) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery, presentationPreference); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest, presentationPreference = presentationPreference); is ScreenState.Admin -> Admin(vm, locationGranted, onRequestLocation, presentationPreference, onPresentationPreferenceChanged) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
+@Composable private fun Root(vm: ScreenViewModel, locationGranted: Boolean, locationMessage: String?, locationState: OptionalLocationState, onRequestLocation: () -> Unit, onOpenAppSettings: () -> Unit, presentationPreference: PresentationPreference, onPresentationPreferenceChanged: (PresentationPreference) -> Unit) { SideEffect { RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.ROOT_COMPOSITION) }; val state by vm.state.collectAsState(); var taps by remember { mutableIntStateOf(0) }; var lastTap by remember { mutableLongStateOf(0L) }; Box(Modifier.fillMaxSize()) { when (state) { ScreenState.Preparing -> Message("Preparing screen…"); is ScreenState.Setup -> { val setup = state as ScreenState.Setup; Setup(vm, setup.message, setup.repair, locationGranted, locationMessage) }; is ScreenState.AuthRecovery -> AuthRecovery(vm, state as ScreenState.AuthRecovery, presentationPreference); is ScreenState.Player -> Player(vm, (state as ScreenState.Player).manifest, presentationPreference = presentationPreference); is ScreenState.Admin -> Admin(vm, (state as ScreenState.Admin).manifest, locationGranted, locationState, locationMessage, onRequestLocation, onOpenAppSettings, presentationPreference, onPresentationPreferenceChanged) }; Box(Modifier.size(96.dp).align(Alignment.TopStart).pointerInput(Unit) { detectTapGestures { val now = System.currentTimeMillis(); taps = if (now - lastTap < 2_500) taps + 1 else 1; lastTap = now; if (taps >= 7) { taps = 0; vm.showAdmin() } } }) } }
 @Composable private fun Message(text: String) { Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) { Text("OORO\n$text", color = Color.White, fontSize = 28.sp) } }
-@Composable private fun Setup(vm: ScreenViewModel, message: String?, repair: Boolean = false, locationGranted: Boolean, locationMessage: String?, onRequestLocation: () -> Unit) {
+@Composable private fun Setup(vm: ScreenViewModel, message: String?, repair: Boolean = false, locationGranted: Boolean, locationMessage: String?) {
     var code by remember { mutableStateOf("") }
     val pairing by vm.pairing.collectAsState()
-    Box(Modifier.fillMaxSize().background(Color.Black).padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("OORO", color = Yellow, fontSize = 52.sp)
-            Text(if (repair) "Repair this screen" else "Connect this screen", fontSize = 28.sp)
-            Spacer(Modifier.height(16.dp))
-            OutlinedTextField(code, { code = it.uppercase().take(32) }, label = { Text("Pairing code") }, singleLine = true)
-            Spacer(Modifier.height(16.dp))
-            Button({ vm.pair(code) }, enabled = !pairing) { Text(if (pairing) "Connecting…" else if (repair) "Complete Repair" else "Connect") }
-            Text(message ?: "Enter the code from the OORO workspace", color = Color.LightGray, modifier = Modifier.padding(16.dp))
-            HorizontalDivider(color = Color(0xFF343434), modifier = Modifier.widthIn(max = 520.dp).padding(vertical = 8.dp))
-            Text("Location is optional. Pairing and advertising playback work without it.", color = Color.LightGray, fontSize = 14.sp)
-            Text(
-                locationMessage ?: if (locationGranted) "Location access is enabled." else "Live location features are unavailable until you allow access.",
-                color = if (locationGranted) Color(0xFF9CCC65) else Color.LightGray,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 6.dp, bottom = 8.dp)
-            )
-            if (!locationGranted) OutlinedButton(onClick = onRequestLocation) { Text("Enable location (optional)") }
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF080A0D)).padding(24.dp)) {
+        val wide = maxWidth >= 760.dp
+        if (wide) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(start = 24.dp)) {
+                Text("OORO", color = Yellow, fontSize = 54.sp, fontWeight = FontWeight.Bold)
+                Text("DISPLAYOS", color = Color(0xFF9AA4AE), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(20.dp))
+                Text(if (repair) "Repair this screen" else "Connect your display", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Bold)
+                Text("Pair this player with the screen already registered in your OORO workspace.", color = Color(0xFFB6C0CA), fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
+                Spacer(Modifier.height(24.dp))
+                Text("Optional location access is managed later in technician settings. Pairing and advertising playback work without it.", color = Color(0xFF8E9AA5), fontSize = 13.sp)
+                if (locationGranted) Text(locationMessage ?: "Location access is currently enabled.", color = Color(0xFF7CE0A2), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+            TechnicianCard(Modifier.weight(1f).padding(end = 24.dp)) {
+                Text("PAIRING CODE", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Enter the one-time code provided by your OORO administrator.", color = Color(0xFFB6C0CA), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+                OutlinedTextField(code, { code = it.uppercase().take(32) }, label = { Text("Pairing code") }, singleLine = true, modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp), enabled = !pairing)
+                message?.let { Text(it, color = if (it.contains("failed", true) || it.contains("invalid", true)) Color(0xFFFFC46B) else Color(0xFFB6C0CA), fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)) }
+                Button({ vm.pair(code) }, enabled = !pairing && code.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).padding(top = 12.dp)) { Text(if (pairing) "CONNECTING…" else if (repair) "CONTINUE REPAIR" else "CONNECT DISPLAY") }
+                Text("The player keeps this screen identity after pairing.", color = Color(0xFF8E9AA5), fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
+            }
+        } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
+            Text("OORO", color = Yellow, fontSize = 42.sp, fontWeight = FontWeight.Bold)
+            Text(if (repair) "Repair this screen" else "Connect your display", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text("Location is optional. Pairing and advertising playback work without it.", color = Color(0xFFB6C0CA), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+            TechnicianCard {
+                OutlinedTextField(code, { code = it.uppercase().take(32) }, label = { Text("Pairing code") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !pairing)
+                message?.let { Text(it, color = Color(0xFFFFC46B), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+                Button({ vm.pair(code) }, enabled = !pairing && code.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(if (pairing) "CONNECTING…" else "CONNECT") }
+            }
         }
     }
 }
@@ -681,33 +727,80 @@ private fun qrBitmap(value: String, size: Int): Bitmap? = runCatching {
     val pixels = IntArray(size * size) { index -> if (matrix[index % size, index / size]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
     Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { it.setPixels(pixels, 0, size, 0, 0, size, size) }
 }.getOrNull()
-@Composable private fun Admin(vm: ScreenViewModel, locationGranted: Boolean, onRequestLocation: () -> Unit, presentationPreference: PresentationPreference, onPresentationPreferenceChanged: (PresentationPreference) -> Unit) {
-    var repairCodeDialog by remember { mutableStateOf(false) }; var repairCode by remember { mutableStateOf("") }; var repairCodeError by remember { mutableStateOf<String?>(null) }
-    val d by vm.diagnostics.collectAsState(); val mapTilesRendered by vm.mapTilesRendered.collectAsState(); val mapTileError by vm.mapTileError.collectAsState(); val context = LocalContext.current; val n = networkInfo(context); val l = locationDiagnostics(context); val c = vm.deviceId
-    val apiOk = d.probe?.connected == true; val issues = listOf(!apiOk, !l.permission || (!l.gps && !l.network), d.missingAssets > 0, d.proofQueued > 0).count { it }
-    LazyColumn(Modifier.fillMaxSize().background(Color(0xFF101010)).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Text("TECHNICAL DIAGNOSTICS", color = Yellow, fontSize = 24.sp, fontWeight = FontWeight.Bold); Text("OORO SCREEN  •  $c", color = Color.LightGray); Spacer(Modifier.height(4.dp)); StatusCard("SYSTEM HEALTH", if (issues == 0) "ALL SYSTEMS OPERATIONAL" else "$issues ISSUES DETECTED", if (issues == 0) Color(0xFF63D68A) else Color(0xFFFFB74D)) }
-        item { Section("OVERVIEW") { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusText("DEVICE", if (vm.online) "ONLINE" else "OFFLINE", vm.online); StatusText("API", if (apiOk) "CONNECTED" else "UNREACHABLE", apiOk); StatusText("PAIRING", if (vm.isPaired) "PAIRED" else "UNPAIRED", vm.isPaired); StatusText("GPS", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "SEARCHING", l.permission) } } }
-        item { Section("PLAYER PRESENTATION") {
-            Text("This device-local setting changes layout geometry only. Campaign eligibility, schedules, expiry, creative selection and proof attribution remain controlled by the server manifest.", color = Color.LightGray, fontSize = 12.sp)
-            Text("Current: ${presentationPreference.name}", color = Color.White, modifier = Modifier.padding(top = 6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                if (presentationPreference == PresentationPreference.AUTO_FROM_MANIFEST) Button(onClick = { onPresentationPreferenceChanged(PresentationPreference.AUTO_FROM_MANIFEST) }) { Text("AUTO (selected)") }
-                else OutlinedButton(onClick = { onPresentationPreferenceChanged(PresentationPreference.AUTO_FROM_MANIFEST) }) { Text("AUTO FROM MANIFEST") }
-                if (presentationPreference == PresentationPreference.OORO_V3_PRESENTATION) Button(onClick = { onPresentationPreferenceChanged(PresentationPreference.OORO_V3_PRESENTATION) }) { Text("OORO V3 (selected)") }
-                else OutlinedButton(onClick = { onPresentationPreferenceChanged(PresentationPreference.OORO_V3_PRESENTATION) }) { Text("OORO V3 PRESENTATION") }
+private enum class TechnicianSection(val title: String, val subtitle: String) {
+    OVERVIEW("Overview", "Device at a glance"),
+    PLAYBACK("Playback", "Media and authorization"),
+    PRESENTATION("Presentation", "Local screen geometry"),
+    SETTINGS("Device settings", "Permissions and diagnostics")
+}
+
+@Composable private fun Admin(
+    vm: ScreenViewModel,
+    manifest: DeviceManifest?,
+    locationGranted: Boolean,
+    locationState: OptionalLocationState,
+    locationMessage: String?,
+    onRequestLocation: () -> Unit,
+    onOpenAppSettings: () -> Unit,
+    presentationPreference: PresentationPreference,
+    onPresentationPreferenceChanged: (PresentationPreference) -> Unit
+) {
+    var section by remember { mutableStateOf(TechnicianSection.OVERVIEW) }
+    var repairCodeDialog by remember { mutableStateOf(false) }
+    var repairCode by remember { mutableStateOf("") }
+    var repairCodeError by remember { mutableStateOf<String?>(null) }
+    val d by vm.diagnostics.collectAsState()
+    val currentCreative by vm.currentCreative.collectAsState()
+    val mapTilesRendered by vm.mapTilesRendered.collectAsState()
+    val mapTileError by vm.mapTileError.collectAsState()
+    val context = LocalContext.current
+    val network = remember(d.probe) { networkInfo(context) }
+    val location = remember(locationGranted) { locationDiagnostics(context) }
+    val storage = remember { storageSummary(context) }
+    val apiOk = d.probe?.connected == true
+    val agentInstalled = remember {
+        runCatching { context.packageManager.getPackageInfo("com.ooro.deviceagent", 0) }.isSuccess
+    }
+
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF080A0D))) {
+        val wide = maxWidth >= 800.dp
+        Column(Modifier.fillMaxSize().padding(if (wide) 20.dp else 10.dp)) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 54.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("OORO  /  DISPLAYOS", color = Yellow, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("TECHNICIAN CONSOLE   •   ${vm.deviceId}", color = Color(0xFF9AA4AE), fontSize = 11.sp)
+                }
+                OutlinedButton(onClick = { vm.closeAdmin() }, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Return to advertising player" }) { Text("RETURN TO PLAYER", color = Color.White, fontSize = 12.sp) }
             }
-            Text("V3 applies to FOUR_ZONE and AD_NAV_OFFER. SPLIT_50_25_25 is unchanged. A sponsor appears only when supplied and authorized by an eligible manifest; otherwise the slot stays neutral.", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
-        } }
-        item { Section("CONNECTION") { Line("API Base URL", BuildConfig.API_BASE_URL); Line("Environment", backendEnvironment()); Line("Mock backend", if (BuildConfig.USE_MOCK_BACKEND) "ON" else "OFF"); Line("API status", if (apiOk) "CONNECTED" else "UNREACHABLE"); Line("Database-backed API", if (d.probe?.httpStatus == 200) "HEALTHY" else "UNKNOWN"); Line("Map tiles", if (mapTilesRendered) "RENDERED" else if (mapTileError != null) "UNAVAILABLE" else "CHECKING"); Line("GPS fix", if (l.permission && (l.gps || l.network)) "AVAILABLE" else "UNAVAILABLE"); Line("Last successful API", relativeTime(d.apiLastSuccessAt)); d.apiLastError?.let { Text("Last API error: $it", color = Color(0xFFFFB74D), modifier = Modifier.padding(top = 4.dp)) }; mapTileError?.let { Text("Map error: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Text("DNS ${passFail(d.probe?.dns)}   TCP ${passFail(d.probe?.tcp)}   ${d.probe?.httpStatus?.let { "HTTP $it" } ?: "HTTP —"}   ${d.probe?.latencyMs?.let { "${it} ms" } ?: ""}", color = Color.LightGray); d.probe?.failureKind?.let { Text("Diagnostic: $it", color = Color(0xFFFFB74D), fontSize = 12.sp) }; Button({ vm.runDiagnostics() }, enabled = !d.running, modifier = Modifier.padding(top = 6.dp)) { Text(if (d.running) "RUNNING…" else "TEST API CONNECTION") } } }
-        item { Section("NETWORK") { Line("Connection type", n.type); Line("Internet", if (n.internet) "AVAILABLE" else "UNAVAILABLE"); Line("Local network", if (n.localNetwork) "AVAILABLE" else "UNAVAILABLE"); Line("Device IP", n.ip ?: "unavailable"); Line("API host reachable", if (apiOk) "YES" else "NO") } }
-        item { Section("GPS") { Line("Location permission", locationPermissionStatus(locationGranted, l.gps || l.network)); if (!locationGranted) { Text("Location is optional; playback and pairing are unaffected.", color = Color.LightGray, fontSize = 12.sp); OutlinedButton(onClick = onRequestLocation) { Text("Enable location (optional)") } }; Line("GPS provider", if (l.gps) "ENABLED" else "DISABLED"); Line("Network provider", if (l.network) "ENABLED" else "DISABLED"); Line("Last location", relativeTime(vm.latestLocation.value?.occurredAt)); Line("Accuracy", vm.latestLocation.value?.accuracyMeters?.let { "%.0f m".format(it) } ?: "unavailable"); Line("Attached to heartbeat", if (vm.latestLocation.value != null) "YES" else "NO") } }
-        item { Section("HEARTBEAT") { Line("Last attempted", relativeTime(d.heartbeatLastAttemptAt)); Line("Last successful", relativeTime(d.heartbeatLastSuccessAt)); Line("Last HTTP status", d.heartbeatStatus?.toString() ?: "—"); Line("GPS attached", if (vm.latestLocation.value != null) "YES" else "NO"); Line("Playback attached", if (vm.currentCreative.value != null) "YES" else "NO"); d.heartbeatError?.let { Text(it, color = Color(0xFFFFB74D)) } } }
-        item { Section("PAIRING") { Line("Paired", if (vm.isPaired) "YES" else "NO"); Line("Screen ID", vm.screenId); Line("Device credential", "SECURELY STORED"); Text("Repair requires the OORO technician code, then uses the existing pairing flow.", color = Color.LightGray, fontSize = 12.sp); Button({ repairCode = ""; repairCodeError = null; repairCodeDialog = true }) { Text("REPAIR SCREEN") } } }
-        item { Section("MANIFEST & ASSETS") { Line("Manifest version", vm.manifestVersion); Line("Last sync", relativeTime(d.manifestLastSyncAt)); Line("Cached assets", "${d.verifiedAssets}/${d.verifiedAssets + d.missingAssets}"); Line("LKG available", if (d.manifestLastSyncAt != null) "YES" else "NO"); Button({ vm.runDiagnostics() }) { Text("VERIFY ASSETS") } } }
-        item { Section("PLAYER & PROOF DELIVERY") { Line("Player state", if (vm.currentCreative.value != null) "PLAYING" else "IDLE"); Line("Current creative", vm.currentCreative.value?.creativeId ?: "—"); Line("Queued proof events", d.proofQueued.toString()); Line("Proof delivery", if (d.proofQueued == 0) "UPLOADED / EMPTY" else "WAITING FOR NETWORK"); Button({ vm.retryQueue() }, enabled = d.proofQueued > 0) { Text("RETRY QUEUE") } } }
-        item { Section("AUTO-DIAGNOSIS") { Text(d.lastDiagnosis ?: "Run full diagnostic", color = if (issues == 0) Color(0xFF63D68A) else Color(0xFFFFB74D), fontSize = 16.sp); Text("Heartbeat and manifest checks use the existing safe APIs; no playback or proof events are fabricated.", color = Color.LightGray, fontSize = 12.sp) } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Button({ vm.runDiagnostics() }) { Text("RUN FULL DIAGNOSTIC") }; OutlinedButton({ val clip = android.content.ClipData.newPlainText("OORO diagnostic", vm.diagnosticReport()); context.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(clip) }) { Text("COPY REPORT") }; TextButton({ vm.closeAdmin() }) { Text("CLOSE") } } }
+            Spacer(Modifier.height(12.dp))
+            if (wide) {
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.width(196.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TechnicianSection.values().forEach { destination ->
+                            TechnicianNavItem(destination, selected = section == destination, onClick = { section = destination })
+                        }
+                        Spacer(Modifier.weight(1f))
+                        TechnicianCard {
+                            Text("DEVICE STATUS", color = Color(0xFF9AA4AE), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            Text(if (vm.isPaired) "PAIRED" else "NOT PAIRED", color = if (vm.isPaired) Color(0xFF7CE0A2) else Color(0xFFFFC46B), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(if (apiOk) "API connected" else "API unavailable", color = Color(0xFFB5BEC7), fontSize = 12.sp)
+                        }
+                    }
+                    Column(Modifier.weight(1f).fillMaxHeight()) {
+                        TechnicianSectionBody(section, vm, manifest, d, currentCreative, apiOk, network, location, locationState, locationMessage, onRequestLocation, onOpenAppSettings, presentationPreference, onPresentationPreferenceChanged, mapTilesRendered, mapTileError, storage, agentInstalled) { repairCode = ""; repairCodeError = null; repairCodeDialog = true }
+                    }
+                }
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TechnicianSection.values().forEach { destination ->
+                        TechnicianNavItem(destination, selected = section == destination, onClick = { section = destination }, compact = true, modifier = Modifier.weight(1f))
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Box(Modifier.weight(1f).fillMaxWidth()) { TechnicianSectionBody(section, vm, manifest, d, currentCreative, apiOk, network, location, locationState, locationMessage, onRequestLocation, onOpenAppSettings, presentationPreference, onPresentationPreferenceChanged, mapTilesRendered, mapTileError, storage, agentInstalled) { repairCode = ""; repairCodeError = null; repairCodeDialog = true } }
+            }
+        }
     }
     if (repairCodeDialog) AlertDialog(
         onDismissRequest = { repairCodeDialog = false },
@@ -717,6 +810,253 @@ private fun qrBitmap(value: String, size: Int): Bitmap? = runCatching {
         dismissButton = { TextButton(onClick = { repairCodeDialog = false }) { Text("Cancel") } }
     )
 }
+
+@Composable private fun TechnicianNavItem(section: TechnicianSection, selected: Boolean, onClick: () -> Unit, compact: Boolean = false, modifier: Modifier = Modifier) {
+    Surface(onClick = onClick, color = if (selected) Color(0xFF27230C) else Color(0xFF11161C), shape = RoundedCornerShape(12.dp), modifier = modifier.heightIn(min = 52.dp).semantics { contentDescription = "${section.title} section" }) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp), verticalArrangement = Arrangement.Center) {
+            Text(section.title, color = if (selected) Yellow else Color.White, fontSize = if (compact) 11.sp else 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            if (!compact) Text(section.subtitle, color = Color(0xFF9AA4AE), fontSize = 10.sp, maxLines = 1)
+        }
+    }
+}
+
+@Composable private fun TechnicianSectionBody(
+    section: TechnicianSection,
+    vm: ScreenViewModel,
+    manifest: DeviceManifest?,
+    diagnostics: DiagnosticsState,
+    currentCreative: ManifestItem?,
+    apiOk: Boolean,
+    network: DeviceNetworkInfo,
+    location: LocationDiagnostics,
+    permissionState: OptionalLocationState,
+    permissionMessage: String?,
+    onRequestLocation: () -> Unit,
+    onOpenAppSettings: () -> Unit,
+    presentationPreference: PresentationPreference,
+    onPresentationPreferenceChanged: (PresentationPreference) -> Unit,
+    mapTilesRendered: Boolean,
+    mapTileError: String?,
+    storage: Triple<Long, Long, Long>,
+    agentInstalled: Boolean,
+    onRepair: () -> Unit
+) {
+    val context = LocalContext.current
+    var thermalSensors by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(Unit) { thermalSensors = withContext(Dispatchers.IO) { readThermalSensors() } }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text(section.title.uppercase(), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(section.subtitle, color = Color(0xFF9AA4AE), fontSize = 13.sp)
+            }
+            if (diagnostics.running) Text("CHECKING…", color = Yellow, fontSize = 11.sp)
+        }
+        when (section) {
+            TechnicianSection.OVERVIEW -> {
+                val offlineAuthorized = manifest?.let { manifestIsAuthorizedAt(it, java.time.Instant.now()) } == true
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TechnicianMetric("PAIRING", if (vm.isPaired) "Connected" else "Setup needed", vm.screenId, vm.isPaired, Modifier.weight(1f))
+                    TechnicianMetric("NETWORK", if (network.internet) network.type else "Offline", network.ip ?: "No local address", network.internet, Modifier.weight(1f))
+                    TechnicianMetric("OORO API", if (apiOk) "Reachable" else "Unavailable", diagnostics.probe?.httpStatus?.let { "HTTP $it" } ?: "Run a check", apiOk, Modifier.weight(1f))
+                    TechnicianMetric("PROOF QUEUE", diagnostics.proofQueued.toString(), if (diagnostics.proofQueued == 0) "All caught up" else "Waiting to sync", diagnostics.proofQueued == 0, Modifier.weight(1f))
+                }
+                TechnicianCard {
+                    Text("NOW PLAYING", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(currentCreative?.creativeId ?: "No active creative", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (currentCreative != null) "Main advertising slot" else if (diagnostics.verifiedAssets > 0) "Verified local media is available" else "Waiting for eligible content", color = Color(0xFFB6C0CA), fontSize = 13.sp)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TechnicianMetric("OFFLINE MEDIA", if (offlineAuthorized && diagnostics.verifiedAssets > 0) "Authorized" else "Unavailable", "${diagnostics.verifiedAssets} verified · ${diagnostics.missingAssets} missing", offlineAuthorized && diagnostics.verifiedAssets > 0, Modifier.weight(1f))
+                    TechnicianMetric("LAST SYNC", relativeTime(diagnostics.manifestLastSyncAt), "Heartbeat ${relativeTime(diagnostics.heartbeatLastSuccessAt)}", diagnostics.heartbeatLastSuccessAt != null, Modifier.weight(1f))
+                }
+                if (!apiOk) TechnicianNotice("Offline mode", "The player keeps using locally verified content while its authorization remains valid. Network recovery does not erase pairing or cached media.", Color(0xFFFFC46B))
+                TextButton(onClick = { vm.runDiagnostics() }, enabled = !diagnostics.running, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (diagnostics.running) "Checking connection…" else "Refresh device status", color = Yellow) }
+            }
+            TechnicianSection.PLAYBACK -> {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TechnicianCard(Modifier.weight(1.1f)) {
+                        Text("PLAYBACK STATUS", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(10.dp))
+                        Text(if (currentCreative != null) "Playing" else "Standby", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                        TechnicianLine("Current creative", currentCreative?.creativeId ?: "—")
+                        TechnicianLine("Manifest", manifest?.version?.toString() ?: vm.manifestVersion)
+                        TechnicianLine("Authorization", manifest?.validUntil?.toString() ?: "Unavailable")
+                        TechnicianLine("Verified assets", diagnostics.verifiedAssets.toString())
+                        TechnicianLine("Missing assets", diagnostics.missingAssets.toString())
+                    }
+                    TechnicianCard(Modifier.weight(1f)) {
+                        Text("SLOT STATUS", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(10.dp))
+                        TechnicianLine("Main ad", if (currentCreative != null) "Active" else if (diagnostics.verifiedAssets > 0) "Cached" else "Waiting")
+                        TechnicianLine("Sponsored slot", when { manifest?.sponsoredItem == null -> "Neutral fallback"; manifest.sponsoredItem.endAt?.isBefore(java.time.Instant.now()) == true -> "Expired"; else -> "Manifest assigned" })
+                        TechnicianLine("Cached playlist", "${diagnostics.verifiedAssets} verified assets")
+                        TechnicianLine("Last manifest sync", relativeTime(diagnostics.manifestLastSyncAt))
+                        TechnicianLine("Authorization rule", "Playback stops at expiry")
+                    }
+                }
+                if (diagnostics.missingAssets > 0) TechnicianNotice("Some media is unavailable", "${diagnostics.missingAssets} manifest asset(s) failed local verification. The player will skip assets that are not verified.", Color(0xFFFFC46B))
+                if (diagnostics.proofQueued > 0) TechnicianNotice("Proofs waiting to sync", "${diagnostics.proofQueued} genuine playback event(s) are queued. They remain local until the service acknowledges them.", Color(0xFFFFC46B))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { vm.runDiagnostics() }, enabled = !diagnostics.running, modifier = Modifier.heightIn(min = 48.dp)) { Text("VERIFY CACHE") }
+                    OutlinedButton(onClick = { vm.retryQueue() }, enabled = diagnostics.proofQueued > 0, modifier = Modifier.heightIn(min = 48.dp)) { Text("RETRY PROOF SYNC") }
+                }
+                Text("Technician preview is informational only. It does not generate playback or proof events.", color = Color(0xFF9AA4AE), fontSize = 12.sp)
+            }
+            TechnicianSection.PRESENTATION -> {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TechnicianLayoutPreview(Modifier.weight(1f))
+                    TechnicianCard(Modifier.weight(1f)) {
+                        Text("PRESENTATION MODE", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        Text("${presentationPreference.name}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (presentationPreference == PresentationPreference.AUTO_FROM_MANIFEST) Button(onClick = { onPresentationPreferenceChanged(PresentationPreference.AUTO_FROM_MANIFEST) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("AUTO · ACTIVE") }
+                            else OutlinedButton(onClick = { onPresentationPreferenceChanged(PresentationPreference.AUTO_FROM_MANIFEST) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("AUTO") }
+                            if (presentationPreference == PresentationPreference.OORO_V3_PRESENTATION) Button(onClick = { onPresentationPreferenceChanged(PresentationPreference.OORO_V3_PRESENTATION) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("OORO V3 · ACTIVE") }
+                            else OutlinedButton(onClick = { onPresentationPreferenceChanged(PresentationPreference.OORO_V3_PRESENTATION) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("OORO V3") }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text("This device-local choice changes presentation geometry only. The server still controls creative selection, schedule, approval, expiry and proof attribution.", color = Color(0xFFB6C0CA), fontSize = 13.sp)
+                    }
+                }
+                TechnicianCard {
+                    Text("CURRENT CONTRACT", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    TechnicianLine("Manifest layout", manifest?.layout?.name ?: "Not available")
+                    TechnicianLine("Manifest contract", manifest?.layoutContractVersion?.toString() ?: "Not available")
+                    TechnicianLine("Main / sponsored", "85% / 15% of advertising column in V3")
+                    TechnicianLine("QR / navigation", "Each occupies half of the 20% sidebar")
+                    Text("An approved sponsored item is shown only when authorized by the manifest. Otherwise, the player uses a neutral placeholder. Split layout keeps its existing geometry.", color = Color(0xFF9AA4AE), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+            TechnicianSection.SETTINGS -> {
+                TechnicianCard {
+                    Text("OPTIONAL LOCATION ACCESS", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(permissionState.label(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Location is used for live screen location reporting. Pairing, advertising playback, cached content and proofs work without it.", color = Color(0xFFB6C0CA), fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp))
+                    permissionMessage?.let { Text(it, color = Color(0xFFFFC46B), fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp)) }
+                    Spacer(Modifier.height(8.dp))
+                    when (permissionState) {
+                        OptionalLocationState.GRANTED -> Text("Location permission is currently allowed by Android.", color = Color(0xFF7CE0A2), fontSize = 12.sp)
+                        OptionalLocationState.UNAVAILABLE -> Text("This board reports no supported location feature.", color = Color(0xFF9AA4AE), fontSize = 12.sp)
+                        OptionalLocationState.DENIED -> OutlinedButton(onClick = onRequestLocation, modifier = Modifier.heightIn(min = 48.dp)) { Text("ALLOW LOCATION", color = Yellow) }
+                        OptionalLocationState.PERMANENTLY_DENIED -> OutlinedButton(onClick = onOpenAppSettings, modifier = Modifier.heightIn(min = 48.dp)) { Text("OPEN ANDROID APP SETTINGS", color = Yellow) }
+                    }
+                    TechnicianLine("GPS provider", if (location.gps) "Enabled" else "Disabled")
+                    TechnicianLine("Network provider", if (location.network) "Enabled" else "Disabled")
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TechnicianCard(Modifier.weight(1f)) {
+                        Text("NETWORK & API", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        TechnicianLine("Transport", network.type)
+                        TechnicianLine("Internet", if (network.internet) "Available" else "Unavailable")
+                        TechnicianLine("API", if (apiOk) "Connected" else diagnostics.lastDiagnosis ?: "Not checked")
+                        TechnicianLine("Last heartbeat", relativeTime(diagnostics.heartbeatLastSuccessAt))
+                        TechnicianLine("Map tiles", if (mapTilesRendered) "Rendered" else mapTileError ?: "No active map render")
+                    }
+                    TechnicianCard(Modifier.weight(1f)) {
+                        Text("STORAGE & DEVICE", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        TechnicianLine("Cache size", "${storage.third / (1024 * 1024)} MB")
+                        TechnicianLine("Free app storage", "${storage.second / (1024 * 1024)} MB")
+                        TechnicianLine("Screen Player", "${BuildConfig.VERSION_NAME} · ${BuildConfig.VERSION_CODE}")
+                        TechnicianLine("Backend", backendEnvironment())
+                        TechnicianLine("Mock backend", if (BuildConfig.USE_MOCK_BACKEND) "Enabled" else "Disabled")
+                        TechnicianLine("DeviceOS Agent", if (agentInstalled) "Installed" else "Not detected")
+                        Text("THERMAL SENSORS", color = Color(0xFF9AA4AE), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 7.dp))
+                        if (thermalSensors.isEmpty()) Text("No readable system sensors", color = Color(0xFFB6C0CA), fontSize = 11.sp)
+                        else thermalSensors.forEach { Text(it, color = Color(0xFFB6C0CA), fontSize = 11.sp, maxLines = 1) }
+                        Text("Sensor values are informational. Manufacturer safe limits are unknown here; this is not a safety certification.", color = Color(0xFFFFC46B), fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                    }
+                }
+                TechnicianCard {
+                    Text("PAIRING & RECOVERY", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    TechnicianLine("Device", vm.deviceId)
+                    TechnicianLine("Screen", if (vm.isPaired) vm.screenId else "Not paired")
+                    Text("Reconnect and repair are separate actions. Repair keeps its existing technician-code gate; this dashboard will not replace the screen identity automatically.", color = Color(0xFFB6C0CA), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                        OutlinedButton(onClick = { vm.runDiagnostics() }, enabled = !diagnostics.running, modifier = Modifier.heightIn(min = 48.dp)) { Text("RUN DIAGNOSTICS") }
+                        OutlinedButton(onClick = { val clip = android.content.ClipData.newPlainText("OORO diagnostic", vm.diagnosticReport()); context.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(clip) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("COPY REPORT") }
+                        Button(onClick = onRepair, modifier = Modifier.heightIn(min = 48.dp)) { Text("REPAIR…") }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun TechnicianCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151A20)), shape = RoundedCornerShape(16.dp), modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), content = content)
+    }
+}
+
+@Composable private fun TechnicianMetric(title: String, value: String, detail: String, healthy: Boolean, modifier: Modifier = Modifier) {
+    TechnicianCard(modifier) {
+        Text(title, color = Color(0xFF9AA4AE), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = if (healthy) Color.White else Color(0xFFFFC46B), fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(detail, color = Color(0xFF9AA4AE), fontSize = 11.sp, maxLines = 1)
+    }
+}
+
+@Composable private fun TechnicianLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Color(0xFF9AA4AE), fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(value, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f), maxLines = 2)
+    }
+}
+
+@Composable private fun TechnicianNotice(title: String, message: String, accent: Color) {
+    TechnicianCard {
+        Text(title, color = accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(message, color = Color(0xFFB6C0CA), fontSize = 12.sp)
+    }
+}
+
+@Composable private fun TechnicianLayoutPreview(modifier: Modifier = Modifier) {
+    TechnicianCard(modifier) {
+        Text("V3 PRESENTATION PREVIEW", color = Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF050607)).padding(8.dp)) {
+            Column(Modifier.weight(0.8f).fillMaxHeight().padding(end = 5.dp)) {
+                Box(Modifier.weight(0.85f).fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Color(0xFF252B32)), contentAlignment = Alignment.Center) {
+                    Text("MAIN AD\nFIT / CONTAIN", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                Spacer(Modifier.height(5.dp))
+                Box(Modifier.weight(0.15f).fillMaxWidth().clip(RoundedCornerShape(5.dp)).background(Color(0xFF3D3514)), contentAlignment = Alignment.Center) {
+                    Text("SPONSORED · AUTHORIZED OR NEUTRAL", color = Yellow, fontSize = 9.sp, maxLines = 1)
+                }
+            }
+            Column(Modifier.weight(0.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.weight(0.5f).fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Color(0xFF222830)), contentAlignment = Alignment.Center) { Text("QR / OFFER", color = Color.White, fontSize = 10.sp) }
+                Box(Modifier.weight(0.5f).fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Color(0xFF1B252B)), contentAlignment = Alignment.Center) { Text("MAP / NAV", color = Color.White, fontSize = 10.sp) }
+            }
+        }
+        Text("80% advertising column · 20% combined sidebar · no news ticker", color = Color(0xFFB6C0CA), fontSize = 11.sp)
+    }
+}
+
+private fun OptionalLocationState.label(): String = when (this) {
+    OptionalLocationState.GRANTED -> "Allowed"
+    OptionalLocationState.DENIED -> "Not granted"
+    OptionalLocationState.PERMANENTLY_DENIED -> "Blocked by Android settings"
+    OptionalLocationState.UNAVAILABLE -> "Unavailable on this device"
+}
+
+private fun readThermalSensors(): List<String> = runCatching {
+    File("/sys/class/thermal").listFiles().orEmpty()
+        .filter { it.name.startsWith("thermal_zone") }
+        .take(16)
+        .mapNotNull { zone ->
+            val type = runCatching { File(zone, "type").readText().trim() }.getOrNull()?.takeIf(String::isNotBlank) ?: zone.name
+            val raw = runCatching { File(zone, "temp").readText().trim().toLong() }.getOrNull() ?: return@mapNotNull null
+            val celsius = if (kotlin.math.abs(raw) >= 1_000L) raw / 1_000.0 else raw.toDouble()
+            "$type · ${"%.1f".format(java.util.Locale.ROOT, celsius)} °C"
+        }
+}.getOrDefault(emptyList())
+
 @Composable private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) { Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), content = { Text(title, color = Yellow, fontSize = 13.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(6.dp)); content() }) } }
 @Composable private fun StatusCard(title: String, value: String, color: Color) { Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp)) { Text(title, color = Yellow, fontSize = 12.sp); Text(value, color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold) } } }
 @Composable private fun Line(label: String, value: String) { Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text(label, color = Color.LightGray, fontSize = 13.sp); Text(value, color = Color.White, fontSize = 13.sp) } }
