@@ -31,6 +31,8 @@ class V3RenderScreenshotTest {
         assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val intent = Intent(context, RenderTestActivity::class.java)
             .putExtra("scenario", scenarioName)
             .putExtra("layout", "FOUR_ZONE")
@@ -40,7 +42,6 @@ class V3RenderScreenshotTest {
             .putExtra("qr", true)
         ActivityScenario.launch<RenderTestActivity>(intent).use {
             // Allow local image decode and first Compose frame; no network or campaign work is run by the fixture.
-            val device = UiDevice.getInstance(instrumentation)
             assertTrue("main test creative did not load", device.wait(Until.hasObject(By.desc("OORO creative")), 10_000))
             if (scenarioName == "V3_SPONSORED") {
                 assertTrue("sponsor test creative did not load", device.wait(Until.hasObject(By.desc("Sponsored test advertisement")), 10_000))
@@ -67,8 +68,6 @@ class V3RenderScreenshotTest {
             })
         }
     }
-
-    private fun assumeDisposableEmulator() = com.ooro.screenplayer.assumeDisposableEmulator()
 
     private fun assertV3RegionBounds(device: UiDevice) {
         val width = device.displayWidth

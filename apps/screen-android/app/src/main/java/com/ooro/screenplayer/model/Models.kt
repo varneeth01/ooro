@@ -29,10 +29,14 @@ data class OfferMetadata(
     val contactUrl: String? = null,
     val scanCount: Int? = null,
     val scanCountDisplayEnabled: Boolean = false,
-    val accentColor: String? = null
+    val accentColor: String? = null,
+    /** OORO tracking-link record ID; used to match an explicitly authorized Layout Studio destination. */
+    val authorizedDestinationId: String? = null
 ) {
-    /** Accept only navigable web destinations. Server-side offer authorization remains authoritative. */
-    val validQrUrl: String? get() = sequenceOf(qrUrl, ctaUrl).mapNotNull(::normalizedWebUrl).firstOrNull()
+    /** Explicit server-issued tracking destination; required by Layout Studio QR bindings. */
+    val authorizedQrUrl: String? get() = normalizedWebUrl(qrUrl)
+    /** Legacy offer UI may use a CTA URL; custom bound QR zones require authorizedQrUrl. */
+    val validQrUrl: String? get() = authorizedQrUrl ?: normalizedWebUrl(ctaUrl)
     val hasOffer: Boolean get() = listOf(brandName, offerTitle, offerValue, offerSubtitle, ctaLabel).any { !it.isNullOrBlank() }
 }
 
@@ -72,7 +76,7 @@ data class LayoutConfig(val primaryWidthPercent: Int = 67, val adHeightPercent: 
 }
 data class NewsAnnouncement(val id: String, val text: String, val priority: Int = 0)
 data class NewsConfig(val scrollSpeed: Int = 42, val announcements: List<NewsAnnouncement> = emptyList())
-data class DeviceManifest(val version: Long, val screenId: String, val timezone: String, val items: List<ManifestItem>, val validUntil: Instant?, val layout: DisplayLayout = DisplayLayout.FULLSCREEN_AD, val layoutConfig: LayoutConfig = LayoutConfig(), val news: NewsConfig = NewsConfig(), val layoutContractVersion: Int = 1, val sponsoredItem: ManifestItem? = null)
+data class DeviceManifest(val version: Long, val screenId: String, val timezone: String, val items: List<ManifestItem>, val validUntil: Instant?, val layout: DisplayLayout = DisplayLayout.FULLSCREEN_AD, val layoutConfig: LayoutConfig = LayoutConfig(), val news: NewsConfig = NewsConfig(), val layoutContractVersion: Int = 1, val sponsoredItem: ManifestItem? = null, val layoutStudioContract: String? = null)
 data class ProofOfPlay(val eventId: String = UUID.randomUUID().toString(), val screenId: String, val deviceId: String, val campaignId: String, val creativeId: String, val scheduleItemId: String, val startedAt: Instant, val endedAt: Instant, val expectedDurationMs: Long = 0, val actualPlayedMs: Long = 0, val success: Boolean = true, val failureReason: String? = null, val appVersion: String, val assetId: String? = null, val slot: String = "MAIN")
 
 data class PlaybackSession(val eventId: String, val itemId: String, val campaignId: String, val creativeId: String, val assetId: String?, val startedAt: Instant, val expectedDurationMs: Long)

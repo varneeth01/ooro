@@ -5,5 +5,10 @@
             android:exported="true"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.Ooro" />
+        <activity
+            android:name=".LayoutStudioPreviewActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Ooro" />
     </application>
 </manifest>

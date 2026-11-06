@@ -20,6 +20,7 @@ class OfflineCachedStartupScreenshotTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val intent = Intent(context, RenderTestActivity::class.java)
             .putExtra("scenario", "OFFLINE_CACHED_STARTUP")
             .putExtra("controls", false)

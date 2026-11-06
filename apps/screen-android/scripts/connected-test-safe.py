@@ -65,7 +65,11 @@ def verify_target(adb: str, serial: str, allowlisted_serial: str, run: Run = sub
         raise UnsafeTarget("QEMU boot properties do not identify an Android emulator")
     if hardware not in {"ranchu", "goldfish"}:
         raise UnsafeTarget(f"Unrecognized emulator hardware: {hardware or 'empty'}")
-    sdk_product = model.startswith("sdk_gphone") or product.startswith("sdk_gphone") or "emulator" in model
+    sdk_product = (
+        model.startswith(("sdk_gphone", "sdk_phone"))
+        or product.startswith(("sdk_gphone", "sdk_phone"))
+        or "emulator" in model
+    )
     if not sdk_product or "emulator" not in characteristics:
         raise UnsafeTarget("SDK product/model and emulator build characteristic did not match")
     return props

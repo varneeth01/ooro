@@ -47,11 +47,29 @@ class ManifestCodecTest {
         assertEquals("sha256-value", restored.sponsoredItem?.checksum)
     }
 
+    @Test fun customLayoutContractRoundTripsAsPresentationMetadata() {
+        val contract = """{"contractVersion":1,"mode":"CUSTOM","target":{"width":1280,"height":720},"zones":[]}"""
+        val parsed = ManifestCodec.parse(payload.replace("\"items\":", "\"layoutStudioContract\":$contract,\"items\":"))
+        assertTrue(parsed.layoutStudioContract?.contains("\"mode\":\"CUSTOM\"") == true)
+        val restored = ManifestCodec.parse(ManifestCodec.encode(parsed))
+        assertTrue(restored.layoutStudioContract?.contains("\"contractVersion\":1") == true)
+        // Layout metadata remains a presentation field; creative and authorization data are unchanged.
+        assertEquals(parsed.items.map { it.id }, restored.items.map { it.id })
+        assertEquals(parsed.screenId, restored.screenId)
+    }
+
     @Test fun acceptsEmptyManifestAndMissingOptionalOfferMetadata() {
         val empty = ManifestCodec.parse("""{"version":0,"screenId":"screen-1","timezone":"UTC","items":[]}""")
         assertTrue(empty.items.isEmpty())
         val withoutOffer = ManifestCodec.parse("""{"version":1,"screenId":"screen-1","items":[{"id":"i","campaignId":"c","creativeId":"cr","type":"IMAGE","url":"https://example.com/a.png"}]}""")
         assertEquals(null, withoutOffer.items.single().offer.offerTitle)
+    }
+
+    @Test fun `authorized QR destination record ID survives manifest cache round trip`() {
+        val payloadWithDestination = payload.replace("\"qrUrl\":\"https://theooro.com/go/token-a\"", "\"qrUrl\":\"https://theooro.com/go/token-a\",\"authorizedDestinationId\":\"destination-uuid\"")
+        val parsed = ManifestCodec.parse(payloadWithDestination)
+        assertEquals("destination-uuid", parsed.items.first().offer.authorizedDestinationId)
+        assertEquals("destination-uuid", ManifestCodec.parse(ManifestCodec.encode(parsed)).items.first().offer.authorizedDestinationId)
     }
 
     @Test fun malformedOrUnknownMediaManifestIsRejectedForLastKnownGoodFallback() {

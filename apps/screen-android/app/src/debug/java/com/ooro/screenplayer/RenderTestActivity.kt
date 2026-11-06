@@ -79,11 +79,11 @@ class RenderTestActivity : ComponentActivity() {
                 RenderTestScreen(
                     previewDirectory.absolutePath,
                     initialAsset = intent.getStringExtra("asset"),
-                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR", "V1_LOCAL_V3") || scenario.startsWith("OFFER_")) DisplayLayout.FOUR_ZONE.name else null,
+                    initialLayout = intent.getStringExtra("layout") ?: if (scenario in setOf("TICKER_OVERFLOW", "V3_SPONSORED", "V3_EXPIRED_SPONSOR", "V1_LOCAL_V3", "LAYOUT_STUDIO_BOUND_MEDIA") || scenario.startsWith("OFFER_")) DisplayLayout.FOUR_ZONE.name else null,
                     controlsInitiallyVisible = intent.getBooleanExtra("controls", false),
                     initialMapEnabled = intent.getBooleanExtra("map", false),
                     initialTickerEnabled = intent.getBooleanExtra("ticker", scenario == "TICKER_OVERFLOW"),
-                    initialQrEnabled = intent.getBooleanExtra("qr", false),
+                    initialQrEnabled = intent.getBooleanExtra("qr", scenario == "LAYOUT_STUDIO_BOUND_MEDIA"),
                     scenario = scenario,
                 )
             }
@@ -180,16 +180,17 @@ private fun RenderTestScreen(
         )
     }
     var selected by remember { mutableIntStateOf(assets.indexOfFirst { it.name == initialAsset }.takeIf { it >= 0 } ?: 0) }
-    var layout by remember { mutableStateOf(DisplayLayout.entries.firstOrNull { it.name == initialLayout } ?: DisplayLayout.FULLSCREEN_AD) }
     val idleOnly = scenario == "EMPTY_IDLE"
     val offerFallback = scenario == "OFFER_FALLBACK"
     val offerFixture = scenario.startsWith("OFFER_")
+    val customBoundMedia = scenario == "LAYOUT_STUDIO_BOUND_MEDIA"
+    var layout by remember { mutableStateOf(DisplayLayout.entries.firstOrNull { it.name == initialLayout } ?: DisplayLayout.FULLSCREEN_AD) }
     val v3Sponsored = scenario == "V3_SPONSORED" || scenario == "V3_EXPIRED_SPONSOR"
     val localV3Presentation = scenario == "V1_LOCAL_V3"
     val controlsAllowed = !idleOnly
     var mapEnabled by remember { mutableStateOf(initialMapEnabled && !idleOnly) }
     var tickerEnabled by remember { mutableStateOf(initialTickerEnabled && !idleOnly) }
-    var qrEnabled by remember { mutableStateOf((initialQrEnabled || v3Sponsored || offerFixture) && !idleOnly) }
+    var qrEnabled by remember { mutableStateOf((initialQrEnabled || v3Sponsored || offerFixture || customBoundMedia) && !idleOnly) }
     var controlsVisible by remember { mutableStateOf(controlsInitiallyVisible && controlsAllowed) }
     val selectedAsset = assets[selected]
     val itemList = remember(assets, qrEnabled, scenario) {
@@ -202,7 +203,7 @@ private fun RenderTestScreen(
                 "OFFER_MISSING_QR" -> OfferMetadata(brandName = "SYNTHETIC BRAND", promotionalText = "No authorized destination", ctaLabel = "TEST ONLY")
                 "OFFER_INVALID_QR" -> OfferMetadata(brandName = "SYNTHETIC BRAND", promotionalText = "Invalid destination fixture", qrUrl = "javascript:alert(1)")
                 "OFFER_EXPIRED" -> OfferMetadata(brandName = "EXPIRED TEST BRAND", promotionalText = "This offer must not be shown", qrUrl = "https://example.invalid/expired")
-                else -> OfferMetadata(brandName = "SYNTHETIC TEST BRAND", promotionalText = "Synthetic offer message", offerTitle = "Synthetic offer", ctaLabel = "TEST LINK", qrUrl = if (qrEnabled) "https://example.invalid/offer" else null)
+                else -> OfferMetadata(brandName = "SYNTHETIC TEST BRAND", promotionalText = "Synthetic offer message", offerTitle = "Synthetic offer", ctaLabel = "TEST LINK", qrUrl = if (qrEnabled) "https://example.invalid/offer" else null, authorizedDestinationId = if (customBoundMedia) "local-authorized-destination" else null)
             }
             ManifestItem(
                 id = "render-test-${asset.name}", campaignId = "local-render-test", creativeId = "local-${asset.name}",
@@ -219,7 +220,7 @@ private fun RenderTestScreen(
     } else "SYNTHETIC TICKER · OFFLINE TEST"
     val news = if ((tickerEnabled || localV3Presentation) && !idleOnly) NewsConfig(42, listOf(NewsAnnouncement("render-test-news", tickerText, 1))) else NewsConfig()
     val sponsorItemId = "render-test-sponsored-strip"
-    val sponsorItem = if (v3Sponsored) ManifestItem(
+    val sponsorItem = if (v3Sponsored || customBoundMedia) ManifestItem(
         id = sponsorItemId, campaignId = "local-sponsored-test", creativeId = "local-sponsored-image",
         type = CreativeType.IMAGE, url = "render-test://sponsor-strip.png", checksum = null,
         durationSeconds = 60, priority = 1, startAt = if (scenario == "V3_EXPIRED_SPONSOR") Instant.now().minusSeconds(60) else Instant.now().minusSeconds(1),
@@ -235,9 +236,10 @@ private fun RenderTestScreen(
         layoutContractVersion = when (scenario) {
             "OFFER_V2_LEGACY" -> 2
             "OFFER_V1_LEGACY" -> 1
-            else -> if (v3Sponsored || offerFixture) 3 else 1
+            else -> if (v3Sponsored || offerFixture || customBoundMedia) 3 else 1
         },
-        sponsoredItem = sponsorItem
+        sponsoredItem = sponsorItem,
+        layoutStudioContract = if (customBoundMedia) customBoundContract(selectedAsset.name) else null,
     )
     val paths = remember(assetDirectory, assets) {
         (assets + SponsoredPreviewAsset).associate { asset ->
@@ -283,4 +285,9 @@ private fun RenderTestScreen(
             Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { controlsVisible = true } })
         }
     }
+}
+
+private fun customBoundContract(selectedAssetName: String): String {
+    val mainCreative = "local-$selectedAssetName"
+    return """{"contractVersion":1,"mode":"CUSTOM","preset":"CUSTOM_CANVAS","profileId":"OORO_PREMIUM","target":{"width":1280,"height":720},"zones":[{"id":"custom-main","type":"MAIN_AD","label":"Authorized synthetic main","schemaVersion":1,"geometry":{"x":0,"y":0,"width":0.8,"height":0.85},"zIndex":0,"fit":"FIT","contentBinding":{"kind":"APPROVED_CREATIVE","referenceId":"$mainCreative"},"visible":true},{"id":"custom-sponsor","type":"SPONSORED_AD","label":"Synthetic sponsor","schemaVersion":1,"geometry":{"x":0,"y":0.85,"width":0.8,"height":0.15},"zIndex":1,"fit":"FIT","contentBinding":{"kind":"APPROVED_SPONSOR","referenceId":"local-sponsored-image"},"visible":true},{"id":"custom-offer","type":"QR_OFFER","label":"Synthetic offer","schemaVersion":1,"geometry":{"x":0.8,"y":0,"width":0.2,"height":0.5},"zIndex":2,"fit":"FIT","contentBinding":{"kind":"AUTHORIZED_DESTINATION","referenceId":"local-authorized-destination"},"visible":true},{"id":"custom-copy","type":"TEXT","label":"CUSTOM TEXT · NO PROOF","schemaVersion":1,"geometry":{"x":0.8,"y":0.5,"width":0.2,"height":0.5},"zIndex":3,"fit":"FIT","contentBinding":{"kind":"NONE"},"visible":true}]}"""
 }
