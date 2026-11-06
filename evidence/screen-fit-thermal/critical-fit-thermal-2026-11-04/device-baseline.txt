@@ -1,0 +1,39 @@
+2026-11-04T22:34:18+05:30
+device
+MBOX
+sun50iw9p1
+10
+Physical size: 1280x720
+Physical density: 213
+1
+0
+  DisplayDeviceInfo{"Built-in Screen": uniqueId="local:0", 1280 x 720, modeId 1, defaultModeId 1, supportedModes [{id=1, width=1280, height=720, fps=60.000004}], colorMode 0, supportedColorModes [0], HdrCapabilities android.view.Display$HdrCapabilities@413e3a39, density 213, 213.0 x 213.0 dpi, appVsyncOff 1000000, presDeadline 16666666, touch INTERNAL, rotation 0, type BUILT_IN, address {port=0}, state ON, FLAG_DEFAULT_DISPLAY, FLAG_ROTATES_WITH_CONTENT, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS}
+    mDisplayInfos=
+    mBaseDisplayInfo=DisplayInfo{"Built-in Screen, displayId 0", uniqueId "local:0", app 1280 x 720, real 1280 x 720, largest app 1280 x 720, smallest app 1280 x 720, mode 1, defaultMode 1, modes [{id=1, width=1280, height=720, fps=60.000004}], colorMode 0, supportedColorModes [0], hdrCapabilities android.view.Display$HdrCapabilities@413e3a39, rotation 0, density 213 (213.0 x 213.0) dpi, layerStack 0, appVsyncOff 1000000, presDeadline 16666666, type BUILT_IN, address {port=0}, state ON, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, removeMode 0}
+    mOverrideDisplayInfo=DisplayInfo{"Built-in Screen, displayId 0", uniqueId "local:0", app 1280 x 720, real 1280 x 720, largest app 1280 x 1248, smallest app 720 x 688, mode 1, defaultMode 1, modes [{id=1, width=1280, height=720, fps=60.000004}], colorMode 0, supportedColorModes [0], hdrCapabilities android.view.Display$HdrCapabilities@413e3a39, rotation 0, density 213 (213.0 x 213.0) dpi, layerStack 0, appVsyncOff 1000000, presDeadline 16666666, type BUILT_IN, address {port=0}, state ON, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, removeMode 0}
+priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+com.ooro.screenplayer/.MainActivity
+  mHomeProcess: ProcessRecord{36bbc54 12765:com.ooro.screenplayer/u0a93}
+  mCurrentFocus=Window{ae285d9 u0 com.ooro.screenplayer/com.ooro.screenplayer.MainActivity}
+  mFocusedApp=AppWindowToken{d866545 token=Token{650f1bc ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}}}
+    mFocusedApp=Token{650f1bc ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}}
+	broadcasts count: -1
+ThermalStatusListeners:
+	callbacks: 1
+	killed: false
+	broadcasts count: -1
+Thermal Status: -2147483648
+Cached temperatures:
+HAL Ready: false
+/sys/class/thermal/thermal_zone0
+cpu_thermal_zone
+56519
+/sys/class/thermal/thermal_zone1
+gpu_thermal_zone
+55790
+/sys/class/thermal/thermal_zone2
+ve_thermal_zone
+57977
+/sys/class/thermal/thermal_zone3
+ddr_thermal_zone
+57248

@@ -1,0 +1,4 @@
+cpu_thermal_zone:65591
+gpu_thermal_zone:65024
+ve_thermal_zone:67940
+ddr_thermal_zone:66644

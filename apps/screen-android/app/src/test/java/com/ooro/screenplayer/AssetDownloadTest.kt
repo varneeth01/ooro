@@ -24,9 +24,10 @@ class AssetDownloadTest {
                     val requestLine = reader.readLine().orEmpty()
                     while (!reader.readLine().isNullOrEmpty()) { }
                     val found = requestLine.contains(" /ok ")
-                    val body = if (found) content else ByteArray(0)
+                    val truncated = requestLine.contains(" /truncated ")
+                    val body = if (found || truncated) content else ByteArray(0)
                     socket.getOutputStream().use { output ->
-                        output.write("HTTP/1.1 ${if (found) "200 OK" else "404 Not Found"}\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray())
+                        output.write("HTTP/1.1 ${if (found || truncated) "200 OK" else "404 Not Found"}\r\nContent-Length: ${if (truncated) content.size + 20 else body.size}\r\nConnection: close\r\n\r\n".toByteArray())
                         output.write(body)
                     }
                 }
@@ -40,8 +41,11 @@ class AssetDownloadTest {
             assertArrayEquals(content, target.readBytes())
             assertFails { downloadVerifiedAsset("$base/ok", temp, target, "00".repeat(32)) }
             assertArrayEquals(content, target.readBytes())
-            server.close()
-            assertFails { downloadVerifiedAsset("$base/ok", temp, target, checksum) }
+            assertFails { downloadVerifiedAsset("$base/truncated", temp, target, null) }
+            assertArrayEquals(content, target.readBytes())
+            assertFalse(temp.exists())
+            // Port zero is never a valid TCP destination, so this cannot depend on runner port reuse.
+            assertFails { downloadVerifiedAsset("http://127.0.0.1:0/ok", temp, target, checksum) }
             assertArrayEquals(content, target.readBytes())
         } finally { runCatching { server.close() }; serverThread.join(1_000); directory.deleteRecursively() }
     }

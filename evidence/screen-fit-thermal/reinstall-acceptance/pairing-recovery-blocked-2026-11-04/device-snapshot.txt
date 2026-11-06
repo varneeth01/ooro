@@ -1,0 +1,35 @@
+2026-11-04T22:24:01+05:30
+device
+google/walley/walleye:10/QP1A.191105.004/eng.hhh.20250815.094703:userdebug/test-keys
+package:/data/app/com.ooro.screenplayer-XqDLJo-ABqz51_xMq09rrg==/base.apk
+    versionCode=1 minSdk=26 targetSdk=35
+    versionName=0.1.0
+    User 0: ceDataInode=-4294780339 installed=true hidden=false suspended=false stopped=false notLaunched=false enabled=0 instant=false virtual=false
+priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+com.ooro.screenplayer/.MainActivity
+  mHomeProcess: ProcessRecord{36bbc54 12765:com.ooro.screenplayer/u0a93}
+  Native Heap     6483     6384        0        0     8692     7851      840
+  Dalvik Heap     5663     5612        0        0     9170     4585     4585
+        TOTAL    64433    54672      484       28    17862    12436     5425
+         Native Heap:     6384
+            Graphics:        0
+/sys/class/thermal/thermal_zone0
+cpu_thermal_zone
+57086
+/sys/class/thermal/thermal_zone1
+gpu_thermal_zone
+56600
+/sys/class/thermal/thermal_zone2
+ve_thermal_zone
+58868
+/sys/class/thermal/thermal_zone3
+ddr_thermal_zone
+57410
+	broadcasts count: -1
+ThermalStatusListeners:
+	callbacks: 1
+	killed: false
+	broadcasts count: -1
+Thermal Status: -2147483648
+Cached temperatures:
+HAL Ready: false

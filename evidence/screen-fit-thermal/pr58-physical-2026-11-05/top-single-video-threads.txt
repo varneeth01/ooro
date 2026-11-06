@@ -1,0 +1,873 @@
+Threads: 868 total,   6 running, 862 sleeping,   0 stopped,   0 zombie
+  Mem:       16E total,       16E used,      413M free,       26M buffers
+ Swap:       16E total,         0 used,       16E free,      736M cached
+400%cpu 168%user   7%nice  91%sys 133%idle   0%iow   0%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+12623 shell        20   0 9.4M 3.6M 2.7M R 59.4   0.0   0:00.47 top             top
+12620 u0_a93       20   0 1.1G 153M  87M R 46.3   4.0   0:00.53 ExoPlayer:Loade com.ooro.screenplayer
+12619 u0_a93        4 -16 1.1G 153M  87M R 27.5   4.0   0:00.42 ExoPlayer:Playb com.ooro.screenplayer
+12474 u0_a93       10 -10 1.1G 153M  87M S 14.4   4.0   0:00.70 Jit thread pool com.ooro.screenplayer
+12467 u0_a93       10 -10 1.1G 153M  87M R 13.0   4.0   0:10.39 ro.screenplayer com.ooro.screenplayer
+12481 u0_a93       24   4 1.1G 153M  87M S 10.1   4.0   0:00.27 HeapTaskDaemon  com.ooro.screenplayer
+12626 u0_a93        4 -16 1.1G 153M  87M S  5.7   4.0   0:00.04 CodecLooper     com.ooro.screenplayer
+ 1919 system       20   0  91M  32M  23M S  5.7   0.8   0:00.81 Binder:1790_2   surfaceflinger
+ 1942 mediacodec   20   0  75M  14M  12M R  4.3   0.3   0:01.13 HwBinder:1876_1 media.codec
+ 1790 system       -2  -8  91M  32M  23M S  4.3   0.8   0:08.44 surfaceflinger  surfaceflinger
+ 2676 root         20   0 8.7M 2.0M 1.6M R  2.8   0.0   1:15.27 FD655_Demo      FD655_Demo
+ 2611 system       20   0 1.4G 215M 174M S  2.8   5.6   0:32.20 IpClient.wlan0  system_server
+ 1654 logd         30  10  18M 6.5M 2.3M S  2.8   0.1   0:02.75 logd.writer     logd
+ 1645 system       20   0  12M 4.6M 3.8M S  2.8   0.1   0:00.81 hwservicemanage hwservicemanager
+12628 mediacodec   18  -2  75M  14M  12M S  1.4   0.3   0:00.00 message         media.codec
+12625 u0_a93       10 -10 1.1G 153M  87M S  1.4   4.0   0:00.01 MediaCodec_loop com.ooro.screenplayer
+12512 u0_a93       10 -10 1.1G 153M  87M S  1.4   4.0   0:00.09 RenderThread    com.ooro.screenplayer
+12483 u0_a93       24   4 1.1G 153M  87M S  1.4   4.0   0:00.00 FinalizerDaemon com.ooro.screenplayer
+11900 root         20   0    0    0    0 S  1.4   0.0   0:00.30 kworker/0:2     [kworker/0:2]
+ 2621 system       20   0  91M  32M  23M S  1.4   0.8   0:00.31 Binder:1790_5   surfaceflinger
+ 2438 mediacodec   20   0  75M  14M  12M S  1.4   0.3   0:00.19 HwBinder:1876_3 media.codec
+ 2396 root         -2   0    0    0    0 S  1.4   0.0   0:48.76 ksdioirqd/mmc2  [ksdioirqd/mmc2]
+ 2391 root         20   0    0    0    0 S  1.4   0.0   0:19.62 ssv6xxx_rx_task [ssv6xxx_rx_task]
+ 2188 system       20   0 1.4G 215M 174M S  1.4   5.6   0:07.49 ClientModeImpl  system_server
+ 2088 system       20   0 1.4G 215M 174M S  1.4   5.6   0:04.30 android.io      system_server
+ 1977 system       20   0  16M 6.7M 5.6M S  1.4   0.1   0:00.07 HwBinder:1777_2 android.hardware.graphics.allocator@2.0-service
+ 1973 system       -3  -8  39M 8.7M 7.1M S  1.4   0.2   0:13.61 HwBinder:1778_2 android.hardware.graphics.composer@2.2-service
+ 1971 audioserver   1 -19  48M  20M  17M S  1.4   0.5   0:00.10 AudioOut_D      audioserver
+ 1920 system       -3  -9  91M  32M  23M S  1.4   0.8   0:01.45 DispSync        surfaceflinger
+ 1846 system       -3  -8  39M 8.7M 7.1M S  1.4   0.2   0:02.03 HwBinder:1778_2 android.hardware.graphics.composer@2.2-service
+  935 root         RT   0    0    0    0 S  1.4   0.0   0:02.55 cfinteractive   [cfinteractive]
+12627 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 HwBinder:12467_ com.ooro.screenplayer
+12629 mediacodec   18  -2  75M  14M  12M S  0.0   0.3   0:00.00 OMXCallbackDisp media.codec
+12624 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:00.00 shell svc 12623 adbd
+12622 u0_a93       18  -2 1.1G 153M  87M S  0.0   4.0   0:00.00 hwuiTask1       com.ooro.screenplayer
+12621 u0_a93       18  -2 1.1G 153M  87M S  0.0   4.0   0:00.00 hwuiTask0       com.ooro.screenplayer
+12618 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 AudioPortEventH com.ooro.screenplayer
+12617 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 ExoPlayer:Frame com.ooro.screenplayer
+12573 u0_a93       18  -2 1.1G 153M  87M S  0.0   4.0   0:00.00 queued-work-loo com.ooro.screenplayer
+12564 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 arch_disk_io_3  com.ooro.screenplayer
+12561 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 Okio Watchdog   com.ooro.screenplayer
+12560 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.02 DefaultDispatch com.ooro.screenplayer
+12558 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 OkHttp Connecti com.ooro.screenplayer
+12547 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 Binder:12467_5  com.ooro.screenplayer
+12549 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.31 DefaultDispatch com.ooro.screenplayer
+12545 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 arch_disk_io_2  com.ooro.screenplayer
+12537 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.39 DefaultDispatch com.ooro.screenplayer
+12538 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.21 DefaultDispatch com.ooro.screenplayer
+12530 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kbase_event     [kbase_event]
+12536 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 mali-cmar-backe com.ooro.screenplayer
+12535 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 mali-utility-wo com.ooro.screenplayer
+12534 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 mali-utility-wo com.ooro.screenplayer
+12533 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 mali-utility-wo com.ooro.screenplayer
+12532 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 mali-utility-wo com.ooro.screenplayer
+12531 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 mali-mem-purge  com.ooro.screenplayer
+12529 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.01 arch_disk_io_1  com.ooro.screenplayer
+12528 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.03 arch_disk_io_0  com.ooro.screenplayer
+12520 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.02 Binder:12467_4  com.ooro.screenplayer
+12515 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.06 WM.task-3       com.ooro.screenplayer
+12511 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.00 ConnectivityThr com.ooro.screenplayer
+12510 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.09 WM.task-2       com.ooro.screenplayer
+12509 u0_a93       20   0 1.1G 153M  87M S  0.0   4.0   0:00.48 WM.task-1       com.ooro.screenplayer
+12508 u0_a93       29   9 1.1G 153M  87M S  0.0   4.0   0:00.07 Profile Saver   com.ooro.screenplayer
+12490 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 Binder:12467_3  com.ooro.screenplayer
+12489 root         20   0    0    0    0 S  0.0   0.0   0:00.04 kworker/2:0     [kworker/2:0]
+12488 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.02 Binder:12467_2  com.ooro.screenplayer
+12486 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.44 Binder:12467_1  com.ooro.screenplayer
+12480 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 ADB-JDWP Connec com.ooro.screenplayer
+12484 u0_a93       24   4 1.1G 153M  87M S  0.0   4.0   0:00.00 FinalizerWatchd com.ooro.screenplayer
+12482 u0_a93       24   4 1.1G 153M  87M S  0.0   4.0   0:00.00 ReferenceQueueD com.ooro.screenplayer
+12479 u0_a93       10 -10 1.1G 153M  87M S  0.0   4.0   0:00.00 Signal Catcher  com.ooro.screenplayer
+12472 root         20   0 1.1G 127M 107M S  0.0   3.3   0:00.00 Jit thread pool zygote
+12468 root         24   4 1.1G 127M 107M S  0.0   3.3   0:00.00 HeapTaskDaemon  zygote
+12469 root         24   4 1.1G 127M 107M S  0.0   3.3   0:00.00 ReferenceQueueD zygote
+12470 root         24   4 1.1G 127M 107M S  0.0   3.3   0:00.00 FinalizerDaemon zygote
+12471 root         24   4 1.1G 127M 107M S  0.0   3.3   0:00.00 FinalizerWatchd zygote
+12355 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kworker/u9:2    [kworker/u9:2]
+12262 root         20   0    0    0    0 S  0.0   0.0   0:00.08 kworker/1:0     [kworker/1:0]
+11991 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.00 lowpool[40]     com.google.android.gms
+11899 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.05 Binder:2058_18  system_server
+11754 root         20   0    0    0    0 S  0.0   0.0   0:02.06 kworker/u8:0    [kworker/u8:0]
+11358 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.30 lowpool[38]     com.google.android.gms
+10741 root          0 -20    0    0    0 S  0.0   0.0   0:00.06 kworker/u9:0    [kworker/u9:0]
+10685 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.00 Binder:2951_5   com.google.android.katniss:search
+10656 u0_a18       20   0 1.4G 162M 112M S  0.0   4.2   0:00.00 LoginHelperThre com.google.android.katniss:search
+10439 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.02 lowpool[30]     com.google.android.gms
+ 9992 root         20   0    0    0    0 S  0.0   0.0   0:00.27 kworker/1:2     [kworker/1:2]
+ 9863 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 Binder:1849_3   app_process
+ 9768 root         20   0    0    0    0 S  0.0   0.0   0:00.14 kworker/3:0     [kworker/3:0]
+ 9724 shell        20   0  16M 3.9M 3.3M S  0.0   0.1   0:00.00 Binder:7246_5   abb
+ 9716 root         20   0    0    0    0 S  0.0   0.0   0:00.12 kworker/2:1     [kworker/2:1]
+ 9623 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.02 Binder:2270_5   com.android.systemui
+ 9620 root         20   0    0    0    0 S  0.0   0.0   0:01.43 kworker/0:1     [kworker/0:1]
+ 8805 u0_a6        30  10 0.9G  89M  68M S  0.0   2.3   0:00.10 android.bg      android.process.media
+ 8259 shell        20   0  16M 3.9M 3.3M S  0.0   0.1   0:00.00 Binder:7246_4   abb
+ 8254 u0_a36       18  -2 1.0G  91M  71M S  0.0   2.3   0:00.00 queued-work-loo com.android.vending:download_service
+ 8253 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.76 Binder:2058_17  system_server
+ 8252 u0_a36       20   0 1.0G  91M  71M S  0.0   2.3   0:00.02 ConnectivityThr com.android.vending:download_service
+ 8248 u0_a36       29   9 1.0G  91M  71M S  0.0   2.3   0:00.00 Profile Saver   com.android.vending:download_service
+ 8247 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.00 Binder:8228_3   com.android.vending:download_service
+ 8244 u0_a36       24   4 1.0G  91M  71M S  0.0   2.3   0:00.00 FinalizerWatchd com.android.vending:download_service
+ 8243 u0_a36       24   4 1.0G  91M  71M S  0.0   2.3   0:00.00 FinalizerDaemon com.android.vending:download_service
+ 8242 u0_a36       24   4 1.0G  91M  71M S  0.0   2.3   0:00.00 ReferenceQueueD com.android.vending:download_service
+ 8241 u0_a36       24   4 1.0G  91M  71M S  0.0   2.3   0:00.04 HeapTaskDaemon  com.android.vending:download_service
+ 8240 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.00 ADB-JDWP Connec com.android.vending:download_service
+ 8239 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.00 Signal Catcher  com.android.vending:download_service
+ 8234 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.00 Jit thread pool com.android.vending:download_service
+ 8246 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.00 Binder:8228_2   com.android.vending:download_service
+ 8245 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.00 Binder:8228_1   com.android.vending:download_service
+ 8228 u0_a36       10 -10 1.0G  91M  71M S  0.0   2.3   0:00.10 ownload_service com.android.vending:download_service
+ 8085 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.26 Binder:2058_16  system_server
+ 7908 root         20   0    0    0    0 S  0.0   0.0   0:00.08 kworker/2:2     [kworker/2:2]
+ 7906 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:02.27 Binder:2058_15  system_server
+ 7759 root         20   0    0    0    0 S  0.0   0.0   0:00.18 kworker/3:2     [kworker/3:2]
+ 7693 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.14 GoogleApiHandle com.google.android.gms
+ 7618 root         20   0    0    0    0 S  0.0   0.0   0:00.21 kworker/1:1     [kworker/1:1]
+ 7472 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.14 GoogleApiHandle com.google.android.gms
+ 7303 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.08 ice] processing com.google.android.gms
+ 7291 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.00 Binder:1853_5   cameraserver
+ 7254 shell        20   0  16M 3.9M 3.3M S  0.0   0.1   0:00.00 Binder:7246_3   abb
+ 7250 shell        20   0  16M 3.9M 3.3M S  0.0   0.1   0:00.00 Binder:7246_1   abb
+ 7251 shell        20   0  16M 3.9M 3.3M S  0.0   0.1   0:00.00 Binder:7246_2   abb
+ 7246 shell        20   0  16M 3.9M 3.3M S  0.0   0.1   0:00.07 abb             abb
+ 7247 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:00.00 shell svc 7246  adbd
+ 6721 root         20   0    0    0    0 S  0.0   0.0   0:09.37 kworker/u8:1    [kworker/u8:1]
+ 5853 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.55 Binder:2058_14  system_server
+ 5684 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:02.64 Binder:2058_13  system_server
+ 5643 root         20   0    0    0    0 S  0.0   0.0   0:03.58 kworker/0:0     [kworker/0:0]
+ 5157 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.55 Binder:2058_12  system_server
+ 4841 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.44 Binder:2058_11  system_server
+ 4686 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.20 Binder:2058_10  system_server
+ 4496 system       20   0 0.9G  81M  60M S  0.0   2.1   0:00.00 Timer-0         com.wncc.xhsxremote
+ 4433 root         20   0  17M 4.8M 3.9M S  0.0   0.1   0:00.00 Binder:1858_5   installd
+ 4364 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.28 Binder:2058_F   system_server
+ 3951 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.17 Binder:2058_E   system_server
+ 3949 u0_a89       18  -2 1.0G 105M  81M S  0.0   2.7   0:00.00 queued-work-loo com.precisebytes.androidtoggles.free.release
+ 3925 u0_a89       20   0 1.0G 105M  81M S  0.0   2.7   0:00.00 WM.task-2       com.precisebytes.androidtoggles.free.release
+ 3923 u0_a89       39  19 1.0G 105M  81M S  0.0   2.7   0:00.00 GmsDynamite     com.precisebytes.androidtoggles.free.release
+ 3919 u0_a89       20   0 1.0G 105M  81M S  0.0   2.7   0:00.04 WM.task-1       com.precisebytes.androidtoggles.free.release
+ 3917 u0_a89       20   0 1.0G 105M  81M S  0.0   2.7   0:00.00 DefaultDispatch com.precisebytes.androidtoggles.free.release
+ 3915 u0_a89       20   0 1.0G 105M  81M S  0.0   2.7   0:00.01 DefaultDispatch com.precisebytes.androidtoggles.free.release
+ 3914 u0_a89       20   0 1.0G 105M  81M S  0.0   2.7   0:00.01 DefaultDispatch com.precisebytes.androidtoggles.free.release
+ 3909 u0_a89       29   9 1.0G 105M  81M S  0.0   2.7   0:00.00 Profile Saver   com.precisebytes.androidtoggles.free.release
+ 3907 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.00 Binder:3888_3   com.precisebytes.androidtoggles.free.release
+ 3906 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.00 Binder:3888_2   com.precisebytes.androidtoggles.free.release
+ 3900 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.00 ADB-JDWP Connec com.precisebytes.androidtoggles.free.release
+ 3901 u0_a89       24   4 1.0G 105M  81M S  0.0   2.7   0:00.01 HeapTaskDaemon  com.precisebytes.androidtoggles.free.release
+ 3904 u0_a89       24   4 1.0G 105M  81M S  0.0   2.7   0:00.00 FinalizerWatchd com.precisebytes.androidtoggles.free.release
+ 3905 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.00 Binder:3888_1   com.precisebytes.androidtoggles.free.release
+ 3903 u0_a89       24   4 1.0G 105M  81M S  0.0   2.7   0:00.00 FinalizerDaemon com.precisebytes.androidtoggles.free.release
+ 3902 u0_a89       24   4 1.0G 105M  81M S  0.0   2.7   0:00.00 ReferenceQueueD com.precisebytes.androidtoggles.free.release
+ 3899 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.00 Signal Catcher  com.precisebytes.androidtoggles.free.release
+ 3894 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.04 Jit thread pool com.precisebytes.androidtoggles.free.release
+ 3888 u0_a89       10 -10 1.0G 105M  81M S  0.0   2.7   0:00.39 es.free.release com.precisebytes.androidtoggles.free.release
+ 3509 u0_a50       18  -2 998M  77M  57M S  0.0   2.0   0:00.00 queued-work-loo com.actions.hidaudio
+ 3508 u0_a50       29   9 998M  77M  57M S  0.0   2.0   0:00.00 Profile Saver   com.actions.hidaudio
+ 3506 u0_a50       10 -10 998M  77M  57M S  0.0   2.0   0:00.31 Binder:3480_2   com.actions.hidaudio
+ 3505 u0_a50       10 -10 998M  77M  57M S  0.0   2.0   0:00.00 Binder:3480_1   com.actions.hidaudio
+ 3502 u0_a50       24   4 998M  77M  57M S  0.0   2.0   0:00.00 ReferenceQueueD com.actions.hidaudio
+ 3501 u0_a50       24   4 998M  77M  57M S  0.0   2.0   0:00.14 HeapTaskDaemon  com.actions.hidaudio
+ 3500 u0_a50       10 -10 998M  77M  57M S  0.0   2.0   0:00.00 ADB-JDWP Connec com.actions.hidaudio
+ 3503 u0_a50       24   4 998M  77M  57M S  0.0   2.0   0:00.00 FinalizerDaemon com.actions.hidaudio
+ 3504 u0_a50       24   4 998M  77M  57M S  0.0   2.0   0:00.00 FinalizerWatchd com.actions.hidaudio
+ 3493 u0_a50       10 -10 998M  77M  57M S  0.0   2.0   0:00.00 Jit thread pool com.actions.hidaudio
+ 3498 u0_a50       10 -10 998M  77M  57M S  0.0   2.0   0:00.00 Signal Catcher  com.actions.hidaudio
+ 3480 u0_a50       10 -10 998M  77M  57M S  0.0   2.0   0:00.88 ctions.hidaudio com.actions.hidaudio
+ 3461 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 AsyncQueryWorke system_server
+ 3460 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.93 Binder:2058_D   system_server
+ 3381 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 grpc-timer-0    com.google.android.gms
+ 3379 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.03 CronetFile      com.google.android.gms
+ 3376 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 ThreadPoolForeg com.google.android.gms
+ 3371 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.50 CronetNet       com.google.android.gms
+ 3369 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 ThreadPoolForeg com.google.android.gms
+ 3368 u0_a17       16  -4 1.2G 267M 172M S  0.0   7.0   0:00.00 ThreadPoolAudio com.google.android.gms
+ 3365 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.04 ThreadPoolServi com.google.android.gms
+ 3366 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.33 ThreadPoolForeg com.google.android.gms
+ 3367 u0_a17       16  -4 1.2G 267M 172M S  0.0   7.0   0:00.00 ThreadPoolPrese com.google.android.gms
+ 3358 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.11 CronetInit      com.google.android.gms
+ 3354 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.02 AsyncTask #1    com.google.android.gms
+ 3339 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.00 Binder:2731_4   com.google.android.katniss:interactor
+ 3338 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 DG              com.google.android.gms
+ 3337 u0_a18       20   0 1.4G 158M 110M S  0.0   4.1   0:00.00 Lite Thread #0  com.google.android.katniss:interactor
+ 3335 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.25 highpool[5]     com.google.android.gms
+ 3333 u0_a18       30  10 1.4G 158M 110M S  0.0   4.1   0:00.00 AsyncTask #2    com.google.android.katniss:interactor
+ 3331 u0_a18       30  10 1.4G 162M 112M S  0.0   4.2   0:00.00 AsyncTask #2    com.google.android.katniss:search
+ 3329 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.00 lowpool[10]     com.google.android.gms
+ 3328 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.09 netscheduler-qu com.google.android.gms
+ 3326 u0_a18       29   9 1.4G 158M 110M S  0.0   4.1   0:00.01 GoogleApiHandle com.google.android.katniss:interactor
+ 3325 u0_a18       20   0 1.4G 158M 110M S  0.0   4.1   0:00.02 ProcessStablePh com.google.android.katniss:interactor
+ 3322 u0_a18       20   0 1.4G 162M 112M S  0.0   4.2   0:00.01 ProcessStablePh com.google.android.katniss:search
+ 3320 u0_a18       29   9 1.4G 162M 112M S  0.0   4.2   0:00.01 GoogleApiHandle com.google.android.katniss:search
+ 3312 u0_a17       30  10 1.2G 267M 172M S  0.0   7.0   0:00.30 lowpool[11]     com.google.android.gms
+ 3304 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.42 Binder:2779_4   android.process.media
+ 3299 system       18  -2 0.9G  81M  60M S  0.0   2.1   0:00.00 queued-work-loo com.wncc.xhsxremote
+ 3298 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.01 pool-119-thread com.google.android.gms
+ 3291 system       29   9 0.9G  81M  60M S  0.0   2.1   0:00.01 Profile Saver   com.wncc.xhsxremote
+ 3289 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.00 Binder:3269_3   com.wncc.xhsxremote
+ 3288 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.01 Binder:3269_2   com.wncc.xhsxremote
+ 3286 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.02 Binder:3269_1   com.wncc.xhsxremote
+ 3282 system       24   4 0.9G  81M  60M S  0.0   2.1   0:00.06 HeapTaskDaemon  com.wncc.xhsxremote
+ 3283 system       24   4 0.9G  81M  60M S  0.0   2.1   0:00.00 ReferenceQueueD com.wncc.xhsxremote
+ 3285 system       24   4 0.9G  81M  60M S  0.0   2.1   0:00.00 FinalizerWatchd com.wncc.xhsxremote
+ 3281 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.00 ADB-JDWP Connec com.wncc.xhsxremote
+ 3284 system       24   4 0.9G  81M  60M S  0.0   2.1   0:00.00 FinalizerDaemon com.wncc.xhsxremote
+ 3271 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.02 Jit thread pool com.wncc.xhsxremote
+ 3276 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.00 Signal Catcher  com.wncc.xhsxremote
+ 3269 system       10 -10 0.9G  81M  60M S  0.0   2.1   0:00.50 wncc.xhsxremote com.wncc.xhsxremote
+ 3247 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 pool-4-thread-1 com.android.systemui
+ 3239 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 pool-3-thread-1 com.android.systemui
+ 3236 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 UEventObserver  com.android.systemui
+ 3235 u0_a71       30  10 1.0G 105M  82M S  0.0   2.7   0:00.00 Keyboard        com.android.systemui
+ 3234 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.19 highpool[4]     com.google.android.gms
+ 3232 u0_a71       16  -4 1.0G 105M  82M S  0.0   2.7   0:00.00 RenderThread    com.android.systemui
+ 3225 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.09 ice] processing com.google.android.gms
+ 3219 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.32 GoogleLocationS com.google.android.gms
+ 3216 u0_a17       18  -2 1.2G 267M 172M S  0.0   7.0   0:00.00 queued-work-loo com.google.android.gms
+ 3210 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.01 VolumeDialogCon com.android.systemui
+ 3199 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 SoundPool       com.android.systemui
+ 3200 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 SoundPoolThread com.android.systemui
+ 3192 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.88 Binder:2058_C   system_server
+ 3191 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:02.17 Binder:2058_B   system_server
+ 3190 u0_a18       20   0 1.4G 162M 112M S  0.0   4.2   0:00.00 Lite Thread #0  com.google.android.katniss:search
+ 3187 u0_a18       18  -2 1.4G 162M 112M S  0.0   4.2   0:00.20 EventBus0       com.google.android.katniss:search
+ 3186 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.05 FlpThread       com.google.android.gms
+ 3185 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.23 Binder:2058_A   system_server
+ 3184 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 Okio Watchdog   system_server
+ 3179 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.00 Binder:2951_4   com.google.android.katniss:search
+ 3178 u0_a18       20   0 1.4G 162M 112M S  0.0   4.2   0:00.00 TimerThread0    com.google.android.katniss:search
+ 3172 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.47 Binder:2876_6   com.google.android.gms
+ 3169 u0_a18       29   9 1.4G 162M 112M S  0.0   4.2   0:00.12 GoogleApiHandle com.google.android.katniss:search
+ 3166 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.20 highpool[2]     com.google.android.gms
+ 3165 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.22 highpool[3]     com.google.android.gms
+ 3162 u0_a18       20   0 1.4G 158M 110M S  0.0   4.1   0:00.00 pool-2-thread-1 com.google.android.katniss:interactor
+ 3161 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.03 Binder:2951_3   com.google.android.katniss:search
+ 3159 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.01 Binder:2876_5   com.google.android.gms
+ 3155 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 ConnectivityThr com.google.android.gms
+ 3146 u0_a18       31  11 1.4G 162M 112M S  0.0   4.2   0:00.00 Blocking Thread com.google.android.katniss:search
+ 3097 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 Thread-16       system_server
+ 3076 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.08 NetworkMonitor/ system_server
+ 3075 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.03 AsyncTask #1    system_server
+ 3074 u0_a18       18  -2 1.4G 162M 112M S  0.0   4.2   0:00.01 queued-work-loo com.google.android.katniss:search
+ 3061 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.01 GlobalScheduler com.google.android.gms
+ 3058 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.00 GlobalDispatchi com.google.android.gms
+ 3054 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.05 actvpool[2]     com.google.android.gms
+ 3053 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.01 actvpool[1]     com.google.android.gms
+ 3051 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 punchpool-8-thr com.google.android.gms
+ 3047 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.72 GoogleApiHandle com.google.android.gms
+ 3045 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.03 pool-4-thread-1 system_server
+ 3025 u0_a17       20   0 1.2G 267M 172M S  0.0   7.0   0:00.00 FileObserver    com.google.android.gms
+ 2990 u0_a53       30  10 1.2G  82M  62M S  0.0   2.1   0:00.08 AsyncTask #1    com.adups.fota
+ 2989 u0_a6        30  10 0.9G  89M  68M S  0.0   2.3   0:00.02 sAsyncHandlerTh android.process.media
+ 2987 u0_a53       18  -2 1.2G  82M  62M S  0.0   2.1   0:00.00 queued-work-loo com.adups.fota
+ 2986 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.77 ProcessStablePh com.google.android.gms
+ 2982 u0_a18       20   0 1.4G 162M 112M S  0.0   4.2   0:00.00 SharedPreferenc com.google.android.katniss:search
+ 2976 u0_a18       20   0 1.4G 162M 112M S  0.0   4.2   0:00.03 SharedPreferenc com.google.android.katniss:search
+ 2970 u0_a18       29   9 1.4G 162M 112M S  0.0   4.2   0:00.08 Profile Saver   com.google.android.katniss:search
+ 2968 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.10 Binder:2951_1   com.google.android.katniss:search
+ 2969 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.00 Binder:2951_2   com.google.android.katniss:search
+ 2967 u0_a18       24   4 1.4G 162M 112M S  0.0   4.2   0:00.00 FinalizerWatchd com.google.android.katniss:search
+ 2965 u0_a18       24   4 1.4G 162M 112M S  0.0   4.2   0:00.00 ReferenceQueueD com.google.android.katniss:search
+ 2964 u0_a18       24   4 1.4G 162M 112M S  0.0   4.2   0:00.32 HeapTaskDaemon  com.google.android.katniss:search
+ 2966 u0_a18       24   4 1.4G 162M 112M S  0.0   4.2   0:00.00 FinalizerDaemon com.google.android.katniss:search
+ 2963 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.00 ADB-JDWP Connec com.google.android.katniss:search
+ 2962 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.00 Signal Catcher  com.google.android.katniss:search
+ 2957 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:00.83 Jit thread pool com.google.android.katniss:search
+ 2951 u0_a18       10 -10 1.4G 162M 112M S  0.0   4.2   0:01.10 .katniss:search com.google.android.katniss:search
+ 2950 u0_a53       29   9 1.2G  82M  62M S  0.0   2.1   0:00.00 Profile Saver   com.adups.fota
+ 2949 u0_a17       29   9 1.2G 267M 172M S  0.0   7.0   0:00.38 Profile Saver   com.google.android.gms
+ 2948 u0_a18       31  11 1.4G 158M 110M S  0.0   4.1   0:00.00 Blocking Thread com.google.android.katniss:interactor
+ 2946 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.00 Binder:2927_3   com.adups.fota
+ 2945 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.00 Binder:2927_2   com.adups.fota
+ 2944 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.00 Binder:2927_1   com.adups.fota
+ 2943 u0_a53       24   4 1.2G  82M  62M S  0.0   2.1   0:00.00 FinalizerWatchd com.adups.fota
+ 2942 u0_a53       24   4 1.2G  82M  62M S  0.0   2.1   0:00.00 FinalizerDaemon com.adups.fota
+ 2941 u0_a53       24   4 1.2G  82M  62M S  0.0   2.1   0:00.00 ReferenceQueueD com.adups.fota
+ 2940 u0_a53       24   4 1.2G  82M  62M S  0.0   2.1   0:00.05 HeapTaskDaemon  com.adups.fota
+ 2939 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.00 ADB-JDWP Connec com.adups.fota
+ 2938 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.00 Signal Catcher  com.adups.fota
+ 2932 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.00 Jit thread pool com.adups.fota
+ 2927 u0_a53       10 -10 1.2G  82M  62M S  0.0   2.1   0:00.32 com.adups.fota  com.adups.fota
+ 2904 u0_a6        18  -2 0.9G  89M  68M S  0.0   2.3   0:00.00 queued-work-loo android.process.media
+ 2903 u0_a6        20   0 0.9G  89M  68M S  0.0   2.3   0:00.00 MtpServer       android.process.media
+ 2899 u0_a18       20   0 1.4G 158M 110M S  0.0   4.1   0:00.00 SharedPreferenc com.google.android.katniss:interactor
+ 2897 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.93 Binder:2876_3   com.google.android.gms
+ 2898 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.21 Binder:2876_4   com.google.android.gms
+ 2896 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.00 Binder:2876_2   com.google.android.gms
+ 2895 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:01.28 Binder:2876_1   com.google.android.gms
+ 2893 u0_a17       24   4 1.2G 267M 172M S  0.0   7.0   0:00.02 FinalizerDaemon com.google.android.gms
+ 2894 u0_a17       24   4 1.2G 267M 172M S  0.0   7.0   0:00.00 FinalizerWatchd com.google.android.gms
+ 2892 u0_a17       24   4 1.2G 267M 172M S  0.0   7.0   0:00.14 ReferenceQueueD com.google.android.gms
+ 2891 u0_a17       24   4 1.2G 267M 172M S  0.0   7.0   0:01.63 HeapTaskDaemon  com.google.android.gms
+ 2890 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.00 ADB-JDWP Connec com.google.android.gms
+ 2889 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.00 Signal Catcher  com.google.android.gms
+ 2884 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:00.13 Jit thread pool com.google.android.gms
+ 2876 u0_a17       10 -10 1.2G 267M 172M S  0.0   7.0   0:02.85 gle.android.gms com.google.android.gms
+ 2857 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.81 Binder:2058_9   system_server
+ 2856 u0_a18       20   0 1.4G 158M 110M S  0.0   4.1   0:00.04 SharedPreferenc com.google.android.katniss:interactor
+ 2854 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:03.40 Binder:2058_8   system_server
+ 2852 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.20 Binder:2404_5   com.android.phone
+ 2815 secure_element 18 -2 998M 67M  47M S  0.0   1.7   0:00.00 queued-work-loo com.android.se
+ 2808 u0_a6        29   9 0.9G  89M  68M S  0.0   2.3   0:00.02 Profile Saver   android.process.media
+ 2806 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.02 Binder:1786_5   audioserver
+ 2805 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.00 Binder:1853_4   cameraserver
+ 2804 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.01 Binder:2779_3   android.process.media
+ 2803 secure_element 29 9 998M  67M  47M S  0.0   1.7   0:00.00 Profile Saver   com.android.se
+ 2799 u0_a18       29   9 1.4G 158M 110M S  0.0   4.1   0:00.06 Profile Saver   com.google.android.katniss:interactor
+ 2798 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.04 Binder:2779_2   android.process.media
+ 2796 u0_a6        24   4 0.9G  89M  68M S  0.0   2.3   0:00.00 FinalizerWatchd android.process.media
+ 2797 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.00 Binder:2779_1   android.process.media
+ 2795 u0_a6        24   4 0.9G  89M  68M S  0.0   2.3   0:00.00 FinalizerDaemon android.process.media
+ 2794 u0_a6        24   4 0.9G  89M  68M S  0.0   2.3   0:00.01 ReferenceQueueD android.process.media
+ 2793 u0_a6        24   4 0.9G  89M  68M S  0.0   2.3   0:00.72 HeapTaskDaemon  android.process.media
+ 2792 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.00 ADB-JDWP Connec android.process.media
+ 2791 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.00 Signal Catcher  android.process.media
+ 2786 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.50 Jit thread pool android.process.media
+ 2779 u0_a6        10 -10 0.9G  89M  68M S  0.0   2.3   0:00.46 d.process.media android.process.media
+ 2781 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.50 backup-0        system_server
+ 2778 secure_element 10 -10 998M 67M 47M S  0.0   1.7   0:00.00 Binder:2754_2   com.android.se
+ 2776 secure_element 10 -10 998M 67M 47M S  0.0   1.7   0:00.00 Binder:2754_1   com.android.se
+ 2773 secure_element 24 4 998M  67M  47M S  0.0   1.7   0:00.00 ReferenceQueueD com.android.se
+ 2775 secure_element 24 4 998M  67M  47M S  0.0   1.7   0:00.00 FinalizerWatchd com.android.se
+ 2774 secure_element 24 4 998M  67M  47M S  0.0   1.7   0:00.00 FinalizerDaemon com.android.se
+ 2772 secure_element 24 4 998M  67M  47M S  0.0   1.7   0:00.05 HeapTaskDaemon  com.android.se
+ 2771 secure_element 10 -10 998M 67M 47M S  0.0   1.7   0:00.00 ADB-JDWP Connec com.android.se
+ 2766 secure_element 10 -10 998M 67M 47M S  0.0   1.7   0:00.00 Signal Catcher  com.android.se
+ 2767 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.00 Binder:2404_4   com.android.phone
+ 2760 secure_element 10 -10 998M 67M 47M S  0.0   1.7   0:00.00 Jit thread pool com.android.se
+ 2754 secure_element 10 -10 998M 67M 47M S  0.0   1.7   0:00.08 com.android.se  com.android.se
+ 2753 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.00 Binder:1786_4   audioserver
+ 2752 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.00 Binder:1853_3   cameraserver
+ 2751 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.00 Binder:2731_3   com.google.android.katniss:interactor
+ 2750 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.00 Binder:2731_2   com.google.android.katniss:interactor
+ 2747 u0_a18       24   4 1.4G 158M 110M S  0.0   4.1   0:00.00 FinalizerWatchd com.google.android.katniss:interactor
+ 2746 u0_a18       24   4 1.4G 158M 110M S  0.0   4.1   0:00.00 FinalizerDaemon com.google.android.katniss:interactor
+ 2744 u0_a18       24   4 1.4G 158M 110M S  0.0   4.1   0:00.21 HeapTaskDaemon  com.google.android.katniss:interactor
+ 2748 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.06 Binder:2731_1   com.google.android.katniss:interactor
+ 2745 u0_a18       24   4 1.4G 158M 110M S  0.0   4.1   0:00.00 ReferenceQueueD com.google.android.katniss:interactor
+ 2737 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.49 Jit thread pool com.google.android.katniss:interactor
+ 2742 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.00 Signal Catcher  com.google.android.katniss:interactor
+ 2743 u0_a18       10 -10 1.4G 158M 110M S  0.0   4.1   0:00.00 ADB-JDWP Connec com.google.android.katniss:interactor
+ 2731 u0_a18        0 -20 1.4G 158M 110M S  0.0   4.1   0:00.82 niss:interactor com.google.android.katniss:interactor
+ 2727 u0_a78       20   0 0.9G  87M  67M S  0.0   2.2   0:00.00 InputLogicHandl com.android.inputmethod.latin
+ 2706 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.03 LazyTaskWriterT system_server
+ 2693 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 HwBinder:2058_5 system_server
+ 2691 root         20   0  17M 4.8M 3.9M S  0.0   0.1   0:01.36 Binder:1858_4   installd
+ 2686 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:03.75 UsbFfs-worker   adbd
+ 2674 root         20   0 8.7M 2.0M 1.6M S  0.0   0.0   0:00.00 FD655_Demo      FD655_Demo
+ 2669 system       20   0 1.4G 215M 174M S  0.0   5.6   0:03.79 Thread-14       system_server
+ 2660 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:00.00 UsbFfs-monitor  adbd
+ 2658 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.00 HwBinder:1884_7 media.swcodec
+ 2654 mediaex      20   0  32M  17M  14M S  0.0   0.4   0:00.02 Binder:1862_3   media.extractor
+ 2650 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.02 HwBinder:2058_4 system_server
+ 2646 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:00.00 server socket   adbd
+ 2645 mediacodec    4 -16  48M  15M  12M S  0.0   0.3   0:00.00 HwBinder:1884_1 media.swcodec
+ 2644 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:00.00 usb ffs open    adbd
+ 2641 system        4 -16 1.4G 215M 174M S  0.0   5.6   0:00.00 NDK MediaCodec_ system_server
+ 2640 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 CCodecWatchdog  system_server
+ 2639 system       20   0  13M 4.0M 3.4M S  0.0   0.1   0:00.00 Binder:2632_1   displayservice
+ 2637 shell        20   0  28M 4.8M 3.7M S  0.0   0.1   0:04.59 adbd            adbd
+ 2632 system       20   0  13M 4.0M 3.4M S  0.0   0.1   0:00.04 Binder:2632_2   displayservice
+ 2628 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.00 HwBinder:1884_6 media.swcodec
+ 2620 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 Binder:2568_4   com.android.inputmethod.latin
+ 2616 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 mali-utility-wo com.android.systemui
+ 2613 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 mali-mem-purge  com.android.systemui
+ 2614 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 mali-utility-wo com.android.systemui
+ 2615 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 mali-utility-wo com.android.systemui
+ 2617 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 mali-utility-wo com.android.systemui
+ 2618 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 mali-cmar-backe com.android.systemui
+ 2612 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kbase_event     [kbase_event]
+ 2610 u0_a78       20   0 0.9G  87M  67M S  0.0   2.2   0:00.05 ExecutorUtils   com.android.inputmethod.latin
+ 2609 u0_a71       30  10 1.0G 105M  82M S  0.0   2.7   0:02.73 AsyncTask #1    com.android.systemui
+ 2608 u0_a78       30  10 0.9G  87M  67M S  0.0   2.2   0:00.00 AsyncTask #1    com.android.inputmethod.latin
+ 2606 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.05 HwBinder:1884_5 media.swcodec
+ 2605 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 CellularDataSer com.android.phone
+ 2604 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 CellularNetwork com.android.phone
+ 2603 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.08 HwBinder:1884_4 media.swcodec
+ 2602 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.02 HwBinder:1884_3 media.swcodec
+ 2601 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 DataService     com.android.phone
+ 2598 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 NetworkService  com.android.phone
+ 2597 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.00 queued-work-loo system_server
+ 2591 radio        30  10 1.0G  87M  66M S  0.0   2.2   0:00.00 AsyncTask #1    com.android.phone
+ 2590 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.00 Binder:2404_3   com.android.phone
+ 2589 u0_a78       29   9 0.9G  87M  67M S  0.0   2.2   0:00.00 Profile Saver   com.android.inputmethod.latin
+ 2588 wifi         20   0  14M 6.0M 5.2M S  0.0   0.1   0:00.00 wifi@1.0-servic android.hardware.wifi@1.0-service-lazy
+ 2587 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 Binder:2568_3   com.android.inputmethod.latin
+ 2586 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 Binder:2568_2   com.android.inputmethod.latin
+ 2585 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 Binder:2568_1   com.android.inputmethod.latin
+ 2581 u0_a78       24   4 0.9G  87M  67M S  0.0   2.2   0:00.11 HeapTaskDaemon  com.android.inputmethod.latin
+ 2582 u0_a78       24   4 0.9G  87M  67M S  0.0   2.2   0:00.00 ReferenceQueueD com.android.inputmethod.latin
+ 2583 u0_a78       24   4 0.9G  87M  67M S  0.0   2.2   0:00.00 FinalizerDaemon com.android.inputmethod.latin
+ 2584 u0_a78       24   4 0.9G  87M  67M S  0.0   2.2   0:00.00 FinalizerWatchd com.android.inputmethod.latin
+ 2579 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 Signal Catcher  com.android.inputmethod.latin
+ 2580 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 ADB-JDWP Connec com.android.inputmethod.latin
+ 2574 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.00 Jit thread pool com.android.inputmethod.latin
+ 2568 u0_a78       10 -10 0.9G  87M  67M S  0.0   2.2   0:00.31 putmethod.latin com.android.inputmethod.latin
+ 2567 radio        30  10 1.0G  87M  66M S  0.0   2.2   0:00.00 android.bg      com.android.phone
+ 2565 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 ConnectivityThr com.android.phone
+ 2549 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 DcHandlerThread com.android.phone
+ 2531 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 ConnectionSvrFo system_server
+ 2528 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 CallAudioModeSt system_server
+ 2527 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 CdmaServiceCate com.android.phone
+ 2526 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 CdmaInboundSmsH com.android.phone
+ 2523 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 CellBroadcastHa com.android.phone
+ 2521 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 GsmInboundSmsHa com.android.phone
+ 2522 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 uteStateMachine system_server
+ 2519 radio        20   0 1.0G  87M  66M S  0.0   2.2   0:00.00 GsmCellBroadcas com.android.phone
+ 2509 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 AudioPortEventH system_server
+ 2507 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 BluetoothRouteM system_server
+ 2501 wifi         20   0  16M 8.8M 7.9M S  0.0   0.2   0:00.47 wpa_supplicant  wpa_supplicant
+ 2494 radio        18  -2 1.0G  87M  66M S  0.0   2.2   0:00.00 queued-work-loo com.android.phone
+ 2495 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.05 ImageWallpaper  com.android.systemui
+ 2487 u0_a71       18  -2 1.0G 105M  82M S  0.0   2.7   0:00.00 queued-work-loo com.android.systemui
+ 2473 u0_a71       30  10 1.0G 105M  82M S  0.0   2.7   0:00.05 SysUiBg         com.android.systemui
+ 2470 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.02 pool-2-thread-1 com.android.systemui
+ 2466 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:03.36 Binder:2058_7   system_server
+ 2465 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.22 Binder:2058_6   system_server
+ 2462 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.33 Binder:2058_5   system_server
+ 2461 u0_a71       20   0 1.0G 105M  82M S  0.0   2.7   0:00.00 ScreenDecoratio com.android.systemui
+ 2453 radio        29   9 1.0G  87M  66M S  0.0   2.2   0:00.00 Profile Saver   com.android.phone
+ 2444 mediacodec   20   0  75M  14M  12M S  0.0   0.3   0:00.57 HwBinder:1876_4 media.codec
+ 2422 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.43 Binder:2404_2   com.android.phone
+ 2418 radio        24   4 1.0G  87M  66M S  0.0   2.2   0:00.00 ReferenceQueueD com.android.phone
+ 2417 radio        24   4 1.0G  87M  66M S  0.0   2.2   0:00.12 HeapTaskDaemon  com.android.phone
+ 2416 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.00 ADB-JDWP Connec com.android.phone
+ 2421 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.72 Binder:2404_1   com.android.phone
+ 2420 radio        24   4 1.0G  87M  66M S  0.0   2.2   0:00.00 FinalizerWatchd com.android.phone
+ 2419 radio        24   4 1.0G  87M  66M S  0.0   2.2   0:00.00 FinalizerDaemon com.android.phone
+ 2405 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.00 Jit thread pool com.android.phone
+ 2414 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:00.00 Signal Catcher  com.android.phone
+ 2404 radio        10 -10 1.0G  87M  66M S  0.0   2.2   0:01.01 m.android.phone com.android.phone
+ 2394 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ssv6xxx_scan_wq [ssv6xxx_scan_wq]
+ 2393 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ssv6xxx_tx_done [ssv6xxx_tx_done]
+ 2392 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ssv6xxx_house_k [ssv6xxx_house_k]
+ 2390 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ssv6xxx_cong_wq [ssv6xxx_cong_wq]
+ 2395 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.01 NetworkTimeUpda system_server
+ 2389 root         20   0    0    0    0 S  0.0   0.0   0:14.00 ssv6xxx_hci_tx_ [ssv6xxx_hci_tx_]
+ 2388 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ssv6xxx_hci_wq  [ssv6xxx_hci_wq]
+ 2363 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ssv6xxx_sdio_wq [ssv6xxx_sdio_wq]
+ 2323 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 Binder:1766_5   netd
+ 2309 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 NetworkStatsObs system_server
+ 2307 mediaex      20   0  32M  17M  14M S  0.0   0.4   0:00.00 Binder:1862_2   media.extractor
+ 2298 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 SoundPool       system_server
+ 2299 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.22 SoundPoolThread system_server
+ 2297 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 Thread-10       system_server
+ 2296 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 UsbService host system_server
+ 2295 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.49 SyncManager     system_server
+ 2294 u0_a71       29   9 1.0G 105M  82M S  0.0   2.7   0:00.01 Profile Saver   com.android.systemui
+ 2293 system       20   0  91M  32M  23M S  0.0   0.8   0:00.50 Binder:1790_4   surfaceflinger
+ 2291 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.01 Binder:2270_3   com.android.systemui
+ 2292 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.06 Binder:2270_4   com.android.systemui
+ 2290 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.02 Binder:2270_2   com.android.systemui
+ 2289 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.00 Binder:2270_1   com.android.systemui
+ 2284 u0_a71       24   4 1.0G 105M  82M S  0.0   2.7   0:00.11 HeapTaskDaemon  com.android.systemui
+ 2282 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.00 Signal Catcher  com.android.systemui
+ 2283 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.00 ADB-JDWP Connec com.android.systemui
+ 2288 u0_a71       24   4 1.0G 105M  82M S  0.0   2.7   0:00.00 FinalizerWatchd com.android.systemui
+ 2286 u0_a71       24   4 1.0G 105M  82M S  0.0   2.7   0:00.00 FinalizerDaemon com.android.systemui
+ 2285 u0_a71       24   4 1.0G 105M  82M S  0.0   2.7   0:00.00 ReferenceQueueD com.android.systemui
+ 2287 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 PhotonicModulat system_server
+ 2277 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:00.24 Jit thread pool com.android.systemui
+ 2276 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 OsuServerHandle system_server
+ 2270 u0_a71       10 -10 1.0G 105M  82M S  0.0   2.7   0:01.30 ndroid.systemui com.android.systemui
+ 2269 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.02 TaskSnapshotPer system_server
+ 2233 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.03 PppoeServiceThr system_server
+ 2232 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.05 EthernetService system_server
+ 2231 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 RedirectListene system_server
+ 2230 wifi         20   0  14M 6.0M 5.2M S  0.0   0.1   0:01.52 wifi@1.0-servic android.hardware.wifi@1.0-service-lazy
+ 2227 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 SyncHandler-0   system_server
+ 2226 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 StatsCompanionS system_server
+ 2225 system       16  -4 1.4G 215M 174M S  0.0   5.6   0:00.00 CameraService_p system_server
+ 2224 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.00 SliceManagerSer system_server
+ 2223 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 Hdmi Control Io system_server
+ 2222 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.01 GraphicsStats-d system_server
+ 2221 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.11 backup          system_server
+ 2219 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 ConnectivityThr system_server
+ 2218 system       20   0  12M 3.9M 3.3M S  0.0   0.1   0:00.00 usb@1.0-service android.hardware.usb@1.0-service
+ 2217 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.04 HwBinder:2058_3 system_server
+ 2216 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 HwBinder:2058_2 system_server
+ 2213 media        20   0  83M  28M  24M S  0.0   0.7   0:00.00 Binder:1865_2   mediaserver
+ 2214 media        20   0  83M  28M  24M S  0.0   0.7   0:00.36 Binder:1865_3   mediaserver
+ 2208 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.06 HwBinder:1884_2 media.swcodec
+ 2207 mediacodec   16  -4  48M  15M  12M S  0.0   0.3   0:00.00 HwBinder:1884_1 media.swcodec
+ 2206 media        16  -4  83M  28M  24M S  0.0   0.7   0:00.00 HwBinder:1865_1 mediaserver
+ 2201 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 AudioDeviceBrok system_server
+ 2200 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.01 AudioService    system_server
+ 2199 audioserver   1 -19  48M  20M  17M S  0.0   0.5   0:00.00 TimeCheckThread audioserver
+ 2198 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.06 DeviceStorageMo system_server
+ 2197 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.05 onProviders.ECP system_server
+ 2196 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.24 ranker          system_server
+ 2195 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.03 notification-sq system_server
+ 2194 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 mDnsConnector   system_server
+ 2193 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 NsdService      system_server
+ 2192 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 roid.pacmanager system_server
+ 2191 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.53 ConnectivitySer system_server
+ 2190 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.42 WifiScanningSer system_server
+ 2189 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.07 WifiP2pService  system_server
+ 2187 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.13 WifiService     system_server
+ 2186 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.05 tworkPolicy.uid system_server
+ 2185 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.05 NetworkPolicy   system_server
+ 2184 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.04 NetworkStats    system_server
+ 2182 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.01 StorageManagerS system_server
+ 2181 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.06 NetworkWatchlis system_server
+ 2177 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 UEventObserver  system_server
+ 2179 system       12  -8 1.4G 215M 174M S  0.0   5.6   0:00.24 InputReader     system_server
+ 2178 system       12  -8 1.4G 215M 174M S  0.0   5.6   0:00.25 InputDispatcher system_server
+ 2174 system       20   0 1.4G 215M 174M S  0.0   5.6   0:02.09 AlarmManager    system_server
+ 2173 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.03 SettingsProvide system_server
+ 2172 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.00 AccountManagerS system_server
+ 2170 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.05 RollbackManager system_server
+ 2171 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 RollbackPackage system_server
+ 2165 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 HealthServiceRe system_server
+ 2162 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.02 Binder:1853_1   cameraserver
+ 2163 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.00 Binder:1853_2   cameraserver
+ 2164 audioserver   1 -19  48M  20M  17M S  0.0   0.5   0:00.00 soundTrigger cb audioserver
+ 2159 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.06 Binder:1786_3   audioserver
+ 2158 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.51 Binder:2058_4   system_server
+ 2157 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:02.44 Binder:2058_3   system_server
+ 2156 root         20   0  17M 4.8M 3.9M S  0.0   0.1   0:01.19 Binder:1858_3   installd
+ 2155 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.15 PackageInstalle system_server
+ 2125 system       30  10 1.4G 215M 174M S  0.0   5.6   0:01.58 PackageManager  system_server
+ 2124 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.03 PackageManager  system_server
+ 2120 system       20   0  91M  32M  23M S  0.0   0.8   0:00.63 Binder:1790_3   surfaceflinger
+ 2119 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.00 BatteryStats_wa system_server
+ 2114 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.03 HwBinder:2058_1 system_server
+ 2113 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.07 bms             system_server
+ 2112 system       16  -4 1.4G 215M 174M S  0.0   5.6   0:00.62 PowerManagerSer system_server
+ 2111 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.01 Thread-6        system_server
+ 2110 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.54 CpuTracker      system_server
+ 2109 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.07 FileObserver    system_server
+ 2106 root         30  10  15M 4.5M 3.8M S  0.0   0.1   0:00.00 HwBinder:1872_1 storaged
+ 2104 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.08 batterystats-wo system_server
+ 2103 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:03.09 OomAdjuster     system_server
+ 2102 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.00 Thread-5        system_server
+ 2101 system       30  10 1.4G 215M 174M S  0.0   5.6   0:00.25 ActivityManager system_server
+ 2100 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.44 ActivityManager system_server
+ 2099 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:01.36 ActivityManager system_server
+ 2098 system       30  10 1.4G 215M 174M S  0.0   5.6   0:03.29 android.bg      system_server
+ 2091 system       16  -4 1.4G 215M 174M S  0.0   5.6   0:00.13 android.anim.lf system_server
+ 2092 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.09 watchdog        system_server
+ 2090 system       16  -4 1.4G 215M 174M S  0.0   5.6   0:01.27 android.anim    system_server
+ 2087 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:00.88 android.ui      system_server
+ 2089 system       17  -3 1.4G 215M 174M S  0.0   5.6   0:01.14 android.display system_server
+ 2086 system       20   0 1.4G 215M 174M S  0.0   5.6   0:00.52 android.fg      system_server
+ 2080 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:02.30 Binder:2058_2   system_server
+ 2079 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:01.06 Binder:2058_1   system_server
+ 2068 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.00 Runtime worker  system_server
+ 2074 system       24   4 1.4G 215M 174M S  0.0   5.6   0:06.72 HeapTaskDaemon  system_server
+ 2075 system       24   4 1.4G 215M 174M S  0.0   5.6   0:00.12 ReferenceQueueD system_server
+ 2076 system       24   4 1.4G 215M 174M S  0.0   5.6   0:00.48 FinalizerDaemon system_server
+ 2077 system       24   4 1.4G 215M 174M S  0.0   5.6   0:00.00 FinalizerWatchd system_server
+ 2067 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:02.36 Jit thread pool system_server
+ 2069 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.00 Runtime worker  system_server
+ 2070 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.00 Runtime worker  system_server
+ 2071 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.00 Runtime worker  system_server
+ 2072 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.00 Signal Catcher  system_server
+ 2073 system       10 -10 1.4G 215M 174M S  0.0   5.6   0:00.00 ADB-JDWP Connec system_server
+ 2058 system       18  -2 1.4G 215M 174M S  0.0   5.6   0:08.45 system_server   system_server
+ 2042 system       18  -2 907M  57M  42M S  0.0   1.5   0:00.11 bms             app_process
+ 2040 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 HwBinder:1847_1 app_process
+ 2038 system       20   0 907M  57M  42M S  0.0   1.5   0:00.01 Binder:1849_2   app_process
+ 2037 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Binder:1847_2   app_process
+ 2035 system       20   0 907M  57M  42M S  0.0   1.5   0:00.01 Binder:1849_1   app_process
+ 2036 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Binder:1847_1   app_process
+ 2019 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 FinalizerDaemon app_process
+ 2020 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 FinalizerWatchd app_process
+ 2011 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 FinalizerWatchd app_process
+ 2015 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Runtime worker  app_process
+ 2018 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 ReferenceQueueD app_process
+ 2017 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 HeapTaskDaemon  app_process
+ 2012 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Runtime worker  app_process
+ 2016 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Signal Catcher  app_process
+ 2013 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Runtime worker  app_process
+ 2014 system       20   0 906M  53M  38M S  0.0   1.3   0:00.00 Runtime worker  app_process
+ 2006 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 Signal Catcher  app_process
+ 2002 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 Runtime worker  app_process
+ 2009 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 ReferenceQueueD app_process
+ 2010 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 FinalizerDaemon app_process
+ 2003 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 Runtime worker  app_process
+ 2004 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 Runtime worker  app_process
+ 2005 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 Runtime worker  app_process
+ 2008 system       20   0 907M  57M  42M S  0.0   1.5   0:00.00 HeapTaskDaemon  app_process
+ 1996 system       29   9 907M  57M  42M S  0.0   1.5   0:00.00 Jit thread pool app_process
+ 1997 system       29   9 906M  53M  38M S  0.0   1.3   0:00.00 Jit thread pool app_process
+ 1989 media        20   0  83M  28M  24M S  0.0   0.7   0:00.00 Binder:1865_1   mediaserver
+ 1979 system       12  -8  39M 8.7M 7.1M S  0.0   0.2   0:01.03 HwBinder:1778_2 android.hardware.graphics.composer@2.2-service
+ 1972 system       20   0  91M  32M  23M S  0.0   0.8   0:00.93 HwBinder:1790_1 surfaceflinger
+ 1970 root         20   0  39M  16M  13M S  0.0   0.4   0:00.00 Binder:1866_1   multi_ir
+ 1968 mediaex      20   0  32M  17M  14M S  0.0   0.4   0:00.06 Binder:1862_1   media.extractor
+ 1966 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.00 mali-utility-wo surfaceflinger
+ 1963 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.11 mali-mem-purge  surfaceflinger
+ 1967 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.00 mali-utility-wo surfaceflinger
+ 1965 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.00 mali-utility-wo surfaceflinger
+ 1964 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.00 mali-utility-wo surfaceflinger
+ 1969 system       RT  -8  91M  32M  23M S  0.0   0.8   0:00.03 mali-cmar-backe surfaceflinger
+ 1962 root         20   0  39M  16M  13M S  0.0   0.4   0:00.00 multi_ir        multi_ir
+ 1961 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kbase_event     [kbase_event]
+ 1959 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.05 Binder:1786_2   audioserver
+ 1958 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.00 Binder:1786_1   audioserver
+ 1957 root         30  10  15M 4.5M 3.8M S  0.0   0.1   0:00.00 Binder:1872_1   storaged
+ 1956 root         30  10  15M 4.5M 3.8M S  0.0   0.1   0:00.05 storaged        storaged
+ 1952 audioserver   4 -16  48M  20M  17M S  0.0   0.5   0:00.00 ApmAudio        audioserver
+ 1953 audioserver   4 -16  48M  20M  17M S  0.0   0.5   0:00.00 ApmOutput       audioserver
+ 1951 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.00 HwBinder:1786_2 audioserver
+ 1949 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.00 HwBinder:1786_1 audioserver
+ 1948 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.00 HwBinder:1853_2 cameraserver
+ 1947 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.00 HwBinder:1853_1 cameraserver
+ 1946 root         20   0  38M  16M  13M S  0.0   0.4   0:00.00 Binder:1859_1   isomountservice
+ 1945 root         20   0  38M  16M  14M S  0.0   0.4   0:00.00 Binder:1873_1   systemmixservice
+ 1944 root         20   0  38M  16M  13M S  0.0   0.4   0:00.00 Binder:1855_1   gpioservice
+ 1943 mediacodec   20   0  75M  14M  12M S  0.0   0.3   0:00.15 HwBinder:1876_2 media.codec
+ 1941 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.11 HwBinder:1884_1 media.swcodec
+ 1940 media        20   0  22M  10M 8.8M S  0.0   0.2   0:00.00 Binder:1863_1   media.metrics
+ 1939 mediacodec   20   0  75M  14M  12M S  0.0   0.3   0:00.00 Binder:1876_2   media.codec
+ 1938 mediacodec   20   0  75M  14M  12M S  0.0   0.3   0:00.00 Binder:1876_1   media.codec
+ 1937 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.03 Binder:1766_4   netd
+ 1936 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 HwBinder:1766_1 netd
+ 1934 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 Binder:1766_2   netd
+ 1931 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.11 netd            netd
+ 1935 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.17 Binder:1766_2   netd
+ 1933 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 Binder:1766_2   netd
+ 1932 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.08 Binder:1766_1   netd
+ 1927 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.01 netd            netd
+ 1926 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 netd            netd
+ 1930 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 NFLogListener   netd
+ 1929 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.00 netd            netd
+ 1924 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.02 surfaceflinger  surfaceflinger
+ 1925 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.13 surfaceflinger  surfaceflinger
+ 1922 system       -3  -8  91M  32M  23M S  0.0   0.8   0:00.28 app             surfaceflinger
+ 1921 system       12  -8  91M  32M  23M S  0.0   0.8   0:00.35 surfaceflinger  surfaceflinger
+ 1923 system       -3  -8  91M  32M  23M S  0.0   0.8   0:01.12 sf              surfaceflinger
+ 1915 drm          20   0  21M  10M 8.6M S  0.0   0.2   0:00.00 Binder:1854_1   drmserver
+ 1914 system       20   0  91M  32M  23M S  0.0   0.8   0:01.43 Binder:1790_1   surfaceflinger
+ 1906 media        20   0  13M 5.5M 4.7M S  0.0   0.1   0:00.00 Binder:1861_1   mediadrmserver
+ 1905 system       20   0  16M 7.5M 6.3M S  0.0   0.1   0:00.00 Binder:1856_1   idmap2d
+ 1904 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:01.97 SkDestroyListen netd
+ 1902 statsd       20   0  20M 5.5M 4.6M S  0.0   0.1   0:02.56 statsd.writer   statsd
+ 1900 statsd       20   0  20M 5.5M 4.6M S  0.0   0.1   0:00.00 HwBinder:1868_1 statsd
+ 1901 statsd       20   0  20M 5.5M 4.6M S  0.0   0.1   0:00.00 Binder:1868_3   statsd
+ 1898 statsd       20   0  20M 5.5M 4.6M S  0.0   0.1   0:00.00 Binder:1868_1   statsd
+ 1899 statsd       20   0  20M 5.5M 4.6M S  0.0   0.1   0:00.60 Binder:1868_2   statsd
+ 1896 keystore     20   0  15M 6.5M 5.6M S  0.0   0.1   0:00.00 HwBinder:1860_1 keystore
+ 1894 root         20   0 8.0M 2.5M 2.1M S  0.0   0.0   0:00.07 ip6tables-resto ip6tables-restore
+ 1893 root         20   0 8.0M 2.5M 2.1M S  0.0   0.0   0:00.07 iptables-restor iptables-restore
+ 1895 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.14 netd            netd
+ 1891 root         20   0  10M 3.5M 3.0M S  0.0   0.0   0:00.00 crda.uevent     crda.uevent
+ 1889 mdnsr        20   0 3.3M 1.2M 792K S  0.0   0.0   0:07.31 mdnsd           mdnsd
+ 1887 tombstoned   20   0 8.0M 2.4M 2.1M S  0.0   0.0   0:00.02 tombstoned      tombstoned
+ 1886 system       20   0  14M 5.1M 4.3M S  0.0   0.1   0:00.07 gatekeeperd     gatekeeperd
+ 1884 mediacodec   20   0  48M  15M  12M S  0.0   0.3   0:00.50 mediaswcodec    media.swcodec
+ 1882 root         20   0 8.6M 3.0M 2.5M S  0.0   0.0   0:00.10 dom2reg         dom2reg
+ 1881 incidentd    20   0  13M 4.3M 3.6M S  0.0   0.1   0:00.00 Binder:1857_3   incidentd
+ 1880 root         20   0  10M 3.5M 3.0M S  0.0   0.0   0:00.02 crda.uevent     crda.uevent
+ 1879 system       20   0  16M 6.7M 5.6M S  0.0   0.1   0:00.01 HwBinder:1777_1 android.hardware.graphics.allocator@2.0-service
+ 1876 mediacodec   20   0  75M  14M  12M S  0.0   0.3   0:00.36 omx@1.0-service media.codec
+ 1878 root         20   0  17M 4.8M 3.9M S  0.0   0.1   0:00.51 Binder:1858_1   installd
+ 1877 incidentd    20   0  13M 4.3M 3.6M S  0.0   0.1   0:00.00 Binder:1857_1   incidentd
+ 1875 wifi         20   0  12M 4.0M 3.4M S  0.0   0.1   0:01.30 wificond        wificond
+ 1873 root         20   0  38M  16M  14M S  0.0   0.4   0:00.48 systemmixservic systemmixservice
+ 1872 root         30  10  15M 4.5M 3.8M S  0.0   0.1   0:00.04 storaged        storaged
+ 1868 statsd       20   0  20M 5.5M 4.6M S  0.0   0.1   0:00.09 Binder:1868_2   statsd
+ 1866 root         20   0  39M  16M  13M S  0.0   0.4   0:00.52 multi_ir        multi_ir
+ 1865 media        20   0  83M  28M  24M S  0.0   0.7   0:01.27 mediaserver     mediaserver
+ 1863 media        20   0  22M  10M 8.8M S  0.0   0.2   0:00.23 mediametrics    media.metrics
+ 1862 mediaex      20   0  32M  17M  14M S  0.0   0.4   0:00.43 mediaextractor  media.extractor
+ 1861 media        20   0  13M 5.5M 4.7M S  0.0   0.1   0:00.08 mediadrmserver  mediadrmserver
+ 1860 keystore     20   0  15M 6.5M 5.6M S  0.0   0.1   0:00.77 keystore        keystore
+ 1859 root         20   0  38M  16M  13M S  0.0   0.4   0:00.47 isomountservice isomountservice
+ 1858 root         20   0  17M 4.8M 3.9M S  0.0   0.1   0:00.34 Binder:1858_2   installd
+ 1857 incidentd    20   0  13M 4.3M 3.6M S  0.0   0.1   0:00.05 Binder:1857_2   incidentd
+ 1856 system       20   0  16M 7.5M 6.3M S  0.0   0.1   0:00.14 Binder:1856_2   idmap2d
+ 1855 root         20   0  38M  16M  13M S  0.0   0.4   0:00.47 gpioservice     gpioservice
+ 1854 drm          20   0  21M  10M 8.6M S  0.0   0.2   0:00.21 drmserver       drmserver
+ 1853 cameraserver 20   0  34M  14M  12M S  0.0   0.3   0:00.48 cameraserver    cameraserver
+ 1850 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 psimon          [psimon]
+ 1851 system       20   0  13M 4.2M 3.5M S  0.0   0.1   0:00.00 HwBinder:1775_2 android.hardware.configstore@1.1-service
+ 1849 system       20   0 907M  57M  42M S  0.0   1.5   0:01.08 main            app_process
+ 1847 system       20   0 906M  53M  38M S  0.0   1.3   0:01.10 main            app_process
+ 1848 system       20   0  13M 4.2M 3.5M S  0.0   0.1   0:00.00 HwBinder:1775_1 android.hardware.configstore@1.1-service
+ 1842 system       20   0  39M 8.7M 7.1M S  0.0   0.2   0:00.00 composer@2.2-se android.hardware.graphics.composer@2.2-service
+ 1844 system       -3   0  39M 8.7M 7.1M S  0.0   0.2   0:00.00 HwBinder:1778_1 android.hardware.graphics.composer@2.2-service
+ 1843 system       20   0  39M 8.7M 7.1M S  0.0   0.2   0:00.00 MQ-Thread       android.hardware.graphics.composer@2.2-service
+ 1841 gpu_service  20   0  13M 4.9M 4.1M S  0.0   0.1   0:00.00 Binder:1787_1   gpuservice
+ 1840 system       20   0  12M 4.4M 3.7M S  0.0   0.1   0:01.84 EventThread     android.hardware.tv.cec@1.0-service
+ 1839 cameraserver 20   0  32M 8.0M 6.6M S  0.0   0.2   0:00.00 HwBinder:1773_2 android.hardware.camera.provider@2.4-service
+ 1838 cameraserver 20   0  32M 8.0M 6.6M S  0.0   0.2   0:00.00 HwBinder:1773_1 android.hardware.camera.provider@2.4-service
+ 1832 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraCaptureTh android.hardware.camera.provider@2.4-service
+ 1837 cameraserver 20   0  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraCommandTh android.hardware.camera.provider@2.4-service
+ 1836 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraSmartPict android.hardware.camera.provider@2.4-service
+ 1835 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraContinuou android.hardware.camera.provider@2.4-service
+ 1834 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraPictrueTh android.hardware.camera.provider@2.4-service
+ 1833 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraPreviewTh android.hardware.camera.provider@2.4-service
+ 1831 cameraserver 20   0  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraCommandTh android.hardware.camera.provider@2.4-service
+ 1830 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraSmartPict android.hardware.camera.provider@2.4-service
+ 1829 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraContinuou android.hardware.camera.provider@2.4-service
+ 1828 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraPictrueTh android.hardware.camera.provider@2.4-service
+ 1827 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraPreviewTh android.hardware.camera.provider@2.4-service
+ 1826 cameraserver 12  -8  32M 8.0M 6.6M S  0.0   0.2   0:00.00 CameraCaptureTh android.hardware.camera.provider@2.4-service
+ 1825 system       20   0  39M 8.7M 7.1M S  0.0   0.2   0:00.00 Binder:1778_2   android.hardware.graphics.composer@2.2-service
+ 1824 system       20   0  39M 8.7M 7.1M S  0.0   0.2   0:00.00 Binder:1778_1   android.hardware.graphics.composer@2.2-service
+ 1816 audioserver  20   0  25M  12M  10M S  0.0   0.3   0:00.00 audio@2.0-servi android.hardware.audio@2.0-service
+ 1807 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 f_mtp           [f_mtp]
+ 1801 root         20   0  10M 3.0M 2.5M S  0.0   0.0   0:00.00 tee_supplicant  tee_supplicant
+ 1798 audioserver  20   0  25M  12M  10M S  0.0   0.3   0:00.00 HwBinder:1771_1 android.hardware.audio@2.0-service
+ 1799 audioserver  20   0  25M  12M  10M S  0.0   0.3   0:00.03 HwBinder:1771_2 android.hardware.audio@2.0-service
+ 1797 audioserver  20   0  25M  12M  10M S  0.0   0.3   0:00.00 Binder:1771_2   android.hardware.audio@2.0-service
+ 1795 bluetooth    20   0  12M 4.0M 3.4M S  0.0   0.1   0:00.00 HwBinder:1772_1 android.hardware.bluetooth@1.0-service
+ 1796 audioserver  20   0  25M  12M  10M S  0.0   0.3   0:00.00 Binder:1771_1   android.hardware.audio@2.0-service
+ 1793 media        20   0  13M 4.8M 4.1M S  0.0   0.1   0:00.00 HwBinder:1774_1 android.hardware.cas@1.1-service
+ 1792 system       20   0  15M 5.3M 4.6M S  0.0   0.1   0:00.00 Binder:1770_2   android.system.suspend@1.0-service
+ 1791 system       20   0  15M 5.3M 4.6M S  0.0   0.1   0:00.00 Binder:1770_1   android.system.suspend@1.0-service
+ 1789 root         20   0 2.9M 368K 324K S  0.0   0.0   0:00.00 qw              qw
+ 1788 lmkd         -2   0 8.5M 2.6M 2.2M S  0.0   0.0   0:01.70 lmkd            lmkd
+ 1787 gpu_service  20   0  13M 4.9M 4.1M S  0.0   0.1   0:00.06 Binder:1787_2   gpuservice
+ 1786 audioserver  20   0  48M  20M  17M S  0.0   0.5   0:00.87 audioserver     audioserver
+ 1785 nobody       20   0  10M 3.1M 2.5M S  0.0   0.0   0:01.61 ashmemd         ashmemd
+ 1784 system       20   0  12M 3.9M 3.3M S  0.0   0.1   0:00.03 usb@1.0-service android.hardware.usb@1.0-service
+ 1783 system       20   0  12M 4.4M 3.7M S  0.0   0.1   0:00.05 cec@1.0-service android.hardware.tv.cec@1.0-service
+ 1782 system       20   0  11M 4.5M 3.8M S  0.0   0.1   0:00.05 sensors@2.0-ser android.hardware.sensors@2.0-service
+ 1781 system       20   0  11M 4.0M 3.4M S  0.0   0.1   0:00.11 power@1.0-servi android.hardware.power@1.0-service
+ 1780 system       20   0  11M 4.0M 3.4M S  0.0   0.1   0:00.55 memtrack@1.0-se android.hardware.memtrack@1.0-service
+ 1779 system       20   0  11M 4.0M 3.4M S  0.0   0.1   0:00.07 health@2.0-serv android.hardware.health@2.0-service
+ 1778 system       -3  -8  39M 8.7M 7.1M S  0.0   0.2   0:01.23 composer@2.2-se android.hardware.graphics.composer@2.2-service
+ 1777 system       20   0  16M 6.7M 5.6M S  0.0   0.1   0:00.23 allocator@2.0-s android.hardware.graphics.allocator@2.0-service
+ 1776 system       20   0  11M 3.9M 3.3M S  0.0   0.1   0:00.06 gatekeeper@1.0- android.hardware.gatekeeper@1.0-service
+ 1775 system       20   0  13M 4.2M 3.5M S  0.0   0.1   0:00.04 configstore@1.1 android.hardware.configstore@1.1-service
+ 1774 media        20   0  13M 4.8M 4.1M S  0.0   0.1   0:00.05 cas@1.1-service android.hardware.cas@1.1-service
+ 1773 cameraserver 20   0  32M 8.0M 6.6M S  0.0   0.2   0:00.15 provider@2.4-se android.hardware.camera.provider@2.4-service
+ 1772 bluetooth    20   0  12M 4.0M 3.4M S  0.0   0.1   0:00.04 bluetooth@1.0-s android.hardware.bluetooth@1.0-service
+ 1771 audioserver  20   0  25M  12M  10M S  0.0   0.3   0:00.21 audio@2.0-servi android.hardware.audio@2.0-service
+ 1770 system       20   0  15M 5.3M 4.6M S  0.0   0.1   0:00.25 suspend@1.0-ser android.system.suspend@1.0-service
+ 1769 system       20   0  12M 3.8M 3.2M S  0.0   0.1   0:00.04 allocator@1.0-s android.hidl.allocator@1.0-service
+ 1768 root          0 -20    0    0    0 S  0.0   0.0   0:00.21 kworker/0:1H    [kworker/0:1H]
+ 1766 root         20   0  30M 7.2M 6.0M S  0.0   0.1   0:00.17 Binder:1766_3   netd
+ 1765 root         20   0 1.1G 127M 107M S  0.0   3.3   0:06.08 main            zygote
+ 1764 root          0 -20    0    0    0 S  0.0   0.0   0:00.15 kworker/2:1H    [kworker/2:1H]
+ 1763 root          0 -20    0    0    0 S  0.0   0.0   0:00.14 kworker/1:1H    [kworker/1:1H]
+ 1751 root         20   0  15M 5.7M 5.0M S  0.0   0.1   0:00.00 Binder:1749_2   apexd
+ 1750 root         20   0  15M 5.7M 5.0M S  0.0   0.1   0:00.00 Binder:1749_1   apexd
+ 1749 root         20   0  15M 5.7M 5.0M S  0.0   0.1   0:00.12 apexd           apexd
+ 1735 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kbase_job_fault [kbase_job_fault]
+ 1734 root          0 -20    0    0    0 S  0.0   0.0   0:00.15 kworker/u9:1    [kworker/u9:1]
+ 1732 root         20   0    0    0    0 S  0.0   0.0   0:00.53 mali-simple-pow [mali-simple-pow]
+ 1729 root         20   0  10M 3.0M 2.5M S  0.0   0.0   0:00.02 tee_supplicant  tee_supplicant
+ 1728 nobody       20   0  12M 4.9M 4.2M S  0.0   0.1   0:00.05 keymaster@3.0-s android.hardware.keymaster@3.0-service
+ 1674 shell        20   0 7.6M 2.5M 2.0M S  0.0   0.0   0:00.00 sh              sh
+ 1671 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ext4-rsv-conver [ext4-rsv-conver]
+ 1670 root         20   0    0    0    0 S  0.0   0.0   0:00.00 jbd2/mmcblk0p7- [jbd2/mmcblk0p7-]
+ 1666 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ext4-rsv-conver [ext4-rsv-conver]
+ 1665 root         20   0    0    0    0 S  0.0   0.0   0:01.45 jbd2/mmcblk0p17 [jbd2/mmcblk0p17]
+ 1662 root         20   0  19M 5.8M 4.8M S  0.0   0.1   0:00.02 Binder:1648_3   vold
+ 1661 root         20   0  19M 5.8M 4.8M S  0.0   0.1   0:00.03 Binder:1648_2   vold
+ 1660 root         20   0  19M 5.8M 4.8M S  0.0   0.1   0:00.00 Binder:1648_1   vold
+ 1659 root         20   0  19M 5.8M 4.8M S  0.0   0.1   0:00.00 vold            vold
+ 1658 logd         30  10  18M 6.5M 2.3M S  0.0   0.1   0:00.07 logd.auditd     logd
+ 1657 root         20   0    0    0    0 S  0.0   0.0   0:00.00 kauditd         [kauditd]
+ 1655 logd         30  10  18M 6.5M 2.3M S  0.0   0.1   0:00.00 logd.control    logd
+ 1653 logd         30  10  18M 6.5M 2.3M S  0.0   0.1   0:00.00 logd.reader     logd
+ 1651 logd         30  10  18M 6.5M 2.3M S  0.0   0.1   0:00.32 logd.daemon     logd
+ 1648 root         20   0  19M 5.8M 4.8M S  0.0   0.1   0:00.14 Binder:1648_2   vold
+ 1646 system       20   0  10M 3.4M 2.8M S  0.0   0.0   0:00.02 vndservicemanag vndservicemanager
+ 1644 system       20   0 9.2M 3.2M 2.6M S  0.0   0.0   0:01.20 servicemanager  servicemanager
+ 1643 logd         30  10  18M 6.5M 2.3M S  0.0   0.1   0:00.04 logd            logd
+ 1251 root         20   0  12M 5.6M 4.5M S  0.0   0.1   0:00.90 ueventd         ueventd
+ 1249 root         20   0  12M 5.0M 4.2M S  0.0   0.1   0:00.06 init            init
+ 1248 root         20   0  12M 5.5M 4.4M S  0.0   0.1   0:00.62 init            init
+ 1247 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ext4-rsv-conver [ext4-rsv-conver]
+ 1245 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ext4-rsv-conver [ext4-rsv-conver]
+ 1243 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ext4-rsv-conver [ext4-rsv-conver]
+ 1240 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ext4-rsv-conver [ext4-rsv-conver]
+ 1239 root         20   0    0    0    0 S  0.0   0.0   0:00.00 jbd2/mmcblk0p11 [jbd2/mmcblk0p11]
+ 1236 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+ 1235 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kdmflush        [kdmflush]
+ 1229 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+ 1228 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kdmflush        [kdmflush]
+ 1222 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+ 1221 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kdmflush        [kdmflush]
+ 1217 root          0 -20    0    0    0 S  0.0   0.0   0:00.35 kworker/3:1H    [kworker/3:1H]
+ 1164 root         20   0    0    0    0 S  0.0   0.0   0:01.20 tve detect      [tve detect]
+ 1158 root         20   0    0    0    0 S  0.0   0.0   0:06.66 cec thread      [cec thread]
+ 1157 root         20   0    0    0    0 S  0.0   0.0   0:01.19 hdmi proc       [hdmi proc]
+ 1154 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 hdcp22_workqueu [hdcp22_workqueu]
+ 1136 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 ipv6_addrconf   [ipv6_addrconf]
+ 1116 root         20   0    0    0    0 S  0.0   0.0   0:00.92 kpktgend_3      [kpktgend_3]
+ 1115 root         20   0    0    0    0 S  0.0   0.0   0:00.91 kpktgend_2      [kpktgend_2]
+ 1114 root         20   0    0    0    0 S  0.0   0.0   0:00.92 kpktgend_1      [kpktgend_1]
+ 1113 root         20   0    0    0    0 S  0.0   0.0   0:01.05 kpktgend_0      [kpktgend_0]
+ 1083 root         20   0    0    0    0 S  0.0   0.0   0:13.29 kworker/u8:3    [kworker/u8:3]
+  956 root         -2   0    0    0    0 S  0.0   0.0   0:00.00 mmcqd/0rpmb     [mmcqd/0rpmb]
+  955 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  954 root         -2   0    0    0    0 S  0.0   0.0   0:00.00 mmcqd/0boot1    [mmcqd/0boot1]
+  953 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 irq/297-sunxi-m [irq/297-sunxi-m]
+  952 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 irq/257-sdc0 cd [irq/257-sdc0 cd]
+  951 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  950 root         -2   0    0    0    0 S  0.0   0.0   0:00.00 mmcqd/0boot0    [mmcqd/0boot0]
+  949 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  948 root         -2   0    0    0    0 S  0.0   0.0   0:09.68 mmcqd/0         [mmcqd/0]
+  947 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  944 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 irq/296-sunxi-m [irq/296-sunxi-m]
+  942 root         RT   0    0    0    0 S  0.0   0.0   0:05.17 irq/295-sunxi-m [irq/295-sunxi-m]
+  934 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 dm_bufio_cache  [dm_bufio_cache]
+  925 root         20   0    0    0    0 S  0.0   0.0   0:00.00 rc0             [rc0]
+  833 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 memory_wq       [memory_wq]
+  830 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  826 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  823 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  820 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  817 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  814 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  811 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  808 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  805 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  771 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  770 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  769 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  768 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  767 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  766 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  765 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  764 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  763 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  762 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  761 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  760 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  759 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  758 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  757 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  756 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  676 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 cifsoplockd     [cifsoplockd]
+  675 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 cifsiod         [cifsiod]
+  671 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 nfsiod          [nfsiod]
+  586 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 vmstat          [vmstat]
+  585 root         20   0    0    0    0 S  0.0   0.0   0:00.00 kswapd0         [kswapd0]
+  569 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 xprtiod         [xprtiod]
+  568 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 rpciod          [rpciod]
+  543 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 cfg80211        [cfg80211]
+  531 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 devfreq_wq      [devfreq_wq]
+  528 root         20   0    0    0    0 S  0.0   0.0   0:00.19 sys_user        [sys_user]
+  455 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kblockd         [kblockd]
+  453 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 bioset          [bioset]
+  452 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 crypto          [crypto]
+  451 root         20   0    0    0    0 S  0.0   0.0   0:00.00 kcompactd0      [kcompactd0]
+  449 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 writeback       [writeback]
+  448 root         20   0    0    0    0 S  0.0   0.0   0:00.00 oom_reaper      [oom_reaper]
+   34 root         20   0    0    0    0 S  0.0   0.0   0:10.57 kworker/u8:2    [kworker/u8:2]
+   29 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 netns           [netns]
+   28 root         20   0    0    0    0 S  0.0   0.0   0:00.00 kdevtmpfs       [kdevtmpfs]
+   27 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kworker/3:0H    [kworker/3:0H]
+   25 root         20   0    0    0    0 S  0.0   0.0   0:00.06 ksoftirqd/3     [ksoftirqd/3]
+   24 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 migration/3     [migration/3]
+   23 root         20   0    0    0    0 S  0.0   0.0   0:00.00 cpuhp/3         [cpuhp/3]
+   22 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kworker/2:0H    [kworker/2:0H]
+   20 root         20   0    0    0    0 S  0.0   0.0   0:00.07 ksoftirqd/2     [ksoftirqd/2]
+   19 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 migration/2     [migration/2]
+   18 root         20   0    0    0    0 S  0.0   0.0   0:00.00 cpuhp/2         [cpuhp/2]
+   17 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kworker/1:0H    [kworker/1:0H]
+   15 root         20   0    0    0    0 S  0.0   0.0   0:00.07 ksoftirqd/1     [ksoftirqd/1]
+   14 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 migration/1     [migration/1]
+   13 root         20   0    0    0    0 S  0.0   0.0   0:00.00 cpuhp/1         [cpuhp/1]
+   12 root         20   0    0    0    0 S  0.0   0.0   0:00.00 cpuhp/0         [cpuhp/0]
+   11 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 lru-add-drain   [lru-add-drain]
+   10 root         RT   0    0    0    0 S  0.0   0.0   0:00.00 migration/0     [migration/0]
+    9 root         20   0    0    0    0 S  0.0   0.0   0:00.00 rcu_bh          [rcu_bh]
+    8 root         20   0    0    0    0 S  0.0   0.0   0:00.46 rcu_sched       [rcu_sched]
+    7 root         20   0    0    0    0 S  0.0   0.0   0:04.87 rcu_preempt     [rcu_preempt]
+    6 root         20   0    0    0    0 S  0.0   0.0   0:00.09 ksoftirqd/0     [ksoftirqd/0]
+    4 root          0 -20    0    0    0 S  0.0   0.0   0:00.00 kworker/0:0H    [kworker/0:0H]
+    2 root         20   0    0    0    0 S  0.0   0.0   0:00.01 kthreadd        [kthreadd]
+    1 root         20   0  27M 6.7M 5.1M S  0.0   0.1   0:02.19 init            init

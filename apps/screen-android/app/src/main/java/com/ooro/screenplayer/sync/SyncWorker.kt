@@ -4,11 +4,15 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ooro.screenplayer.api.ApiProvider
+import com.ooro.screenplayer.api.DeviceApi
+import com.ooro.screenplayer.model.DeviceCredentials
 import com.ooro.screenplayer.BuildConfig
 import com.ooro.screenplayer.data.DeviceStore
 import com.ooro.screenplayer.model.PlayerStatus
 import com.ooro.screenplayer.data.OoroDatabase
+import com.ooro.screenplayer.data.ProofEntity
 import com.ooro.screenplayer.model.ProofOfPlay
+import com.ooro.screenplayer.acknowledgedProofEventIds
 import org.json.JSONObject
 import java.time.Instant
 import android.util.Log
@@ -20,6 +24,14 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
+/** Test seam for exercising the production worker with isolated Room and fake API dependencies. */
+internal object SyncWorkerDependencies {
+    var credentials: ((Context) -> DeviceCredentials?)? = null
+    var database: ((Context) -> OoroDatabase)? = null
+    var api: ((Context, DeviceStore) -> DeviceApi)? = null
+    fun reset() { credentials = null; database = null; api = null }
+}
 
 object ProofSyncScheduler {
     private const val WORK_NAME = "ooro-proof-sync-v4"
@@ -45,53 +57,76 @@ object ProofSyncScheduler {
 }
 
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    companion object {
+        const val SCHEDULED_HEARTBEAT = "scheduledHeartbeat"
+        private val workerMutex = Mutex()
+        internal const val MAX_STALE_PROOF_BATCHES_PER_RUN = 5
+    }
+
     override suspend fun doWork(): Result = workerMutex.withLock { doWorkLocked() }
 
     private suspend fun doWorkLocked(): Result {
+        com.ooro.screenplayer.RuntimeDiagnostics.increment(com.ooro.screenplayer.RuntimeDiagnostics.Counter.WORKER_RUN)
         val attempt = runAttemptCount
         Log.i("OoroScreen", "proof worker started attempt=$attempt")
         val store = DeviceStore(applicationContext)
-        val credentials = store.credentials() ?: run {
+        val credentials = (SyncWorkerDependencies.credentials?.invoke(applicationContext) ?: store.credentials()) ?: run {
             Log.w("OoroScreen", "proof worker skipped credentials unavailable attempt=$attempt")
             return Result.success()
         }
-        val db = OoroDatabase.get(applicationContext)
+        val db = SyncWorkerDependencies.database?.invoke(applicationContext) ?: OoroDatabase.get(applicationContext)
         return try {
-            val api = ApiProvider(store).api
+            val api = SyncWorkerDependencies.api?.invoke(applicationContext, store) ?: ApiProvider(store).api
+            val pendingCount = db.proofDao().pendingCount()
+            if (!shouldRunWorkerNetworkCheck(inputData.getBoolean(SCHEDULED_HEARTBEAT, false), pendingCount)) {
+                Log.i("OoroScreen", "proof worker skipped empty queue periodic=false")
+                return Result.success()
+            }
             Log.i("OoroScreen", "proof worker heartbeat sending attempt=$attempt")
             api.heartbeat(credentials, PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, com.ooro.screenplayer.model.HeartbeatTelemetry(LocationReporter(applicationContext).latest()))
             Log.i("OoroScreen", "proof worker heartbeat accepted attempt=$attempt")
             CommandProcessor(applicationContext, api, store).poll()
-            val pendingCount = db.proofDao().pendingCount()
             Log.i("OoroScreen", "proof worker pending count=$pendingCount attempt=$attempt")
             if (pendingCount == 0) {
                 Log.i("OoroScreen", "proof worker completed no pending proofs attempt=$attempt")
                 return Result.success()
             }
-            val rows = db.proofDao().pending(50)
-            val staleRows = rows.filter { row ->
-                val payload = JSONObject(row.payload)
-                payload.optString("screenId") != credentials.screenId || payload.optString("deviceId") != credentials.deviceId
+            var rows = db.proofDao().pending(50)
+            var uploadRows: List<ProofEntity> = emptyList()
+            var staleCount = 0
+            var staleBatches = 0
+            while (rows.isNotEmpty() && uploadRows.isEmpty()) {
+                val batch = classifyProofRows(rows, credentials.screenId, credentials.deviceId)
+                val staleRows = batch.staleRows
+                if (staleRows.isNotEmpty()) {
+                    staleBatches++
+                    staleCount += staleRows.size
+                    db.proofDao().delete(staleRows.map { it.eventId })
+                    Log.w("OoroScreen", "proof worker quarantined stale rows=${staleRows.size} expectedScreen=${credentials.screenId} expectedDevice=${credentials.deviceId}")
+                }
+                uploadRows = batch.uploadRows
+                if (uploadRows.isEmpty()) {
+                    val remaining = db.proofDao().pendingCount()
+                    rows = if (shouldContinueStaleProofScan(uploadRows.size, remaining, staleBatches, MAX_STALE_PROOF_BATCHES_PER_RUN)) {
+                        db.proofDao().pending(50)
+                    } else emptyList()
+                }
             }
-            if (staleRows.isNotEmpty()) {
-                db.proofDao().delete(staleRows.map { it.eventId })
-                Log.w("OoroScreen", "proof worker quarantined stale rows=${staleRows.size} expectedScreen=${credentials.screenId} expectedDevice=${credentials.deviceId}")
-            }
-            val uploadRows = rows.filterNot { staleRows.any { stale -> stale.eventId == it.eventId } }
             if (uploadRows.isEmpty()) {
-                Log.i("OoroScreen", "proof worker batch contained only stale rows; continuing")
-                return doWorkLocked()
+                val remaining = db.proofDao().pendingCount()
+                Log.i("OoroScreen", "proof worker stale scan finished batches=$staleBatches quarantined=$staleCount remaining=$remaining limitReached=${staleBatches >= MAX_STALE_PROOF_BATCHES_PER_RUN}")
+                return Result.success()
             }
-            Log.i("OoroScreen", "proof worker selected rows=${uploadRows.size} stale=${staleRows.size} attempt=$attempt")
+            Log.i("OoroScreen", "proof worker selected rows=${uploadRows.size} stale=$staleCount attempt=$attempt")
             val events = uploadRows.map { row ->
                 val j = JSONObject(row.payload)
-                ProofOfPlay(eventId = row.eventId, screenId = j.getString("screenId"), deviceId = j.getString("deviceId"), campaignId = j.getString("campaignId"), creativeId = j.getString("creativeId"), scheduleItemId = j.getString("scheduleItemId"), startedAt = Instant.parse(j.getString("startedAt")), endedAt = Instant.parse(j.getString("endedAt")), expectedDurationMs = j.optLong("expectedDurationMs"), actualPlayedMs = j.optLong("actualPlayedMs"), success = j.getBoolean("success"), failureReason = j.optString("failureReason").takeIf { it.isNotBlank() }, appVersion = j.getString("appVersion"), assetId = j.optString("assetId").takeIf { it.isNotBlank() })
+                ProofOfPlay(eventId = row.eventId, screenId = j.getString("screenId"), deviceId = j.getString("deviceId"), campaignId = j.getString("campaignId"), creativeId = j.getString("creativeId"), scheduleItemId = j.getString("scheduleItemId"), startedAt = Instant.parse(j.getString("startedAt")), endedAt = Instant.parse(j.getString("endedAt")), expectedDurationMs = j.optLong("expectedDurationMs"), actualPlayedMs = j.optLong("actualPlayedMs"), success = j.getBoolean("success"), failureReason = j.optString("failureReason").takeIf { it.isNotBlank() }, appVersion = j.getString("appVersion"), assetId = j.optString("assetId").takeIf { it.isNotBlank() }, slot = j.optString("slot", "MAIN"))
             }
             Log.i("OoroScreen", "proof upload starting batch=${events.size} attempt=$attempt")
             val upload = api.uploadProof(credentials, events)
             Log.i("OoroScreen", "proof upload acknowledged accepted=${upload.accepted} batch=${events.size} attempt=$attempt")
             val selectedIds = uploadRows.map { it.eventId }.toSet()
-            val acknowledgedIds = upload.acceptedEventIds.intersect(selectedIds)
+            val acknowledgedIds = acknowledgedProofEventIds(selectedIds, upload.acceptedEventIds)
             if (acknowledgedIds.isEmpty() && upload.accepted > 0) {
                 Log.w("OoroScreen", "proof upload acknowledgment missing event IDs accepted=${upload.accepted} selected=${events.size}; retaining local rows")
             }
@@ -99,7 +134,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 db.proofDao().delete(acknowledgedIds.toList())
             }
             Log.i("OoroScreen", "proof local acknowledgment deleted=${acknowledgedIds.size} remaining=${db.proofDao().pendingCount()} attempt=$attempt")
-            if (acknowledgedIds.size < events.size) {
+            if (shouldRetryProofBatch(events.size, acknowledgedIds.size)) {
                 Log.w("OoroScreen", "proof upload partial acknowledgment accepted=${upload.accepted} acknowledged=${acknowledgedIds.size} selected=${events.size}; retaining unacknowledged rows")
                 return Result.retry()
             }
@@ -123,5 +158,23 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         }
     }
 
-    companion object { private val workerMutex = Mutex() }
 }
+
+internal fun shouldRunWorkerNetworkCheck(isScheduledHeartbeat: Boolean, pendingProofCount: Int): Boolean =
+    isScheduledHeartbeat || pendingProofCount > 0
+
+internal data class ProofBatchClassification(val uploadRows: List<ProofEntity>, val staleRows: List<ProofEntity>)
+
+internal fun classifyProofRows(rows: List<ProofEntity>, expectedScreenId: String, expectedDeviceId: String): ProofBatchClassification {
+    val (uploadRows, staleRows) = rows.partition { row ->
+        val payload = JSONObject(row.payload)
+        payload.optString("screenId") == expectedScreenId && payload.optString("deviceId") == expectedDeviceId
+    }
+    return ProofBatchClassification(uploadRows, staleRows)
+}
+
+internal fun shouldContinueStaleProofScan(uploadCount: Int, pendingCount: Int, scannedBatches: Int, maxBatches: Int): Boolean =
+    uploadCount == 0 && pendingCount > 0 && scannedBatches < maxBatches
+
+internal fun shouldRetryProofBatch(selectedCount: Int, acknowledgedCount: Int): Boolean =
+    acknowledgedCount < selectedCount

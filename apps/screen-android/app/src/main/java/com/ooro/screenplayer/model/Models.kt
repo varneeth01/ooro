@@ -4,6 +4,7 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
+import java.net.URI
 import java.util.UUID
 
 enum class PlayerStatus { UNPAIRED, SYNCING, READY, PLAYING, OFFLINE, DEGRADED, ERROR }
@@ -30,8 +31,19 @@ data class OfferMetadata(
     val scanCountDisplayEnabled: Boolean = false,
     val accentColor: String? = null
 ) {
-    val validQrUrl: String? get() = (qrUrl ?: ctaUrl)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+    /** Accept only navigable web destinations. Server-side offer authorization remains authoritative. */
+    val validQrUrl: String? get() = sequenceOf(qrUrl, ctaUrl).mapNotNull(::normalizedWebUrl).firstOrNull()
     val hasOffer: Boolean get() = listOf(brandName, offerTitle, offerValue, offerSubtitle, ctaLabel).any { !it.isNullOrBlank() }
+}
+
+private fun normalizedWebUrl(value: String?): String? {
+    val candidate = value?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    return runCatching {
+        val uri = URI(candidate)
+        candidate.takeIf {
+            uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true)
+        }?.takeIf { !uri.host.isNullOrBlank() && uri.userInfo == null }
+    }.getOrNull()
 }
 
 data class DeviceCredentials(val deviceId: String, val screenId: String, val workspaceId: String, val token: String, val name: String)
@@ -60,8 +72,8 @@ data class LayoutConfig(val primaryWidthPercent: Int = 67, val adHeightPercent: 
 }
 data class NewsAnnouncement(val id: String, val text: String, val priority: Int = 0)
 data class NewsConfig(val scrollSpeed: Int = 42, val announcements: List<NewsAnnouncement> = emptyList())
-data class DeviceManifest(val version: Long, val screenId: String, val timezone: String, val items: List<ManifestItem>, val validUntil: Instant?, val layout: DisplayLayout = DisplayLayout.FULLSCREEN_AD, val layoutConfig: LayoutConfig = LayoutConfig(), val news: NewsConfig = NewsConfig())
-data class ProofOfPlay(val eventId: String = UUID.randomUUID().toString(), val screenId: String, val deviceId: String, val campaignId: String, val creativeId: String, val scheduleItemId: String, val startedAt: Instant, val endedAt: Instant, val expectedDurationMs: Long = 0, val actualPlayedMs: Long = 0, val success: Boolean = true, val failureReason: String? = null, val appVersion: String, val assetId: String? = null)
+data class DeviceManifest(val version: Long, val screenId: String, val timezone: String, val items: List<ManifestItem>, val validUntil: Instant?, val layout: DisplayLayout = DisplayLayout.FULLSCREEN_AD, val layoutConfig: LayoutConfig = LayoutConfig(), val news: NewsConfig = NewsConfig(), val layoutContractVersion: Int = 1, val sponsoredItem: ManifestItem? = null)
+data class ProofOfPlay(val eventId: String = UUID.randomUUID().toString(), val screenId: String, val deviceId: String, val campaignId: String, val creativeId: String, val scheduleItemId: String, val startedAt: Instant, val endedAt: Instant, val expectedDurationMs: Long = 0, val actualPlayedMs: Long = 0, val success: Boolean = true, val failureReason: String? = null, val appVersion: String, val assetId: String? = null, val slot: String = "MAIN")
 
 data class PlaybackSession(val eventId: String, val itemId: String, val campaignId: String, val creativeId: String, val assetId: String?, val startedAt: Instant, val expectedDurationMs: Long)
 data class HeartbeatTelemetry(val location: com.ooro.screenplayer.location.LocationSnapshot? = null, val campaignId: String? = null, val creativeId: String? = null, val assetId: String? = null, val playbackState: String? = null, val playbackStartedAt: Instant? = null, val playbackPositionMs: Long? = null, val expectedDurationMs: Long? = null)
