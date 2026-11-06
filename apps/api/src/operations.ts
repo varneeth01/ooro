@@ -52,6 +52,6 @@ export function registerOperations(app: FastifyInstance) {
  })
  app.get('/api/admin/audit-log',async(request,reply)=>{
   await requirePermission(request,'operations:write');const q=z.object({skip:z.coerce.number().int().min(0).max(100000).default(0),entityId:z.string().optional()}).parse(request.query)
-  return reply.send(response(request,await prisma.auditLog.findMany({where:{entityId:q.entityId},orderBy:{createdAt:'desc'},take:50,skip:q.skip})))
+  return reply.send(response(request,await prisma.auditLog.findMany({where:{entityId:q.entityId},select:{id:true,createdAt:true,action:true,entityType:true,entityId:true,actorRole:true},orderBy:{createdAt:'desc'},take:50,skip:q.skip})))
  })
 }
