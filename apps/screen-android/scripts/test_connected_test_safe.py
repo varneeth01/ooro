@@ -46,6 +46,12 @@ class ConnectedTestPreflightTests(unittest.TestCase):
         props = self.verify("List of devices attached\nemulator-5554 device product:sdk_gphone64_x86_64\n")
         self.assertEqual("ranchu", props["ro.hardware"])
 
+    def test_accepts_aosp_sdk_phone_avd_with_full_qemu_identity(self):
+        self.verify(
+            "List of devices attached\nemulator-5554 device product:sdk_phone64_x86_64\n",
+            {"ro.product.model": "Android SDK built for x86_64", "ro.product.name": "sdk_phone64_x86_64"},
+        )
+
     def test_rejects_physical_mbox_even_if_named_like_emulator(self):
         with self.assertRaises(MODULE.UnsafeTarget):
             self.verify("List of devices attached\nemulator-5554 device\n", {"ro.hardware": "sun50iw9p1"})

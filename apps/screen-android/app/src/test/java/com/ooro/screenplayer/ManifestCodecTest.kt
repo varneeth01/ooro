@@ -47,6 +47,17 @@ class ManifestCodecTest {
         assertEquals("sha256-value", restored.sponsoredItem?.checksum)
     }
 
+    @Test fun customLayoutContractRoundTripsAsPresentationMetadata() {
+        val contract = """{"contractVersion":1,"mode":"CUSTOM","target":{"width":1280,"height":720},"zones":[]}"""
+        val parsed = ManifestCodec.parse(payload.replace("\"items\":", "\"layoutStudioContract\":$contract,\"items\":"))
+        assertTrue(parsed.layoutStudioContract?.contains("\"mode\":\"CUSTOM\"") == true)
+        val restored = ManifestCodec.parse(ManifestCodec.encode(parsed))
+        assertTrue(restored.layoutStudioContract?.contains("\"contractVersion\":1") == true)
+        // Layout metadata remains a presentation field; creative and authorization data are unchanged.
+        assertEquals(parsed.items.map { it.id }, restored.items.map { it.id })
+        assertEquals(parsed.screenId, restored.screenId)
+    }
+
     @Test fun acceptsEmptyManifestAndMissingOptionalOfferMetadata() {
         val empty = ManifestCodec.parse("""{"version":0,"screenId":"screen-1","timezone":"UTC","items":[]}""")
         assertTrue(empty.items.isEmpty())

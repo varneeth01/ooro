@@ -50,6 +50,9 @@ export function validateLayoutDraft(input: unknown): { draft?: LayoutDraft; issu
   const draft = parsed.data
   const issues: LayoutIssue[] = []
   const ids = new Set<string>()
+  let videoZones = 0
+  let mainAdZones = 0
+  let sponsorZones = 0
   for (const zone of draft.zones) {
     if (ids.has(zone.id)) issues.push({ code: 'DUPLICATE_ZONE_ID', zoneId: zone.id, message: 'Zone IDs must be unique.' })
     ids.add(zone.id)
@@ -59,7 +62,13 @@ export function validateLayoutDraft(input: unknown): { draft?: LayoutDraft; issu
     }
     if (zone.fit === 'CENTER_CROP' && !['MAIN_AD', 'SPONSORED_AD', 'IMAGE', 'VIDEO', 'BACKGROUND_IMAGE'].includes(zone.type)) issues.push({ code: 'INVALID_FIT', zoneId: zone.id, message: 'Crop fitting is supported only for media zones.' })
     if (zone.contentBinding.kind !== 'NONE' && !zone.contentBinding.referenceId) issues.push({ code: 'BINDING_REFERENCE_REQUIRED', zoneId: zone.id, message: 'A bound content reference is required.' })
+    if (zone.type === 'VIDEO') videoZones += 1
+    if (zone.type === 'MAIN_AD') mainAdZones += 1
+    if (zone.type === 'SPONSORED_AD') sponsorZones += 1
   }
+  if (videoZones > 1) issues.push({ code: 'VIDEO_DECODER_BUDGET_EXCEEDED', message: 'Layouts may contain at most one active video zone.' })
+  if (mainAdZones > 1) issues.push({ code: 'MULTIPLE_MAIN_AD_ZONES', message: 'A layout may contain at most one primary campaign advertising zone.' })
+  if (sponsorZones > 1) issues.push({ code: 'MULTIPLE_SPONSOR_ZONES', message: 'A layout may contain at most one independently authorized sponsored slot.' })
   const overlayTypes = new Set(['TEXT', 'LOGO', 'CLOCK'])
   for (let left = 0; left < draft.zones.length; left += 1) for (let right = left + 1; right < draft.zones.length; right += 1) {
     const a = draft.zones[left], b = draft.zones[right]
@@ -79,14 +88,24 @@ export function validateLayoutDraft(input: unknown): { draft?: LayoutDraft; issu
 }
 
 export function standardPixelGeometry(width: number, height: number) {
-  const pixels = (fraction: number, extent: number) => Math.round(fraction * extent)
-  const adWidth = pixels(.8, width)
-  const adMainHeight = pixels(.85, height)
-  const sidebarQrHeight = pixels(.5, height)
+  const rect = (x: number, y: number, w: number, h: number) => normalizedPixelRect({ x, y, width: w, height: h }, width, height)
+  const main = rect(0, 0, .8, .85)
+  const sponsor = rect(0, .85, .8, .15)
+  const qr = rect(.8, 0, .2, .5)
+  const navigation = rect(.8, .5, .2, .5)
   return {
-    mainAd: { x: 0, y: 0, width: adWidth, height: adMainHeight },
-    sponsoredAd: { x: 0, y: adMainHeight, width: adWidth, height: height - adMainHeight },
-    qrOffer: { x: adWidth, y: 0, width: width - adWidth, height: sidebarQrHeight },
-    navigation: { x: adWidth, y: sidebarQrHeight, width: width - adWidth, height: height - sidebarQrHeight },
+    mainAd: main,
+    sponsoredAd: sponsor,
+    qrOffer: qr,
+    navigation,
   }
+}
+
+/** Uses edge rounding to match the Android renderer; adjacent zones share identical rounded boundaries. */
+export function normalizedPixelRect(geometry: { x: number; y: number; width: number; height: number }, screenWidth: number, screenHeight: number) {
+  const left = Math.round(geometry.x * screenWidth)
+  const top = Math.round(geometry.y * screenHeight)
+  const right = Math.round((geometry.x + geometry.width) * screenWidth)
+  const bottom = Math.round((geometry.y + geometry.height) * screenHeight)
+  return { x: left, y: top, width: right - left, height: bottom - top }
 }

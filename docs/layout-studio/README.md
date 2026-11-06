@@ -18,6 +18,18 @@ The editor persists schema version 1 with normalized zones, whitelisted widget t
 
 Approved creative references are checked for current approval, an active asset URL and the requested MAIN/SPONSORED slot relationship when saved/validated/published. That check is a reference-integrity check, not a grant of delivery authorization. Runtime campaign eligibility, manifest leases, checksums, schedules and proof attribution remain owned by the existing advertising pipeline.
 
+### Android interpretation and preview boundary
+
+The Screen Player now has a native Compose geometry host and a strict read-only parser for Custom contract version 1. It accepts the low-resource zone types `MAIN_AD`, `IMAGE`, `VIDEO`, `TEXT`, `LOGO`, `QR_OFFER`, `SPONSORED_AD` and `BACKGROUND_IMAGE`. `CLOCK`, `WEATHER`, `TICKER` and `NAVIGATION_MAP` are rejected unless the caller explicitly supplies the corresponding verified device capability. Unknown schema widget types fail closed. The Auto Lite guard permits at most one video zone, one main campaign slot and one independent sponsor slot. Zone edges are rounded from normalized edges (rather than independently rounded widths), clipped to the screen and clipped within each zone; each edge differs from its unrounded value by at most 0.5 physical pixel. The browser and native geometry implementations share this rule.
+
+The Compose host deliberately takes a content-rendering callback. This keeps media selection and campaign/proof authorization outside layout interpretation. The debug screenshot fixture supplies local synthetic zone content and has no API, playback proof or impression dependency. Custom manifests are not emitted or assigned to live displays, and the current host is not yet connected to production media-resolution adapters. Do not treat the synthetic preview as end-to-end media or advertising acceptance.
+
+Connected instrumentation must use `apps/screen-android/scripts/connected-test-safe.py` with one exact disposable AVD serial. It checks sole-device status and emulator boot/product properties before invoking Gradle. If a physical board or any ambiguous target is visible to that ADB server, the guard refuses to run; do not bypass it.
+
+### V2 verification status
+
+Disposable AOSP emulator screenshots are saved under `evidence/layout-studio-v2/`. Geometry assertions cover 1280×720 at runtime and shared rounding vectors cover 854×480 and 1920×1080. These x86 emulator results verify rendering geometry only; they are not ARMv7 performance evidence. Initial-frame timing, sustained frame latency, memory allocation, decoder counts and MapLibre lifecycle have not been benchmarked for Custom content. Capability certification and production content adapters remain release blockers.
+
 ## Database rollout
 
 Migration `20261106120000_layout_studio_v1` is additive. It creates template, revision and prepared-assignment persistence; it does not backfill rows, update displays, or assign layouts. Validate and test it against a disposable database, then deploy only after review and a restorable backup. Do not apply it to staging or production as part of this code change.
