@@ -53,6 +53,7 @@ export function validateLayoutDraft(input: unknown): { draft?: LayoutDraft; issu
   let videoZones = 0
   let mainAdZones = 0
   let sponsorZones = 0
+  const boundedWidgetZones = new Map<string, number>()
   for (const zone of draft.zones) {
     if (ids.has(zone.id)) issues.push({ code: 'DUPLICATE_ZONE_ID', zoneId: zone.id, message: 'Zone IDs must be unique.' })
     ids.add(zone.id)
@@ -65,10 +66,14 @@ export function validateLayoutDraft(input: unknown): { draft?: LayoutDraft; issu
     if (zone.type === 'VIDEO') videoZones += 1
     if (zone.type === 'MAIN_AD') mainAdZones += 1
     if (zone.type === 'SPONSORED_AD') sponsorZones += 1
+    if (['CLOCK', 'WEATHER', 'TICKER', 'NAVIGATION_MAP', 'QR_OFFER'].includes(zone.type)) {
+      boundedWidgetZones.set(zone.type, (boundedWidgetZones.get(zone.type) ?? 0) + 1)
+    }
   }
   if (videoZones > 1) issues.push({ code: 'VIDEO_DECODER_BUDGET_EXCEEDED', message: 'Layouts may contain at most one active video zone.' })
   if (mainAdZones > 1) issues.push({ code: 'MULTIPLE_MAIN_AD_ZONES', message: 'A layout may contain at most one primary campaign advertising zone.' })
   if (sponsorZones > 1) issues.push({ code: 'MULTIPLE_SPONSOR_ZONES', message: 'A layout may contain at most one independently authorized sponsored slot.' })
+  for (const [type, count] of boundedWidgetZones) if (count > 1) issues.push({ code: 'WIDGET_BUDGET_EXCEEDED', message: `A layout may contain at most one ${type} zone on the current renderer.` })
   const overlayTypes = new Set(['TEXT', 'LOGO', 'CLOCK'])
   for (let left = 0; left < draft.zones.length; left += 1) for (let right = left + 1; right < draft.zones.length; right += 1) {
     const a = draft.zones[left], b = draft.zones[right]

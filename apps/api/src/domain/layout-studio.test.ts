@@ -82,6 +82,17 @@ test('custom layout limits video decoders and billable ad slots', () => {
   assert.ok(validateLayoutDraft(draft).issues.some(issue => issue.code === 'MULTIPLE_MAIN_AD_ZONES'))
 })
 
+test('custom layout bounds map, ticker, QR and weather widget instances', () => {
+  const draft = standardV3Draft()
+  draft.mode = 'CUSTOM'; draft.preset = 'GRID'; draft.profileId = 'OORO_PREMIUM'
+  draft.zones = ['NAVIGATION_MAP', 'NAVIGATION_MAP'].map((type, index) => ({
+    id: `map-${index}`, type: type as 'NAVIGATION_MAP', label: type, schemaVersion: 1,
+    geometry: { x: index * .5, y: 0, width: .5, height: 1 }, zIndex: index, fit: 'FIT' as const,
+    contentBinding: { kind: 'NONE' as const }, visible: true,
+  }))
+  assert.ok(validateLayoutDraft(draft).issues.some(issue => issue.code === 'WIDGET_BUDGET_EXCEEDED'))
+})
+
 test('overlapping active zones are rejected while intentional text overlays remain valid', () => {
   const draft = standardV3Draft()
   draft.mode = 'CUSTOM'; draft.preset = 'CUSTOM_CANVAS'; draft.profileId = 'OORO_PREMIUM'

@@ -56,6 +56,7 @@ object LayoutStudioInterpreter {
         var videoCount = 0
         var mainAdCount = 0
         var sponsorCount = 0
+        val boundedWidgetCounts = HashMap<String, Int>()
         for (index in 0 until array.length()) {
             val zone = array.optJSONObject(index) ?: return invalid("INVALID_ZONE", "Zone $index is not an object.")
             val id = zone.optString("id")
@@ -77,6 +78,9 @@ object LayoutStudioInterpreter {
             if (type == "VIDEO") videoCount++
             if (type == "MAIN_AD") mainAdCount++
             if (type == "SPONSORED_AD") sponsorCount++
+            if (type in setOf("CLOCK", "WEATHER", "TICKER", "NAVIGATION_MAP", "QR_OFFER")) {
+                boundedWidgetCounts[type] = (boundedWidgetCounts[type] ?: 0) + 1
+            }
             val binding = zone.optJSONObject("contentBinding") ?: JSONObject()
             val bindingKind = binding.optString("kind", "NONE")
             val referenceId = binding.optString("referenceId").takeIf { it.isNotBlank() && it != "null" }
@@ -97,6 +101,9 @@ object LayoutStudioInterpreter {
         if (videoCount > 1) return invalid("VIDEO_DECODER_BUDGET_EXCEEDED", "At most one video zone can be active in this renderer.")
         if (mainAdCount > 1) return invalid("MULTIPLE_MAIN_AD_ZONES", "A layout may contain at most one primary campaign advertising zone.")
         if (sponsorCount > 1) return invalid("MULTIPLE_SPONSOR_ZONES", "A layout may contain at most one independently authorized sponsor zone.")
+        boundedWidgetCounts.entries.firstOrNull { it.value > 1 }?.let { (type, _) ->
+            return invalid("WIDGET_BUDGET_EXCEEDED", "A layout may contain at most one $type zone on this renderer.")
+        }
         for (left in zones.indices) for (right in left + 1 until zones.size) {
             val a = zones[left]; val b = zones[right]
             if (a.type == "BACKGROUND_IMAGE" || b.type == "BACKGROUND_IMAGE" || a.type in overlays || b.type in overlays) continue
