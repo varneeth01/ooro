@@ -17,8 +17,9 @@ class LayoutStudioRendererScreenshotTest {
         assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         ActivityScenario.launch<LayoutStudioPreviewActivity>(Intent(context, LayoutStudioPreviewActivity::class.java)).use {
-            val device = UiDevice.getInstance(instrumentation)
             val width = device.displayWidth
             val height = device.displayHeight
             for (id in listOf("hero", "sponsor", "qr", "nav")) assertTrue("Missing native custom zone $id", device.wait(androidx.test.uiautomator.Until.hasObject(By.desc("LayoutStudioZone:$id")), 5_000))

@@ -80,6 +80,7 @@ class OfferPanelScreenshotTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val intent = Intent(context, RenderTestActivity::class.java)
             .putExtra("scenario", scenario)
             .putExtra("layout", "FOUR_ZONE")
@@ -113,8 +114,6 @@ class OfferPanelScreenshotTest {
             })
         }
     }
-
-    private fun assumeDisposableEmulator() = com.ooro.screenplayer.assumeDisposableEmulator()
 
     private fun assertOfferRegionBounds(device: UiDevice, legacy: Boolean, sidebar80: Boolean) {
         val width = device.displayWidth

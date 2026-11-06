@@ -26,13 +26,14 @@ class CustomLayoutBoundMediaScreenshotTest {
         assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val intent = Intent(context, RenderTestActivity::class.java)
             .putExtra("scenario", "LAYOUT_STUDIO_BOUND_MEDIA")
             .putExtra("asset", asset)
             .putExtra("controls", false)
             .putExtra("qr", true)
         ActivityScenario.launch<RenderTestActivity>(intent).use {
-            val device = UiDevice.getInstance(instrumentation)
             assertTrue("Main bound slot not rendered", device.wait(Until.hasObject(By.desc("LayoutStudioZone:custom-main")), 10_000))
             assertTrue("Sponsor slot not rendered", device.wait(Until.hasObject(By.desc("LayoutStudioZone:custom-sponsor")), 10_000))
             assertTrue("Authorized QR offer slot not rendered", device.wait(Until.hasObject(By.desc("LayoutStudioZone:custom-offer")), 10_000))

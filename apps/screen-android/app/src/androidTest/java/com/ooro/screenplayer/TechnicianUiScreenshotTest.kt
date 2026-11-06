@@ -26,6 +26,7 @@ class TechnicianUiScreenshotTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val output = File(context.getExternalFilesDir(null), "technician-ui-screenshots")
         assertTrue(output.mkdirs() || output.isDirectory)
 
@@ -57,6 +58,7 @@ class TechnicianUiScreenshotTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val output = File(context.getExternalFilesDir(null), "technician-ui-screenshots")
         assertTrue(output.mkdirs() || output.isDirectory)
         ActivityScenario.launch<MainActivity>(Intent(context, MainActivity::class.java)).use { scenario ->

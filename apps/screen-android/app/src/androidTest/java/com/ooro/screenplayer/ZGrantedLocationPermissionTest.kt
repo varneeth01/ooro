@@ -23,6 +23,7 @@ class ZGrantedLocationPermissionTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.ACCESS_COARSE_LOCATION)
         ActivityScenario.launch<MainActivity>(Intent(context, MainActivity::class.java)).use { scenario ->
             device.wait(Until.findObject(By.text("Got it")), 1_000)?.click()

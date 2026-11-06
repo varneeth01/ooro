@@ -19,6 +19,7 @@ class PermissionLaunchTest {
         assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val launchIntent = Intent(instrumentation.targetContext, MainActivity::class.java)
         ActivityScenario.launch<MainActivity>(launchIntent).use { scenario ->
             dismissImmersiveEducationIfShown(device)
@@ -39,6 +40,7 @@ class PermissionLaunchTest {
         assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
+        prepareDisposableEmulatorUi(device)
         val launchIntent = Intent(instrumentation.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ActivityScenario.launch<MainActivity>(launchIntent).use {
             dismissImmersiveEducationIfShown(device)

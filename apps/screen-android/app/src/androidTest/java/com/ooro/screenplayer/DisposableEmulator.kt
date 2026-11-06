@@ -1,6 +1,7 @@
 package com.ooro.screenplayer
 
 import android.os.Build
+import androidx.test.uiautomator.UiDevice
 import org.junit.Assume.assumeTrue
 
 /** Keep UI fixtures and permission-mutating tests off physical signage boards. */
@@ -12,4 +13,11 @@ internal fun assumeDisposableEmulator() {
             Build.PRODUCT.startsWith("sdk_", ignoreCase = true) ||
             Build.DEVICE.startsWith("emu", ignoreCase = true),
     )
+}
+
+/** Prevent Android's first immersive-mode education overlay from covering UI acceptance fixtures. */
+internal fun prepareDisposableEmulatorUi(device: UiDevice) {
+    assumeDisposableEmulator()
+    device.executeShellCommand("settings put secure immersive_mode_confirmations confirmed")
+    device.waitForIdle()
 }
