@@ -16,6 +16,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PermissionLaunchTest {
     @Test fun coldLaunchAndActivityRecreationDoNotOpenPermissionDialog() {
+        assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
         val launchIntent = Intent(instrumentation.targetContext, MainActivity::class.java)
@@ -35,6 +36,7 @@ class PermissionLaunchTest {
     }
 
     @Test fun returningFromAndroidHomeAndOpeningPlayerDoesNotPrompt() {
+        assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
         val launchIntent = Intent(instrumentation.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

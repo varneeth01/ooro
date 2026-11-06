@@ -16,6 +16,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OfflineCachedStartupScreenshotTest {
     @Test fun locallyCachedEligibleCreativeRendersAtStartupWhileNetworkIsNotUsed() {
+        assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)

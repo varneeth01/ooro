@@ -76,6 +76,7 @@ class OfferPanelScreenshotTest {
     }
 
     private fun capture(scenario: String, expectedBrandOffer: Boolean, fileName: String, expectedLegacy: Boolean = false, expectedSidebar80: Boolean = false) {
+        assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
@@ -94,6 +95,7 @@ class OfferPanelScreenshotTest {
                 assertTrue("brand QR missing for $scenario", device.wait(Until.hasObject(By.desc(qrDescription)), 10_000))
             } else {
                 assertTrue("OORO fallback headline missing for $scenario", device.wait(Until.hasObject(By.text("Advertise your business here")), 5_000))
+                if (scenario == "OFFER_FALLBACK") assertTrue("OORO advertising contact is incorrect", device.hasObject(By.text("+91 7981399132")))
                 assertTrue("fallback must not invent a QR", device.findObject(By.desc("Brand offer QR code")) == null)
             }
             device.wait(Until.findObject(By.text("Got it")), 500)?.click()
@@ -111,6 +113,8 @@ class OfferPanelScreenshotTest {
             })
         }
     }
+
+    private fun assumeDisposableEmulator() = com.ooro.screenplayer.assumeDisposableEmulator()
 
     private fun assertOfferRegionBounds(device: UiDevice, legacy: Boolean, sidebar80: Boolean) {
         val width = device.displayWidth

@@ -924,6 +924,7 @@ internal fun technicianStateSubscriptions(section: TechnicianSection): Technicia
     val location = remember(locationGranted) { locationDiagnostics(context) }
     val storage = remember { storageSummary(context) }
     val apiOk = d.probe?.connected == true
+    val apiChecked = d.probe != null
     val agentInstalled = remember {
         runCatching { context.packageManager.getPackageInfo("com.ooro.deviceagent", 0) }.isSuccess
     }
@@ -963,8 +964,9 @@ internal fun technicianStateSubscriptions(section: TechnicianSection): Technicia
                             Text(
                                 when {
                                     apiOk -> "OORO service reachable"
-                                    subscriptions.diagnostics -> "Using local status"
-                                    else -> "Live status available in Overview"
+                                    !subscriptions.diagnostics -> "Live status available in Overview"
+                                    apiChecked -> "Service unavailable"
+                                    else -> "Live status not checked"
                                 },
                                 color = Muted,
                                 fontSize = 11.sp
@@ -1054,7 +1056,7 @@ internal fun technicianStateSubscriptions(section: TechnicianSection): Technicia
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     TechnicianMetric("PAIRING", if (vm.isPaired) "Connected" else "Setup needed", vm.screenId, vm.isPaired, Modifier.weight(1f))
                     TechnicianMetric("NETWORK", if (network.internet) network.type else "Offline", network.ip ?: "No local address", network.internet, Modifier.weight(1f))
-                    TechnicianMetric("OORO API", if (apiOk) "Reachable" else "Unavailable", diagnostics.probe?.httpStatus?.let { "HTTP $it" } ?: "Run a check", apiOk, Modifier.weight(1f))
+                    TechnicianMetric("OORO API", when { apiOk -> "Reachable"; diagnostics.probe != null -> "Unavailable"; else -> "Not checked" }, diagnostics.probe?.httpStatus?.let { "HTTP $it" } ?: "Run a check", apiOk, Modifier.weight(1f))
                     TechnicianMetric("PROOF QUEUE", diagnostics.proofQueued.toString(), if (diagnostics.proofQueued == 0) "All caught up" else "Waiting to sync", diagnostics.proofQueued == 0, Modifier.weight(1f))
                 }
                 TechnicianCard(containerColor = PanelRaised) {
@@ -1074,8 +1076,11 @@ internal fun technicianStateSubscriptions(section: TechnicianSection): Technicia
                     TechnicianMetric("OFFLINE MEDIA", if (offlineAuthorized && diagnostics.verifiedAssets > 0) "Authorized" else "Unavailable", "${diagnostics.verifiedAssets} verified · ${diagnostics.missingAssets} missing", offlineAuthorized && diagnostics.verifiedAssets > 0, Modifier.weight(1f))
                     TechnicianMetric("LAST SYNC", relativeTime(diagnostics.manifestLastSyncAt), "Heartbeat ${relativeTime(diagnostics.heartbeatLastSuccessAt)}", diagnostics.heartbeatLastSuccessAt != null, Modifier.weight(1f))
                 }
-                if (!apiOk) TechnicianNotice("Offline mode", "The player keeps using locally verified content while its authorization remains valid. Network recovery does not erase pairing or cached media.", Color(0xFFFFC46B))
-                TextButton(onClick = { vm.runDiagnostics() }, enabled = !diagnostics.running, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (diagnostics.running) "Checking connection…" else "Refresh device status", color = Yellow) }
+                if (diagnostics.probe != null && !apiOk) TechnicianNotice("Offline mode", "The player keeps using locally verified content while its authorization remains valid. Network recovery does not erase pairing or cached media.", Color(0xFFFFC46B))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TextButton(onClick = { vm.runDiagnostics() }, enabled = !diagnostics.running, modifier = Modifier.heightIn(min = 48.dp)) { Text("Refresh device status", color = Yellow) }
+                    if (diagnostics.running) Text("Checking connection…", color = Muted, fontSize = 12.sp)
+                }
             }
             TechnicianSection.PLAYBACK -> {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

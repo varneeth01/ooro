@@ -2,7 +2,6 @@ package com.ooro.screenplayer
 
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.os.Build
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -13,7 +12,6 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
@@ -40,6 +38,7 @@ class TechnicianUiScreenshotTest {
 
             openTechnicianConsole(device)
             assertTrue(device.wait(Until.hasObject(By.textContains("TECHNICIAN CONSOLE")), 5_000))
+            assertTrue("Overview refresh control should be available on entry", device.wait(Until.hasObject(By.text("Refresh device status")), 3_000))
             capture(device, output, "overview.png")
             captureSection(device, output, "Playback", "playback.png")
             captureSection(device, output, "Presentation", "presentation.png")
@@ -112,10 +111,6 @@ class TechnicianUiScreenshotTest {
             assertTrue("permission prompt appeared after Settings return", device.findObject(By.textContains("Allow OORO Screen Player")) == null)
             capture(device, output, "settings-return.png")
         }
-    }
-
-    private fun assumeDisposableEmulator() {
-        assumeTrue("This permission-mutating test must run on an emulator", Build.FINGERPRINT.contains("generic", ignoreCase = true) || Build.MODEL.contains("emulator", ignoreCase = true) || Build.PRODUCT.startsWith("sdk_", ignoreCase = true) || Build.DEVICE.startsWith("emu", ignoreCase = true))
     }
 
     private fun dismissImmersiveEducationIfShown(device: UiDevice) {

@@ -76,6 +76,7 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     val verifiedAssetIds: StateFlow<Set<String>> = _verifiedAssetIds
     private var reconnectJob: Job? = null
     private var manifestRefreshJob: Job? = null
+    private var technicianSnapshotJob: Job? = null
     private var reconnectAttempt = 0
     private var lastNetworkRecoveryAt = 0L
     @Volatile private var networkRecoveryReady = false
@@ -305,7 +306,24 @@ class ScreenViewModel(private val context: Context, private val store: DeviceSto
     fun reportMapHealth(rendered: Boolean, error: String? = null) { _mapTilesRendered.value = rendered; _mapTileError.value = error }
     private fun reportPlayback(item: ManifestItem, state: String, positionMs: Long? = null) { viewModelScope.launch { store.credentials()?.let { credentials -> runCatching { api.heartbeat(credentials, if (state == "PLAYING") PlayerStatus.PLAYING else if (state == "FAILED") PlayerStatus.ERROR else PlayerStatus.READY, db.manifestDao().active()?.version ?: 0, HeartbeatTelemetry(location.current(), item.campaignId, item.creativeId, item.assetId, state, session?.startedAt, positionMs, item.durationSeconds * 1000L)) } } } }
     suspend fun localFile(item: ManifestItem): String? = assets.ensure(item)?.absolutePath
-    fun showAdmin() { _state.value = ScreenState.Admin(active); runDiagnostics() }
+    fun showAdmin() {
+        _state.value = ScreenState.Admin(active)
+        // Entering technician mode should not start an unrequested network probe.
+        // Populate local cache/proof counts first; the visible Refresh action performs
+        // the explicit API/heartbeat check.
+        technicianSnapshotJob?.cancel()
+        technicianSnapshotJob = viewModelScope.launch {
+            val stored = db.manifestDao().active()
+            val manifest = active ?: stored?.let { runCatching { ManifestCodec.parse(it.json) }.getOrNull() }
+            val counts = manifest?.let { assets.verify(it.items) } ?: (0 to 0)
+            val queued = db.proofDao().pendingCount()
+            _diagnostics.value = _diagnostics.value.copy(
+                verifiedAssets = counts.first,
+                missingAssets = counts.second,
+                proofQueued = queued,
+            )
+        }
+    }
     fun closeAdmin() {
         val credentials = store.credentials()
         _state.value = when {

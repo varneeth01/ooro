@@ -28,6 +28,7 @@ class V3RenderScreenshotTest {
     }
 
     private fun capture(scenarioName: String, fileName: String) {
+        assumeDisposableEmulator()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val intent = Intent(context, RenderTestActivity::class.java)
@@ -66,6 +67,8 @@ class V3RenderScreenshotTest {
             })
         }
     }
+
+    private fun assumeDisposableEmulator() = com.ooro.screenplayer.assumeDisposableEmulator()
 
     private fun assertV3RegionBounds(device: UiDevice) {
         val width = device.displayWidth
