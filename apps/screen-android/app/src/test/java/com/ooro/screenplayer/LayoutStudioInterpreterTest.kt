@@ -68,6 +68,19 @@ class LayoutStudioInterpreterTest {
         assertEquals("SPONSOR_AUTHORIZATION_REQUIRED", (LayoutStudioInterpreter.parse(contract(sponsor)) as LayoutParseResult.Invalid).code)
     }
 
+    @Test fun `main ad plus a video widget is rejected because runtime main media may itself be video`() {
+        val zones = """[{"id":"main","type":"MAIN_AD","label":"Main","schemaVersion":1,"geometry":{"x":0,"y":0,"width":0.6,"height":1},"zIndex":0,"fit":"FIT","contentBinding":{"kind":"NONE"},"visible":true},{"id":"video","type":"VIDEO","label":"Video","schemaVersion":1,"geometry":{"x":0.6,"y":0,"width":0.4,"height":1},"zIndex":1,"fit":"FIT","contentBinding":{"kind":"APPROVED_CREATIVE","referenceId":"creative"},"visible":true}]"""
+        val result = LayoutStudioInterpreter.parse(contract(zones)) as LayoutParseResult.Invalid
+        assertEquals("VIDEO_DECODER_BUDGET_EXCEEDED", result.code)
+    }
+
+    @Test fun `destination and creative bindings are restricted to compatible widget types`() {
+        val textCreative = """[{"id":"copy","type":"TEXT","label":"Copy","schemaVersion":1,"geometry":{"x":0,"y":0,"width":1,"height":1},"zIndex":0,"fit":"FIT","contentBinding":{"kind":"APPROVED_CREATIVE","referenceId":"creative"},"visible":true}]"""
+        assertEquals("CREATIVE_SLOT_MISMATCH", (LayoutStudioInterpreter.parse(contract(textCreative)) as LayoutParseResult.Invalid).code)
+        val imageDestination = """[{"id":"image","type":"IMAGE","label":"Image","schemaVersion":1,"geometry":{"x":0,"y":0,"width":1,"height":1},"zIndex":0,"fit":"FIT","contentBinding":{"kind":"AUTHORIZED_DESTINATION","referenceId":"destination"},"visible":true}]"""
+        assertEquals("DESTINATION_SLOT_MISMATCH", (LayoutStudioInterpreter.parse(contract(imageDestination)) as LayoutParseResult.Invalid).code)
+    }
+
     @Test fun `malformed JSON returns safe error`() {
         val result = LayoutStudioInterpreter.parse("not-json")
         assertTrue(result is LayoutParseResult.Invalid)

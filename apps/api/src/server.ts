@@ -38,7 +38,7 @@ import { getDriverActivationEligibility } from './domain/driver-activation.js'
 import { transitionDriverOnboarding } from './domain/driver-onboarding.js'
 import { privateDocumentStorage } from './domain/document-storage.js'
 import { normalizeIndianPhone } from './domain/phone.js'
-import { layoutDraftSchema, standardV3Draft, validateLayoutDraft, type LayoutDraft } from './domain/layout-studio.js'
+import { creativeTypeMatchesWidget, layoutDraftSchema, standardV3Draft, validateLayoutDraft, type LayoutDraft } from './domain/layout-studio.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -109,11 +109,19 @@ const validateLayoutBindings = async (draft: LayoutDraft, db: typeof prisma | Pr
     const creative = await db.creative.findUnique({ where: { id: binding.referenceId }, select: { status: true, type: true, campaign: { select: { deliverySlot: true } }, asset: { select: { active: true, url: true } } } })
     const approvedAndAvailable = creative?.status === 'APPROVED' && creative.asset?.active && Boolean(creative.asset.url)
     const sponsorSlot = creative?.campaign.deliverySlot === 'SPONSORED'
-    const slotMatches = binding.kind === 'APPROVED_SPONSOR' ? sponsorSlot && creative?.type.toUpperCase() === 'IMAGE' : !sponsorSlot
-    if (!approvedAndAvailable || !slotMatches) issues.push({ code: 'CONTENT_REFERENCE_INELIGIBLE', zoneId: zone.id, message: `${zone.label} must reference an approved, available creative from the matching delivery slot.` })
+    const creativeType = creative?.type ?? ''
+    const slotMatches = binding.kind === 'APPROVED_SPONSOR' ? sponsorSlot : !sponsorSlot
+    const widgetTypeMatches = creativeTypeMatchesWidget(zone.type, creativeType)
+    if (!approvedAndAvailable || !slotMatches || !widgetTypeMatches) issues.push({ code: 'CONTENT_REFERENCE_INELIGIBLE', zoneId: zone.id, message: `${zone.label} must reference an approved, available creative from the matching delivery slot and media type.` })
   }
   return issues
 }
+// Capability certification gates validation/publication, not saving work in
+// progress. Draft authors must be able to persist an unsupported profile while
+// the compatibility review is pending; all structural and binding checks stay
+// enforced on every save.
+const layoutDraftSaveIssues = (draft: LayoutDraft) =>
+  validateLayoutDraft(draft).issues.filter((issue) => issue.code !== 'CAPABILITY_PROFILE_UNVERIFIED')
 const asJson = (value: unknown): any => JSON.parse(JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item))
 const driverFrom = async (auth: { driverId?: string }) => {
   if (!auth.driverId) throw forbidden('Driver account required')
@@ -171,8 +179,7 @@ app.get('/api/admin/layout-studio/content', async (request, reply) => {
 app.post('/api/admin/layout-studio', async (request, reply) => {
   const auth = await requirePermission(request, 'device:write')
   const input = bodyOf(request, z.object({ name: z.string().trim().min(1).max(100), contract: layoutDraftSchema }).strict())
-  const result = validateLayoutDraft(input.contract)
-  const issues = [...result.issues, ...await validateLayoutBindings(input.contract)]
+  const issues = [...layoutDraftSaveIssues(input.contract), ...await validateLayoutBindings(input.contract)]
   if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
   const created = await prisma.$transaction(async tx => {
     const layout = await tx.layoutTemplate.create({ data: { name: input.name, mode: input.contract.mode, preset: input.contract.preset, profileId: input.contract.profileId, draftContract: input.contract as any, createdBy: auth.userId, updatedBy: auth.userId } })
@@ -194,8 +201,7 @@ app.put('/api/admin/layout-studio/:layoutId/draft', async (request, reply) => {
   const { layoutId } = request.params as { layoutId: string }
   if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
   const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive(), name: z.string().trim().min(1).max(100), contract: layoutDraftSchema }).strict())
-  const result = validateLayoutDraft(input.contract)
-  const issues = [...result.issues, ...await validateLayoutBindings(input.contract)]
+  const issues = [...layoutDraftSaveIssues(input.contract), ...await validateLayoutBindings(input.contract)]
   if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
   const layout = await prisma.$transaction(async tx => {
     const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { name: input.name, mode: input.contract.mode, preset: input.contract.preset, profileId: input.contract.profileId, draftContract: input.contract as any, state: 'DRAFT', rowVersion: { increment: 1 }, updatedBy: auth.userId } })

@@ -29,10 +29,14 @@ data class OfferMetadata(
     val contactUrl: String? = null,
     val scanCount: Int? = null,
     val scanCountDisplayEnabled: Boolean = false,
-    val accentColor: String? = null
+    val accentColor: String? = null,
+    /** OORO tracking-link record ID; used to match an explicitly authorized Layout Studio destination. */
+    val authorizedDestinationId: String? = null
 ) {
-    /** Accept only navigable web destinations. Server-side offer authorization remains authoritative. */
-    val validQrUrl: String? get() = sequenceOf(qrUrl, ctaUrl).mapNotNull(::normalizedWebUrl).firstOrNull()
+    /** Explicit server-issued tracking destination; required by Layout Studio QR bindings. */
+    val authorizedQrUrl: String? get() = normalizedWebUrl(qrUrl)
+    /** Legacy offer UI may use a CTA URL; custom bound QR zones require authorizedQrUrl. */
+    val validQrUrl: String? get() = authorizedQrUrl ?: normalizedWebUrl(ctaUrl)
     val hasOffer: Boolean get() = listOf(brandName, offerTitle, offerValue, offerSubtitle, ctaLabel).any { !it.isNullOrBlank() }
 }
 

@@ -65,6 +65,13 @@ class ManifestCodecTest {
         assertEquals(null, withoutOffer.items.single().offer.offerTitle)
     }
 
+    @Test fun `authorized QR destination record ID survives manifest cache round trip`() {
+        val payloadWithDestination = payload.replace("\"qrUrl\":\"https://theooro.com/go/token-a\"", "\"qrUrl\":\"https://theooro.com/go/token-a\",\"authorizedDestinationId\":\"destination-uuid\"")
+        val parsed = ManifestCodec.parse(payloadWithDestination)
+        assertEquals("destination-uuid", parsed.items.first().offer.authorizedDestinationId)
+        assertEquals("destination-uuid", ManifestCodec.parse(ManifestCodec.encode(parsed)).items.first().offer.authorizedDestinationId)
+    }
+
     @Test fun malformedOrUnknownMediaManifestIsRejectedForLastKnownGoodFallback() {
         listOf("not-json", """{"version":1,"items":[{"id":"i","type":"AUDIO","url":"https://example.com/a"}]}""").forEach { body ->
             try { ManifestCodec.parse(body); fail("Expected invalid manifest to be rejected") } catch (_: Exception) { }

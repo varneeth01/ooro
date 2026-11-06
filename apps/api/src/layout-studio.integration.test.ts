@@ -37,6 +37,28 @@ test('Layout Studio persists drafts, enforces Super Admin publication and keeps 
     const assignment = await app.inject({ method: 'POST', url: `/api/admin/layout-studio/${id}/assign`, headers: superHeaders, payload: { displayId: randomUUID() } })
     assert.equal(assignment.statusCode, 409)
     assert.equal(assignment.json().error.code, 'LAYOUT_ASSIGNMENT_DISABLED')
+
+    const customDraft = {
+      ...standardV3Draft(),
+      mode: 'CUSTOM' as const,
+      preset: 'CUSTOM_CANVAS' as const,
+      profileId: 'OORO_PREMIUM' as const,
+      zones: [{
+        id: 'custom-image', type: 'IMAGE' as const, label: 'Custom media', schemaVersion: 1 as const,
+        geometry: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 }, zIndex: 0,
+        fit: 'FIT' as const, contentBinding: { kind: 'NONE' as const }, visible: true,
+      }],
+    }
+    const customCreated = await app.inject({ method: 'POST', url: '/api/admin/layout-studio', headers: superHeaders, payload: { name: `Uncertified draft ${suffix}`, contract: customDraft } })
+    assert.equal(customCreated.statusCode, 201, customCreated.body)
+    const customId = customCreated.json().data.id as string
+    const customValidation = await app.inject({ method: 'POST', url: `/api/admin/layout-studio/${customId}/validate`, headers: superHeaders, payload: { expectedRowVersion: 1 } })
+    assert.equal(customValidation.statusCode, 200, customValidation.body)
+    assert.equal(customValidation.json().data.valid, false)
+    assert.ok(customValidation.json().data.issues.some((issue: { code: string }) => issue.code === 'CAPABILITY_PROFILE_UNVERIFIED'))
+    const customSave = await app.inject({ method: 'PUT', url: `/api/admin/layout-studio/${customId}/draft`, headers: superHeaders, payload: { expectedRowVersion: 1, name: `Uncertified draft saved ${suffix}`, contract: customDraft } })
+    assert.equal(customSave.statusCode, 200, customSave.body)
+    assert.equal(customSave.json().data.rowVersion, 2)
   } finally {
     await app.close()
     await prisma.$disconnect()

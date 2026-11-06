@@ -30,6 +30,16 @@ export type WidgetType = typeof widgetTypes[number]
 export type LayoutDraft = z.infer<typeof layoutDraftSchema>
 export type LayoutIssue = { code: string; message: string; zoneId?: string }
 
+/** Creative media bindings are type checked; layout references never make an item eligible. */
+export function creativeTypeMatchesWidget(widgetType: WidgetType, creativeType: string): boolean {
+  const mediaType = creativeType.toUpperCase()
+  if (widgetType === 'MAIN_AD') return mediaType === 'IMAGE' || mediaType === 'VIDEO'
+  if (widgetType === 'SPONSORED_AD') return mediaType === 'IMAGE'
+  if (widgetType === 'VIDEO') return mediaType === 'VIDEO'
+  if (widgetType === 'IMAGE' || widgetType === 'LOGO' || widgetType === 'BACKGROUND_IMAGE') return mediaType === 'IMAGE'
+  return false
+}
+
 const standardGeometry = [
   { type: 'MAIN_AD', x: 0, y: 0, width: .8, height: .85 },
   { type: 'SPONSORED_AD', x: 0, y: .85, width: .8, height: .15 },
@@ -70,7 +80,7 @@ export function validateLayoutDraft(input: unknown): { draft?: LayoutDraft; issu
       boundedWidgetZones.set(zone.type, (boundedWidgetZones.get(zone.type) ?? 0) + 1)
     }
   }
-  if (videoZones > 1) issues.push({ code: 'VIDEO_DECODER_BUDGET_EXCEEDED', message: 'Layouts may contain at most one active video zone.' })
+  if (videoZones > 1 || videoZones + mainAdZones > 1) issues.push({ code: 'VIDEO_DECODER_BUDGET_EXCEEDED', message: 'Layouts may contain at most one possible video playback slot across MAIN_AD and VIDEO zones.' })
   if (mainAdZones > 1) issues.push({ code: 'MULTIPLE_MAIN_AD_ZONES', message: 'A layout may contain at most one primary campaign advertising zone.' })
   if (sponsorZones > 1) issues.push({ code: 'MULTIPLE_SPONSOR_ZONES', message: 'A layout may contain at most one independently authorized sponsored slot.' })
   for (const [type, count] of boundedWidgetZones) if (count > 1) issues.push({ code: 'WIDGET_BUDGET_EXCEEDED', message: `A layout may contain at most one ${type} zone on the current renderer.` })

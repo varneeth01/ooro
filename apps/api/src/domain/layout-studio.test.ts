@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizedPixelRect, standardPixelGeometry, standardV3Draft, validateLayoutDraft } from './layout-studio.js'
+import { creativeTypeMatchesWidget, normalizedPixelRect, standardPixelGeometry, standardV3Draft, validateLayoutDraft } from './layout-studio.js'
 import { canAdmin } from './admin-auth.js'
 
 test('layout mutation authorization excludes read-only support and finance roles', () => {
@@ -80,6 +80,16 @@ test('custom layout limits video decoders and billable ad slots', () => {
     { ...draft.zones[1]!, id: 'main-2', type: 'MAIN_AD', geometry: { x: .5, y: 0, width: .5, height: 1 } },
   ]
   assert.ok(validateLayoutDraft(draft).issues.some(issue => issue.code === 'MULTIPLE_MAIN_AD_ZONES'))
+})
+
+test('creative media type must match the custom widget and sponsor remains image-only', () => {
+  assert.equal(creativeTypeMatchesWidget('MAIN_AD', 'VIDEO'), true)
+  assert.equal(creativeTypeMatchesWidget('IMAGE', 'IMAGE'), true)
+  assert.equal(creativeTypeMatchesWidget('VIDEO', 'IMAGE'), false)
+  assert.equal(creativeTypeMatchesWidget('LOGO', 'VIDEO'), false)
+  assert.equal(creativeTypeMatchesWidget('SPONSORED_AD', 'IMAGE'), true)
+  assert.equal(creativeTypeMatchesWidget('SPONSORED_AD', 'VIDEO'), false)
+  assert.equal(creativeTypeMatchesWidget('TEXT', 'IMAGE'), false)
 })
 
 test('custom layout bounds map, ticker, QR and weather widget instances', () => {

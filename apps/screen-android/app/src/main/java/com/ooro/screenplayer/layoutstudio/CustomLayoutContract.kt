@@ -88,6 +88,8 @@ object LayoutStudioInterpreter {
             if (bindingKind != "NONE" && referenceId == null) return invalid("INVALID_BINDING", "Zone $id is missing its authorized reference.")
             if (type == "SPONSORED_AD" && bindingKind != "APPROVED_SPONSOR") return invalid("SPONSOR_AUTHORIZATION_REQUIRED", "Sponsored zones require a separately authorized sponsor binding.")
             if (type != "SPONSORED_AD" && bindingKind == "APPROVED_SPONSOR") return invalid("SPONSOR_SLOT_MISMATCH", "Sponsor content cannot be bound to a non-sponsor zone.")
+            if (bindingKind == "APPROVED_CREATIVE" && type !in setOf("MAIN_AD", "IMAGE", "VIDEO", "LOGO", "BACKGROUND_IMAGE")) return invalid("CREATIVE_SLOT_MISMATCH", "Approved creative references cannot be attached to $type widgets.")
+            if (bindingKind == "AUTHORIZED_DESTINATION" && type != "QR_OFFER") return invalid("DESTINATION_SLOT_MISMATCH", "Authorized destinations can only be attached to QR_OFFER widgets.")
             val zIndex = zone.optInt("zIndex", index)
             if (zIndex !in 0..100) return invalid("INVALID_Z_ORDER", "Zone $id has an unsupported layer order.")
             val visible = zone.optBoolean("visible", true)
@@ -98,7 +100,7 @@ object LayoutStudioInterpreter {
         }
         if (zones.none { it.visible }) return invalid("NO_VISIBLE_ZONES", "At least one zone must be visible.")
         // Keep Auto Lite at one concurrent video decoder; this matches the existing single-player path.
-        if (videoCount > 1) return invalid("VIDEO_DECODER_BUDGET_EXCEEDED", "At most one video zone can be active in this renderer.")
+        if (videoCount > 1 || videoCount + mainAdCount > 1) return invalid("VIDEO_DECODER_BUDGET_EXCEEDED", "At most one possible video playback slot may exist across MAIN_AD and VIDEO zones.")
         if (mainAdCount > 1) return invalid("MULTIPLE_MAIN_AD_ZONES", "A layout may contain at most one primary campaign advertising zone.")
         if (sponsorCount > 1) return invalid("MULTIPLE_SPONSOR_ZONES", "A layout may contain at most one independently authorized sponsor zone.")
         boundedWidgetCounts.entries.firstOrNull { it.value > 1 }?.let { (type, _) ->
