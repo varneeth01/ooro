@@ -38,6 +38,7 @@ import { getDriverActivationEligibility } from './domain/driver-activation.js'
 import { transitionDriverOnboarding } from './domain/driver-onboarding.js'
 import { privateDocumentStorage } from './domain/document-storage.js'
 import { normalizeIndianPhone } from './domain/phone.js'
+import { layoutDraftSchema, standardV3Draft, validateLayoutDraft, type LayoutDraft } from './domain/layout-studio.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -90,6 +91,29 @@ const bodyOf = <T>(request: any, schema: z.ZodType<T>) => {
   if (!parsed.success) throw new ApiError('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '), 422)
   return parsed.data
 }
+const validateLayoutBindings = async (draft: LayoutDraft, db: typeof prisma | Prisma.TransactionClient = prisma) => {
+  const issues: Array<{ code: string; message: string; zoneId?: string }> = []
+  for (const zone of draft.zones) {
+    const binding = zone.contentBinding
+    if (binding.kind === 'NONE') continue
+    if (!binding.referenceId) { issues.push({ code: 'BINDING_REFERENCE_REQUIRED', zoneId: zone.id, message: `${zone.label} needs a valid existing content reference.` }); continue }
+    if ((binding.kind === 'APPROVED_SPONSOR' && zone.type !== 'SPONSORED_AD') || (zone.type === 'SPONSORED_AD' && binding.kind !== 'APPROVED_SPONSOR') || (binding.kind === 'AUTHORIZED_DESTINATION' && !['QR_OFFER', 'STATIC_QR', 'EXTERNAL_DESTINATION'].includes(zone.type))) {
+      issues.push({ code: 'CONTENT_SLOT_MISMATCH', zoneId: zone.id, message: `${zone.label} must use a content binding that matches its independent delivery slot.` }); continue
+    }
+    if (!z.string().uuid().safeParse(binding.referenceId).success) { issues.push({ code: 'INVALID_CONTENT_REFERENCE', zoneId: zone.id, message: `${zone.label} must reference an existing OORO record ID.` }); continue }
+    if (binding.kind === 'AUTHORIZED_DESTINATION') {
+      const link = await db.campaignTrackingLink.findUnique({ where: { id: binding.referenceId }, select: { active: true, expiresAt: true } })
+      if (!link?.active || (link.expiresAt && link.expiresAt <= new Date())) issues.push({ code: 'DESTINATION_NOT_AUTHORIZED', zoneId: zone.id, message: `${zone.label} must reference an active, unexpired authorized destination.` })
+      continue
+    }
+    const creative = await db.creative.findUnique({ where: { id: binding.referenceId }, select: { status: true, type: true, campaign: { select: { deliverySlot: true } }, asset: { select: { active: true, url: true } } } })
+    const approvedAndAvailable = creative?.status === 'APPROVED' && creative.asset?.active && Boolean(creative.asset.url)
+    const sponsorSlot = creative?.campaign.deliverySlot === 'SPONSORED'
+    const slotMatches = binding.kind === 'APPROVED_SPONSOR' ? sponsorSlot && creative?.type.toUpperCase() === 'IMAGE' : !sponsorSlot
+    if (!approvedAndAvailable || !slotMatches) issues.push({ code: 'CONTENT_REFERENCE_INELIGIBLE', zoneId: zone.id, message: `${zone.label} must reference an approved, available creative from the matching delivery slot.` })
+  }
+  return issues
+}
 const asJson = (value: unknown): any => JSON.parse(JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item))
 const driverFrom = async (auth: { driverId?: string }) => {
   if (!auth.driverId) throw forbidden('Driver account required')
@@ -127,6 +151,144 @@ app.get('/api/health/db', async (request, reply) => {
   } catch {
     return reply.code(503).send({ data: null, error: { code: 'DATABASE_UNAVAILABLE', message: 'Database dependency unavailable' } })
   }
+})
+
+// Layout Studio V1 persists presentation contracts independently of campaign
+// eligibility. Screen delivery/assignment remains opt-in and disabled by default.
+app.get('/api/admin/layout-studio', async (request, reply) => {
+  await requirePermission(request, 'device:read')
+  const layouts = await prisma.layoutTemplate.findMany({ orderBy: { updatedAt: 'desc' }, include: { revisions: { orderBy: { revision: 'desc' }, take: 1, select: { id: true, revision: true, contractHash: true, publishedAt: true } } } })
+  return ok(request, { templates: [{ key: 'OORO_STANDARD_V3', name: 'OORO Standard V3', mode: 'STANDARD', locked: true, contract: standardV3Draft() }], layouts: asJson(layouts), liveAssignmentEnabled: false }, reply)
+})
+app.get('/api/admin/layout-studio/content', async (request, reply) => {
+  await requirePermission(request, 'campaign:read')
+  const [creatives, destinations] = await Promise.all([
+    prisma.creative.findMany({ where: { status: 'APPROVED', asset: { is: { active: true, url: { not: '' } } } }, orderBy: [{ campaign: { name: 'asc' } }, { displayOrder: 'asc' }], take: 500, select: { id: true, name: true, type: true, campaign: { select: { id: true, name: true, deliverySlot: true } } } }),
+    prisma.campaignTrackingLink.findMany({ where: { active: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { createdAt: 'desc' }, take: 200, select: { id: true, ctaType: true, campaign: { select: { name: true } } } }),
+  ])
+  return ok(request, { creatives: asJson(creatives), destinations: asJson(destinations), note: 'Approval and active assets are required for selection. Layout binding does not itself authorize scheduled delivery.' }, reply)
+})
+app.post('/api/admin/layout-studio', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const input = bodyOf(request, z.object({ name: z.string().trim().min(1).max(100), contract: layoutDraftSchema }).strict())
+  const result = validateLayoutDraft(input.contract)
+  const issues = [...result.issues, ...await validateLayoutBindings(input.contract)]
+  if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
+  const created = await prisma.$transaction(async tx => {
+    const layout = await tx.layoutTemplate.create({ data: { name: input.name, mode: input.contract.mode, preset: input.contract.preset, profileId: input.contract.profileId, draftContract: input.contract as any, createdBy: auth.userId, updatedBy: auth.userId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_CREATED', entityType: 'LayoutTemplate', entityId: layout.id, after: { mode: layout.mode, preset: layout.preset } as any, requestId: request.id } })
+    return layout
+  })
+  return reply.code(201).send(response(request, asJson(created)))
+})
+app.get('/api/admin/layout-studio/:layoutId', async (request, reply) => {
+  await requirePermission(request, 'device:read')
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const layout = await prisma.layoutTemplate.findUnique({ where: { id: layoutId }, include: { revisions: { orderBy: { revision: 'desc' } } } })
+  if (!layout) throw notFound('Layout not found')
+  return ok(request, asJson(layout), reply)
+})
+app.put('/api/admin/layout-studio/:layoutId/draft', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive(), name: z.string().trim().min(1).max(100), contract: layoutDraftSchema }).strict())
+  const result = validateLayoutDraft(input.contract)
+  const issues = [...result.issues, ...await validateLayoutBindings(input.contract)]
+  if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
+  const layout = await prisma.$transaction(async tx => {
+    const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { name: input.name, mode: input.contract.mode, preset: input.contract.preset, profileId: input.contract.profileId, draftContract: input.contract as any, state: 'DRAFT', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    if (!changed.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This draft changed elsewhere. Reload it before saving.', 409)
+    const updated = await tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_UPDATED', entityType: 'LayoutTemplate', entityId: layoutId, after: { rowVersion: updated.rowVersion } as any, requestId: request.id } })
+    return updated
+  })
+  return ok(request, asJson(layout), reply)
+})
+app.post('/api/admin/layout-studio/:layoutId/validate', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive() }).strict())
+  const layout = await prisma.layoutTemplate.findUnique({ where: { id: layoutId }, select: { draftContract: true, rowVersion: true, state: true } })
+  if (!layout) throw notFound('Layout not found')
+  if (layout.state === 'PUBLISHED' || layout.state === 'ARCHIVED') throw new ApiError('LAYOUT_REVISION_CONFLICT', 'Published layouts are immutable. Save a new draft revision before validating again.', 409)
+  const result = validateLayoutDraft(layout.draftContract)
+  const issues = [...result.issues, ...await validateLayoutBindings(layout.draftContract as LayoutDraft)]
+  if (layout.rowVersion !== input.expectedRowVersion) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This draft changed during validation. Reload it before continuing.', 409)
+  if (issues.length) return ok(request, { valid: false, issues, rowVersion: layout.rowVersion, warnings: ['Publishing a layout does not approve or authorize advertising media. Live screen assignment is disabled by default.'] }, reply)
+  if (layout.state === 'VALIDATED') return ok(request, { valid: true, issues: [], rowVersion: layout.rowVersion, state: layout.state, warnings: ['Publishing a layout does not approve or authorize advertising media. Live screen assignment is disabled by default.'] }, reply)
+  const validated = await prisma.$transaction(async tx => {
+    const updated = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { state: 'VALIDATED', rowVersion: { increment: 1 } } })
+    if (!updated.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This draft changed during validation. Reload it before continuing.', 409)
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_VALIDATED', entityType: 'LayoutTemplate', entityId: layoutId, after: { rowVersion: input.expectedRowVersion + 1 } as any, requestId: request.id } })
+    return tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId }, select: { rowVersion: true, state: true } })
+  })
+  return ok(request, { valid: true, issues: [], rowVersion: validated.rowVersion, state: validated.state, warnings: ['Publishing a layout does not approve or authorize advertising media. Live screen assignment is disabled by default.'] }, reply)
+})
+app.post('/api/admin/layout-studio/:layoutId/publish', async (request, reply) => {
+  const auth = await requireRoles(request, ['SUPER_ADMIN'])
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive() }).strict())
+  const published = await prisma.$transaction(async tx => {
+    const layout = await tx.layoutTemplate.findUnique({ where: { id: layoutId } })
+    if (!layout) throw notFound('Layout not found')
+    if (layout.rowVersion !== input.expectedRowVersion || layout.state !== 'VALIDATED') throw new ApiError('LAYOUT_REVISION_CONFLICT', 'Validate the current draft before Super Admin approval and publication.', 409)
+    const result = validateLayoutDraft(layout.draftContract)
+    const issues = [...result.issues, ...await validateLayoutBindings(layout.draftContract as LayoutDraft, tx)]
+    if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
+    const contract = JSON.stringify(layout.draftContract)
+    const contractHash = createHash('sha256').update(contract).digest('hex')
+    const revision = await tx.layoutRevision.create({ data: { templateId: layoutId, revision: (await tx.layoutRevision.count({ where: { templateId: layoutId } })) + 1, contract: layout.draftContract as any, contractHash, validation: { valid: true, issues: [] }, publishedBy: auth.userId } })
+    await tx.layoutTemplate.update({ where: { id: layoutId }, data: { state: 'PUBLISHED', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_REVISION_PUBLISHED', entityType: 'LayoutRevision', entityId: revision.id, after: { templateId: layoutId, revision: revision.revision, contractHash } as any, requestId: request.id } })
+    return revision
+  }, { isolationLevel: 'Serializable' })
+  return reply.code(201).send(response(request, asJson(published)))
+})
+app.post('/api/admin/layout-studio/:layoutId/assign', async (request) => {
+  await requireRoles(request, ['SUPER_ADMIN'])
+  throw new ApiError('LAYOUT_ASSIGNMENT_DISABLED', 'Live layout assignments are disabled pending native renderer, compatibility validation and rollout approval.', 409)
+})
+app.post('/api/admin/layout-studio/:layoutId/rollback', async (request, reply) => {
+  const auth = await requireRoles(request, ['SUPER_ADMIN'])
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive(), revisionId: z.string().uuid() }).strict())
+  const restored = await prisma.$transaction(async tx => {
+    const [layout, revision, activeAssignments] = await Promise.all([
+      tx.layoutTemplate.findUnique({ where: { id: layoutId } }),
+      tx.layoutRevision.findFirst({ where: { id: input.revisionId, templateId: layoutId } }),
+      tx.layoutAssignment.count({ where: { templateId: layoutId, state: 'ACTIVE', revokedAt: null } }),
+    ])
+    if (!layout || !revision) throw notFound('Layout or published revision not found')
+    if (activeAssignments) throw new ApiError('LAYOUT_ROLLBACK_BLOCKED', 'Revoke or replace active assignments through the approved rollout workflow before restoring a draft.', 409)
+    const contract = layoutDraftSchema.parse(revision.contract)
+    const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { mode: contract.mode, preset: contract.preset, profileId: contract.profileId, draftContract: contract as any, state: 'DRAFT', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    if (!changed.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This layout changed elsewhere. Reload it before rollback.', 409)
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_RESTORED', entityType: 'LayoutTemplate', entityId: layoutId, before: { state: layout.state, rowVersion: layout.rowVersion } as any, after: { state: 'DRAFT', restoredFromRevisionId: revision.id, revision: revision.revision } as any, requestId: request.id } })
+    return tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId } })
+  }, { isolationLevel: 'Serializable' })
+  return ok(request, asJson(restored), reply)
+})
+app.post('/api/admin/layout-studio/:layoutId/archive', async (request, reply) => {
+  const auth = await requireRoles(request, ['SUPER_ADMIN'])
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive() }).strict())
+  const archived = await prisma.$transaction(async tx => {
+    const layout = await tx.layoutTemplate.findUnique({ where: { id: layoutId } })
+    if (!layout) throw notFound('Layout not found')
+    const activeAssignments = await tx.layoutAssignment.count({ where: { templateId: layoutId, state: 'ACTIVE', revokedAt: null } })
+    if (activeAssignments) throw new ApiError('LAYOUT_ARCHIVE_BLOCKED', 'Active assignments must be revoked before archiving this layout.', 409)
+    const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { state: 'ARCHIVED', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    if (!changed.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This layout changed elsewhere. Reload it before archiving.', 409)
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_ARCHIVED', entityType: 'LayoutTemplate', entityId: layoutId, before: { state: layout.state }, after: { state: 'ARCHIVED' }, requestId: request.id } })
+    return tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId } })
+  })
+  return ok(request, asJson(archived), reply)
 })
 app.get('/go/:token', async (request, reply) => {
   const token = String((request.params as { token?: string }).token ?? '')
