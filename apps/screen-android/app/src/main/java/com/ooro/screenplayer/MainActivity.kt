@@ -867,11 +867,24 @@ internal fun qrBitmap(value: String, size: Int): Bitmap? {
     RuntimeDiagnostics.increment(RuntimeDiagnostics.Counter.QR_DECODED_BYTES, bitmap.allocationByteCount.toLong())
     return bitmap
 }
-private enum class TechnicianSection(val title: String, val subtitle: String) {
+internal enum class TechnicianSection(val title: String, val subtitle: String) {
     OVERVIEW("Overview", "Device at a glance"),
     PLAYBACK("Playback", "Media and authorization"),
     PRESENTATION("Presentation", "Local screen geometry"),
     SETTINGS("Settings", "Permissions, device & repair")
+}
+
+internal data class TechnicianStateSubscriptions(
+    val diagnostics: Boolean,
+    val playback: Boolean,
+    val mapHealth: Boolean,
+)
+
+internal fun technicianStateSubscriptions(section: TechnicianSection): TechnicianStateSubscriptions = when (section) {
+    TechnicianSection.OVERVIEW -> TechnicianStateSubscriptions(diagnostics = true, playback = true, mapHealth = false)
+    TechnicianSection.PLAYBACK -> TechnicianStateSubscriptions(diagnostics = true, playback = true, mapHealth = false)
+    TechnicianSection.PRESENTATION -> TechnicianStateSubscriptions(diagnostics = false, playback = false, mapHealth = false)
+    TechnicianSection.SETTINGS -> TechnicianStateSubscriptions(diagnostics = true, playback = false, mapHealth = true)
 }
 
 @Composable private fun Admin(
@@ -889,10 +902,23 @@ private enum class TechnicianSection(val title: String, val subtitle: String) {
     var repairCodeDialog by remember { mutableStateOf(false) }
     var repairCode by remember { mutableStateOf("") }
     var repairCodeError by remember { mutableStateOf<String?>(null) }
-    val d by vm.diagnostics.collectAsState()
-    val currentCreative by vm.currentCreative.collectAsState()
-    val mapTilesRendered by vm.mapTilesRendered.collectAsState()
-    val mapTileError by vm.mapTileError.collectAsState()
+    val subscriptions = technicianStateSubscriptions(section)
+    val diagnosticsFlow = remember(vm, subscriptions.diagnostics) {
+        if (subscriptions.diagnostics) vm.diagnostics else flowOf(DiagnosticsState())
+    }
+    val playbackFlow = remember(vm, subscriptions.playback) {
+        if (subscriptions.playback) vm.currentCreative else flowOf(null)
+    }
+    val mapRenderedFlow = remember(vm, subscriptions.mapHealth) {
+        if (subscriptions.mapHealth) vm.mapTilesRendered else flowOf(false)
+    }
+    val mapErrorFlow = remember(vm, subscriptions.mapHealth) {
+        if (subscriptions.mapHealth) vm.mapTileError else flowOf(null)
+    }
+    val d by diagnosticsFlow.collectAsState(initial = DiagnosticsState())
+    val currentCreative by playbackFlow.collectAsState(initial = null)
+    val mapTilesRendered by mapRenderedFlow.collectAsState(initial = false)
+    val mapTileError by mapErrorFlow.collectAsState(initial = null)
     val context = LocalContext.current
     val network = remember(d.probe) { networkInfo(context) }
     val location = remember(locationGranted) { locationDiagnostics(context) }
@@ -934,7 +960,15 @@ private enum class TechnicianSection(val title: String, val subtitle: String) {
                             Text("SCREEN STATUS", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                             Spacer(Modifier.height(7.dp))
                             Text(if (vm.isPaired) "Ready" else "Setup needed", color = if (vm.isPaired) Color(0xFF71D6A0) else Color(0xFFFFC46B), fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            Text(if (apiOk) "OORO service reachable" else "Using local status", color = Muted, fontSize = 11.sp)
+                            Text(
+                                when {
+                                    apiOk -> "OORO service reachable"
+                                    subscriptions.diagnostics -> "Using local status"
+                                    else -> "Live status available in Overview"
+                                },
+                                color = Muted,
+                                fontSize = 11.sp
+                            )
                         }
                     }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
