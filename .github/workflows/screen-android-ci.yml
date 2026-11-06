@@ -30,6 +30,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: true
+      - name: Test connected-device safety preflight
+        run: python3 -m unittest scripts/test_connected_test_safe.py -v
       - name: Test, lint, assemble APK and compile instrumentation APK
         run: |
           chmod +x ./gradlew
