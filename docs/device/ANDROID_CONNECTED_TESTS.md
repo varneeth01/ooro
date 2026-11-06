@@ -15,7 +15,7 @@ Connected Gradle tests install both the app and instrumentation APK. Never invok
    python3 scripts/connected-test-safe.py --serial emulator-5554
    ```
 
-The gate checks the one-device ADB inventory and then queries only that serial for QEMU boot flags, `ranchu`/`goldfish` hardware, SDK product/model, and the emulator build characteristic. It rejects MBOX boards, all physical/unknown devices, multiple targets, offline/unauthorized targets, and an absent emulator. The normal invocation exports `ANDROID_SERIAL` and starts the connected Gradle task only after the gate passes. It never falls back to a different device.
+The gate checks the one-device ADB inventory and then queries only that serial for QEMU boot flags, `ranchu`/`goldfish` hardware, SDK product/model, and the emulator build characteristic. It rejects MBOX boards, all physical/unknown devices, multiple targets, offline/unauthorized targets, and an absent emulator. The normal invocation exports `ANDROID_SERIAL`, passes Gradle's exact device-serial selection property, and starts the connected task only after the gate passes. The Gradle task-graph hook independently runs the same preflight before any task action, so a raw `./gradlew connectedDebugAndroidTest` is also refused without an allowlisted emulator. Neither path falls back to another device.
 
 The emulator-only assumptions in instrumentation tests are defense in depth; they do not replace this pre-install host gate.
 
