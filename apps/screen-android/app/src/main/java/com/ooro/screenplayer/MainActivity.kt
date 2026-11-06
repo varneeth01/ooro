@@ -839,7 +839,7 @@ private fun distanceMeters(start: LatLng, end: LatLng): Double {
                 Spacer(Modifier.height(if (compact) 5.dp else 9.dp))
                 Text("Advertise your business here", color = Color.White, fontSize = if (compact) 12.sp else 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Spacer(Modifier.height(if (compact) 7.dp else 12.dp))
-                Text("+91 7918399132", color = Yellow, fontSize = if (compact) 14.sp else 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text("+91 7981399132", color = Yellow, fontSize = if (compact) 14.sp else 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 Spacer(Modifier.height(if (compact) 2.dp else 4.dp))
                 Text("For advertisements", color = Color(0xFFD7DDE3), fontSize = if (compact) 10.sp else 12.sp, maxLines = 1)
             }
