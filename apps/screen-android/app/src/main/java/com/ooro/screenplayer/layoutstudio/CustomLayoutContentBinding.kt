@@ -32,9 +32,10 @@ internal fun resolveCustomWidgetContent(
     currentMainItem: ManifestItem?,
     now: Instant,
     enabledCapabilities: Set<String> = emptySet(),
+    authorizationExpired: Boolean = false,
 ): CustomWidgetContent {
     if (pairedScreenId.isNullOrBlank() || manifest.screenId != pairedScreenId) return CustomWidgetContent.Fallback("screen-identity-mismatch")
-    if (!manifestIsAuthorizedAt(manifest, now)) return CustomWidgetContent.Fallback("manifest-expired")
+    if (authorizationExpired || !manifestIsAuthorizedAt(manifest, now)) return CustomWidgetContent.Fallback("manifest-expired")
     if (!zone.visible) return CustomWidgetContent.Fallback("hidden")
     val binding = zone.bindingKind
     val reference = zone.referenceId

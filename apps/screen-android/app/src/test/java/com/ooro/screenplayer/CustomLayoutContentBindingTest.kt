@@ -76,6 +76,7 @@ class CustomLayoutContentBindingTest {
 
     @Test fun `expired manifest and screen mismatch fail closed`() {
         assertTrue(resolveCustomWidgetContent(zone("MAIN_AD"), manifest.copy(validUntil = now), "screen-a", verified, main, now) is CustomWidgetContent.Fallback)
+        assertEquals(CustomWidgetContent.Fallback("manifest-expired"), resolveCustomWidgetContent(zone("MAIN_AD"), manifest, "screen-a", verified, main, now, authorizationExpired = true))
         assertTrue(resolveCustomWidgetContent(zone("MAIN_AD"), manifest, "screen-b", verified, main, now) is CustomWidgetContent.Fallback)
     }
 

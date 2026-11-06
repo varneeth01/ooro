@@ -365,7 +365,7 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     } else Modifier.fillMaxSize().background(Color.Black).clipToBounds()
     Box(rootModifier) {
         if (customLayout != null) {
-            CustomLayoutPlayer(vm, manifest, customLayout, item, playbackOffset, verifiedAssetIds, pairedScreenId, preview)
+            CustomLayoutPlayer(vm, manifest, customLayout, item, playbackOffset, verifiedAssetIds, pairedScreenId, preview, manifestExpired)
         } else if (manifest.layout == DisplayLayout.FOUR_ZONE || manifest.layout == DisplayLayout.AD_NAV_OFFER) Row(Modifier.fillMaxSize().clipToBounds()) {
             val adWidth = if (usesSidebar80(manifest.layout, geometryVersion)) 80 else manifest.layoutConfig.safePrimaryWidth
             val sidebarSplit = if (usesSidebar80(manifest.layout, geometryVersion)) 50 else manifest.layoutConfig.safeQrHeight
@@ -401,10 +401,11 @@ internal fun locationPermissionStatus(granted: Boolean, fixAvailable: Boolean): 
     verifiedAssetIds: Set<String>,
     pairedScreenId: String?,
     preview: PlayerPreviewConfig?,
+    manifestExpired: Boolean,
 ) {
     LayoutStudioRenderer(contract, Modifier.fillMaxSize().background(Color.Black).clipToBounds()) { zone ->
-        val resolved = remember(zone, manifest.version, manifest.validUntil, pairedScreenId, verifiedAssetIds, currentMainItem?.id) {
-            resolveCustomWidgetContent(zone, manifest, pairedScreenId, verifiedAssetIds, currentMainItem, Instant.now())
+        val resolved = remember(zone, manifest.version, manifest.validUntil, manifestExpired, pairedScreenId, verifiedAssetIds, currentMainItem?.id) {
+            resolveCustomWidgetContent(zone, manifest, pairedScreenId, verifiedAssetIds, currentMainItem, Instant.now(), authorizationExpired = manifestExpired)
         }
         CustomLayoutZoneContent(vm, zone, resolved, playbackKey, preview)
     }
