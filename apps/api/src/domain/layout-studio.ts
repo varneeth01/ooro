@@ -116,6 +116,70 @@ export function standardPixelGeometry(width: number, height: number) {
   }
 }
 
+/** Move a normalized zone while keeping every edge on the 1% editor grid. */
+export function moveLayoutZoneGeometry(
+  geometry: { x: number; y: number; width: number; height: number },
+  dx: number,
+  dy: number,
+  step = 0.01,
+) {
+  const snap = (value: number) => Math.round(value / step) * step
+  const maxX = Math.max(0, 1 - geometry.width)
+  const maxY = Math.max(0, 1 - geometry.height)
+  return {
+    ...geometry,
+    x: Math.min(maxX, Math.max(0, snap(geometry.x + dx))),
+    y: Math.min(maxY, Math.max(0, snap(geometry.y + dy))),
+  }
+}
+
+/** Resize a normalized zone, preserving a minimum visible size and canvas bounds. */
+export function resizeLayoutZoneGeometry(
+  geometry: { x: number; y: number; width: number; height: number },
+  dx: number,
+  dy: number,
+  minimum = 0.05,
+  step = 0.01,
+) {
+  const snap = (value: number) => Math.round(value / step) * step
+  const maxWidth = Math.max(minimum, 1 - geometry.x)
+  const maxHeight = Math.max(minimum, 1 - geometry.y)
+  return {
+    ...geometry,
+    width: Math.min(maxWidth, Math.max(minimum, snap(geometry.width + dx))),
+    height: Math.min(maxHeight, Math.max(minimum, snap(geometry.height + dy))),
+  }
+}
+
+/** Arrow keys move a selected zone by 0.5%, or 2% with Shift. */
+export function keyboardMoveLayoutZoneGeometry(
+  geometry: { x: number; y: number; width: number; height: number },
+  key: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown',
+  shift = false,
+) {
+  const step = shift ? 0.02 : 0.005
+  const dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0
+  const dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0
+  return {
+    ...geometry,
+    x: Math.max(0, Math.min(1 - geometry.width, geometry.x + dx)),
+    y: Math.max(0, Math.min(1 - geometry.height, geometry.y + dy)),
+  }
+}
+
+/** Convert screen-space pointer movement to normalized units using the rendered canvas bounds. */
+export function pointerDeltaToLayoutUnits(
+  deltaX: number,
+  deltaY: number,
+  renderedWidth: number,
+  renderedHeight: number,
+) {
+  return {
+    x: renderedWidth > 0 ? deltaX / renderedWidth : 0,
+    y: renderedHeight > 0 ? deltaY / renderedHeight : 0,
+  }
+}
+
 /** Uses edge rounding to match the Android renderer; adjacent zones share identical rounded boundaries. */
 export function normalizedPixelRect(geometry: { x: number; y: number; width: number; height: number }, screenWidth: number, screenHeight: number) {
   const left = Math.round(geometry.x * screenWidth)
