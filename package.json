@@ -15,7 +15,9 @@
     "@aws-sdk/client-s3": "^3.1152.0",
     "@google-cloud/storage": "^7.16.0",
     "@prisma/client": "6.19.3",
+    "@react-three/fiber": "^9.8.2",
     "framer-motion": "^12.23.12",
+    "gsap": "^3.15.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
     "mongoose": "^9.9.4",
@@ -24,6 +26,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-leaflet": "^5.0.0",
+    "three": "^0.187.0",
     "zod": "^4.0.17"
   },
   "devDependencies": {
@@ -33,6 +36,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.187.0",
     "autoprefixer": "^10.4.20",
     "esbuild": "^0.28.2",
     "eslint": "^9.16.0",
