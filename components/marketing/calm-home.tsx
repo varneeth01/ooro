@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowUpRight, CheckCircle2, Play } from "lucide-react";
 import { Navbar } from "./navbar";
 import { Footer } from "./footer";
 import { ExperienceExplorer, ReadingProgress } from "./experience-explorer";
+import { FieldFilmButton } from "./field-film-button";
 import "./calm-home.css";
 
 const steps = [
@@ -33,6 +34,7 @@ export function CalmHome() {
           </div>
           <figure className="calm-hero-media">
             <Image src="/field/ooro-bengaluru-auto-01.webp" alt="OORO field operations with an auto-rickshaw in Bengaluru" fill priority sizes="(max-width: 799px) 100vw, 48vw" className="calm-cover" />
+            <FieldFilmButton />
             <figcaption><span>01 / THE REAL WORLD</span><span>BENGALURU, INDIA</span></figcaption>
           </figure>
         </div>
