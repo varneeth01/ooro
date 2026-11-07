@@ -12,11 +12,11 @@ import {
   Play,
   Radio,
   Route,
-  ShieldCheck,
 } from "lucide-react";
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 import "./field-home.css";
+import { FieldMotion } from "@/components/marketing/field-motion";
 
 const journey = [
   { number: "01", title: "Tell us where you want to be seen.", body: "Choose Bengaluru neighborhoods, campaign dates and your budget. We'll review the available inventory.", icon: MapPin },
@@ -35,6 +35,7 @@ export function FieldHome() {
   return (
     <main id="main-content" className="field-site bg-[#0a0b0a] text-[#f5f6f1]">
       <div className="field-noise pointer-events-none" aria-hidden="true" />
+      <FieldMotion />
       <Navbar />
 
       <section className="field-hero relative isolate overflow-hidden pt-32 sm:pt-36 lg:pt-40" aria-labelledby="field-title">
