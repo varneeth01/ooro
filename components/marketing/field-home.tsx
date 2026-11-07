@@ -179,7 +179,7 @@ export function FieldHome() {
           <div className="field-final relative overflow-hidden border border-white/15 bg-[#dbff22] px-7 py-12 text-[#10130b] sm:px-12 sm:py-16 lg:px-16 lg:py-20">
             <span className="text-[11px] font-bold uppercase tracking-[.2em]">The next move is yours.</span>
             <h2 id="field-cta" className="mt-6 max-w-4xl text-[clamp(2.8rem,6vw,6.8rem)] font-semibold leading-[.95] tracking-[-.075em]">Your next customer is out there.</h2>
-            <div className="mt-9 flex flex-wrap items-end justify-between gap-7"><p className="max-w-lg text-base leading-7 text-black/65">Tell us who you want to reach. We'll help you understand the options available through OORO.</p><Link href="/advertise" className="field-button-dark group">Plan a campaign <ArrowUpRight size={18} aria-hidden="true" className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></Link></div>
+            <div className="mt-9 flex flex-wrap items-end justify-between gap-7"><p className="max-w-lg text-base leading-7 text-black/65">Tell us who you want to reach. We will help you understand the options available through OORO.</p><Link href="/advertise" className="field-button-dark group">Plan a campaign <ArrowUpRight size={18} aria-hidden="true" className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></Link></div>
           </div>
         </div>
       </section>
