@@ -7,7 +7,7 @@
 .ooro-explore-heading h2 span{color:#a6aaa2}
 .ooro-explore-heading>p{max-width:340px;font-size:15px;line-height:1.75;color:#bfc3ba}
 .ooro-explore-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #343a33;margin-top:58px}
-.ooro-explore-tabs button{position:relative;display:flex;gap:14px;align-items:center;min-height:70px;width:100%;padding:20px 18px;border:0;border-bottom:1px solid #343a33;background:transparent;color:#a8aea7;text-align:left;font:550 16px/1.35 inherit;cursor:pointer;transition:color .25s,background .25s}
+.ooro-explore-tabs button{position:relative;display:flex;gap:14px;align-items:center;min-height:70px;width:100%;padding:20px 18px;border:0;border-bottom:1px solid #343a33;background:transparent;color:#a8aea7;text-align:left;font-size:16px;font-weight:550;line-height:1.35;font-family:inherit;cursor:pointer;transition:color .25s,background .25s}
 .ooro-explore-tabs button+button{border-left:1px solid #343a33}
 .ooro-explore-tabs button span{color:#6e766b;font:600 10px ui-monospace,monospace}
 .ooro-explore-tabs button:hover{background:#171e16;color:#fff}
