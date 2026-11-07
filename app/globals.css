@@ -2,10 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --background: #f5f6f1; --foreground: #090b0a; --black: #090b0a; --white: #ffffff; --brand-yellow: #dfff00; --muted: #686c66; --line: #d8dbd2; --surface-dark: #080a09; --surface-titanium: #171a18; --accent: var(--brand-yellow); --z-map: 0; --z-map-controls: 10; --z-navbar: 50; --z-dropdown: 100; --z-backdrop: 900; --z-modal: 1000; --z-toast: 1100; }
+:root { --background: #f5f6f1; --foreground: #090b0a; --black: #090b0a; --white: #ffffff; --brand-yellow: #dfff00; --muted: #686c66; --line: #d8dbd2; --surface-dark: #080a09; --surface-titanium: #171a18; --accent: var(--brand-yellow); --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif; --admin-bg: #0b0e10; --admin-surface: #14191d; --admin-surface-raised: #1b2227; --admin-border: #30383e; --admin-text: #eff2ef; --admin-muted: #a4adb2; --z-map: 0; --z-map-controls: 10; --z-navbar: 50; --z-dropdown: 100; --z-backdrop: 900; --z-modal: 1000; --z-toast: 1100; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--background); color: var(--foreground); font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif; }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
 a { color: inherit; text-decoration: none; }
 button, input { font: inherit; }
 ::selection { background: var(--brand-yellow); color: var(--black); }
@@ -26,6 +26,7 @@ button, input { font: inherit; }
 .app-eyebrow { color: #85857f; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 .hairline { border-color: var(--line); }
 .focus-ring:focus-visible { outline: 2px solid #829d00; outline-offset: 3px; }
+:where(a, button, input, textarea, select):focus-visible { outline: 2px solid #829d00; outline-offset: 3px; }
 :where(a, button, input, textarea, select):focus-visible { outline-offset: 3px; }
 :where(#solutions, #features, #experience, #bengaluru) { scroll-margin-top: 112px; }
 :where(button, a) { -webkit-tap-highlight-color: transparent; }
@@ -45,109 +46,52 @@ summary::-webkit-details-marker { display: none; }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } .ooro-route-sweep { display: none; } }
 
-/* Admin workspace theme: shared across administrator and super administrator routes. */
-.ooro-admin { --admin-bg: #101416; --admin-surface: #191f24; --admin-surface-raised: #20272e; --admin-border: #30383f; background: var(--admin-bg); color: #f1f3ef; }
-.ooro-admin main { background: var(--admin-bg); }
-.ooro-admin .bg-white { background-color: var(--admin-surface) !important; }
-.ooro-admin .bg-neutral-50, .ooro-admin .bg-\[\#fafaf8\] { background-color: #151a1e !important; }
-.ooro-admin .bg-neutral-100 { background-color: #252c32 !important; }
-.ooro-admin .bg-neutral-200 { background-color: #30383f !important; }
-.ooro-admin .border-neutral-100, .ooro-admin .border-neutral-200, .ooro-admin .border-neutral-300 { border-color: var(--admin-border) !important; }
-.ooro-admin .divide-neutral-100 > :not([hidden]) ~ :not([hidden]), .ooro-admin .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--admin-border) !important; }
-.ooro-admin .text-neutral-900, .ooro-admin .text-neutral-800, .ooro-admin .text-neutral-700 { color: #edf0ec !important; }
-.ooro-admin .text-neutral-600, .ooro-admin .text-neutral-500 { color: #a2abb2 !important; }
-.ooro-admin .text-neutral-400 { color: #87919a !important; }
-.ooro-admin .text-neutral-300 { color: #bec5ca !important; }
-.ooro-admin .app-eyebrow { color: #aebd4d; }
-.ooro-admin input:not([type="checkbox"]), .ooro-admin textarea, .ooro-admin select { color: #f1f3ef; border-color: #46515a; background-color: #151a1e; }
-.ooro-admin input::placeholder, .ooro-admin textarea::placeholder { color: #828d95; }
-.ooro-admin input:focus, .ooro-admin textarea:focus, .ooro-admin select:focus { border-color: #dfff00; outline-color: #dfff00; }
-.ooro-admin button.bg-black, .ooro-admin a.bg-black { background-color: #dfff00 !important; color: #090b0a !important; }
+/* Admin workspace: one restrained surface system, shared by every protected page. */
+.ooro-admin { background: var(--admin-bg); color: var(--admin-text); }
+.ooro-admin main { background: transparent; }
+.ooro-admin aside { background: #0c1013; border-color: var(--admin-border); }
+.ooro-admin header { background: var(--admin-surface); border-color: var(--admin-border); }
+.ooro-admin main > div { max-width: 1440px; }
+.ooro-admin .bg-white, .ooro-admin .bg-neutral-50, .ooro-admin .bg-\[\#fafaf8\], .ooro-admin .bg-\[\#f2f4ec\], .ooro-admin .bg-\[\#f7f7f4\], .ooro-admin .bg-\[\#f7fadf\] { background-color: var(--admin-surface) !important; }
+.ooro-admin .bg-neutral-100, .ooro-admin .bg-neutral-200 { background-color: var(--admin-surface-raised) !important; }
+.ooro-admin .border-neutral-100, .ooro-admin .border-neutral-200, .ooro-admin .border-neutral-300, .ooro-admin .divide-neutral-100 > :not([hidden]) ~ :not([hidden]), .ooro-admin .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--admin-border) !important; }
+.ooro-admin .text-neutral-900, .ooro-admin .text-neutral-800, .ooro-admin .text-neutral-700 { color: #e7ece8 !important; }
+.ooro-admin .text-neutral-600, .ooro-admin .text-neutral-500 { color: var(--admin-muted) !important; }
+.ooro-admin .text-neutral-400 { color: #8e999f !important; }
+.ooro-admin .text-neutral-300 { color: #c4cbc8 !important; }
+.ooro-admin .app-eyebrow { color: #c5d875; }
+.ooro-admin input:not([type="checkbox"]), .ooro-admin textarea, .ooro-admin select { color: var(--admin-text); border-color: #46515a; background-color: #11171a; }
+.ooro-admin input::placeholder, .ooro-admin textarea::placeholder { color: #9aa4aa; }
+.ooro-admin input:focus, .ooro-admin textarea:focus, .ooro-admin select:focus { border-color: var(--brand-yellow); outline-color: var(--brand-yellow); }
+.ooro-admin input[type="checkbox"], .ooro-admin input[type="radio"] { accent-color: var(--brand-yellow); }
+.ooro-admin button.bg-black, .ooro-admin a.bg-black { background-color: var(--brand-yellow) !important; color: var(--black) !important; }
 .ooro-admin button.bg-black:hover, .ooro-admin a.bg-black:hover { background-color: #c9e600 !important; }
 .ooro-admin .bg-red-50 { background-color: #321d1d !important; }
 .ooro-admin .border-red-200 { border-color: #773b3b !important; }
 .ooro-admin .text-red-950, .ooro-admin .text-red-900, .ooro-admin .text-red-800 { color: #ffd1ca !important; }
-.ooro-admin .text-red-700 { color: #ff8b80 !important; }
-.ooro-admin .bg-lime-100 { background-color: #28331a !important; }
-.ooro-admin .text-lime-900 { color: #d6f18c !important; }
-.ooro-admin .bg-amber-100 { background-color: #3b2b17 !important; }
-.ooro-admin .text-amber-900 { color: #ffd58b !important; }
-.ooro-admin .bg-\[\#f5facf\], .ooro-admin .bg-\[\#f8fbdc\] { background-color: #28311a !important; }
-.ooro-admin .text-\[\#3f6d1d\] { color: #b9dc76 !important; }
-.ooro-admin .text-\[\#9a6500\], .ooro-admin .text-\[\#a06b00\] { color: #f2c86f !important; }
-.ooro-admin .hover\:bg-neutral-50:hover { background-color: #222930 !important; }
-.ooro-admin .hover\:bg-neutral-100:hover { background-color: #293138 !important; }
-.ooro-admin .hover\:bg-neutral-200:hover { background-color: #30383f !important; }
-.ooro-admin :where(table) thead { color: #abb4ba; background: #151a1e; }
-.ooro-admin :where(details) summary { cursor: pointer; color: #edf0ec; }
-.ooro-admin :where(pre) { color: #d8ded9; }
-.ooro-admin :where(a, button, input, textarea, select):focus-visible { outline-color: #dfff00; }
-
-.admin-login { background: radial-gradient(ellipse at 15% 0%, rgba(223,255,0,.09), transparent 32%), #101416; color: #f1f3ef; }
-.admin-login .admin-login-card { border-color: #30383f; background: #191f24; box-shadow: 0 28px 90px rgba(0,0,0,.3); }
-.admin-login input { border-color: #46515a; background: #151a1e; color: #f1f3ef; }
-.admin-login input:focus { border-color: #dfff00; }
-.admin-login button[type="submit"] { background: #dfff00; color: #090b0a; }
-.admin-login .text-neutral-500 { color: #a2abb2; }
-.admin-login .text-red-700, .admin-login [role="alert"] { color: #ffaaa1; }
-.admin-login a:hover { color: #dfff00; }
-
-
-/* Admin dark-surface normalization for legacy pages that still use light utility colors. */
-.ooro-admin .bg-\[\#f2f4ec\], .ooro-admin .bg-\[\#f7f7f4\], .ooro-admin .bg-\[\#f7fadf\], .ooro-admin .bg-\[\#f8fbdc\] {
-  background-color: #151a1e !important;
-  border-color: var(--admin-border) !important;
-}
-.ooro-admin .bg-amber-50 { background-color: #2d2417 !important; }
-.ooro-admin .border-amber-200 { border-color: #6d5525 !important; }
-.ooro-admin .text-amber-950 { color: #ffe2a7 !important; }
-.ooro-admin .text-amber-900 { color: #ffd58b !important; }
-.ooro-admin .bg-lime-50 { background-color: #202a15 !important; }
+.ooro-admin .text-red-700, .ooro-admin [role="alert"] { color: #ffaaa1; }
+.ooro-admin .bg-lime-50, .ooro-admin .bg-lime-100, .ooro-admin .bg-\[\#f5facf\], .ooro-admin .bg-\[\#f8fbdc\] { background-color: #28311a !important; }
 .ooro-admin .border-lime-200 { border-color: #42551f !important; }
-.ooro-admin .text-lime-950 { color: #e1f5ac !important; }
-.ooro-admin select option { background: #151a1e; color: #f1f3ef; }
-.ooro-admin input[type="checkbox"], .ooro-admin input[type="radio"] { accent-color: #dfff00; }
+.ooro-admin .text-lime-950, .ooro-admin .text-lime-900, .ooro-admin .text-\[\#3f6d1d\] { color: #d6ef9e !important; }
+.ooro-admin .bg-amber-50, .ooro-admin .bg-amber-100 { background-color: #342817 !important; }
+.ooro-admin .border-amber-200 { border-color: #6d5525 !important; }
+.ooro-admin .text-amber-950, .ooro-admin .text-amber-900, .ooro-admin .text-\[\#9a6500\], .ooro-admin .text-\[\#a06b00\] { color: #f4d487 !important; }
+.ooro-admin .hover\:bg-neutral-50:hover { background-color: #20272c !important; }
+.ooro-admin .hover\:bg-neutral-100:hover, .ooro-admin .hover\:bg-neutral-200:hover { background-color: #262e33 !important; }
+.ooro-admin :where(table) thead { color: #bdc6c3; background: #11171a; }
+.ooro-admin :where(table) tbody tr { border-color: rgba(255,255,255,.08); }
 .ooro-admin :where(table) tbody tr:hover { background-color: rgba(255,255,255,.035); }
-.ooro-admin :where(button, a, input, textarea, select):focus-visible { outline: 2px solid #dfff00; outline-offset: 2px; }
-
-
-/* Calm, layered admin workspace */
-.ooro-admin {
-  --admin-bg: #090c0f;
-  --admin-surface: rgba(23, 29, 34, .78);
-  --admin-surface-raised: rgba(31, 39, 46, .88);
-  --admin-border: rgba(255,255,255,.09);
-  background:
-    radial-gradient(ellipse at 76% -15%, rgba(223,255,0,.055), transparent 38%),
-    linear-gradient(180deg, #0d1114, #090c0f 42rem);
-}
-.ooro-admin main { background: transparent; }
-.ooro-admin aside { background: rgba(11, 15, 18, .82); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-color: rgba(255,255,255,.08); }
-.ooro-admin header { background: rgba(13, 17, 20, .72); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-color: rgba(255,255,255,.08); }
-.ooro-admin main > div { max-width: 1440px; }
-.ooro-admin .rounded-2xl.border, .ooro-admin .rounded-xl.border {
-  border-color: rgba(255,255,255,.085) !important;
-  background-color: rgba(24,30,35,.72);
-  box-shadow: 0 12px 36px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.035);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-.ooro-admin :where(input:not([type="checkbox"]), textarea, select) {
-  border-radius: 12px;
-  min-height: 46px;
-  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
-}
-.ooro-admin :where(input:not([type="checkbox"]), textarea, select):focus {
-  border-color: rgba(223,255,0,.72);
-  box-shadow: 0 0 0 4px rgba(223,255,0,.1);
-}
+.ooro-admin :where(details) summary { cursor: pointer; color: var(--admin-text); }
+.ooro-admin :where(pre) { color: #d8ded9; }
+.ooro-admin :where(a, button, input, textarea, select):focus-visible { outline: 2px solid var(--brand-yellow); outline-offset: 2px; }
+.ooro-admin :where(input:not([type="checkbox"]), textarea, select) { border-radius: 10px; min-height: 44px; }
 .ooro-admin :where(button, a) { transition-duration: .18s; }
-.ooro-admin :where(button, a):active { transform: scale(.985); }
-.ooro-admin :where(h1) { letter-spacing: -.045em; }
-.ooro-admin :where(table) tbody tr { border-color: rgba(255,255,255,.07); }
-.ooro-admin :where(table) tbody tr:hover { background-color: rgba(255,255,255,.035); }
-@media (prefers-reduced-transparency: reduce) {
-  .ooro-admin aside, .ooro-admin header, .ooro-admin .rounded-2xl.border, .ooro-admin .rounded-xl.border {
-    backdrop-filter: none; -webkit-backdrop-filter: none; background-color: #171d22;
-  }
-}
+.ooro-admin :where(h1) { letter-spacing: -.04em; }
+.admin-login { background: #0b0e10; color: var(--admin-text); }
+.admin-login .admin-login-card { border-color: var(--admin-border); background: var(--admin-surface); box-shadow: 0 20px 56px rgba(0,0,0,.26); }
+.admin-login input { border-color: #46515a; background: #11171a; color: var(--admin-text); }
+.admin-login input:focus { border-color: var(--brand-yellow); }
+.admin-login button[type="submit"] { background: var(--brand-yellow); color: var(--black); }
+.admin-login .text-neutral-500 { color: var(--admin-muted); }
+.admin-login .text-red-700, .admin-login [role="alert"] { color: #ffaaa1; }
+.admin-login a:hover { color: var(--brand-yellow); }

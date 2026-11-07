@@ -1,4 +1,25 @@
 import type { Metadata } from "next";
 import { PublicPage, PublicSection } from "@/components/marketing/public-page";
-export const metadata: Metadata = { title: "How OORO works", description: "Understand the OORO connected physical media workflow." };
-export default function HowItWorksPage() { return <PublicPage eyebrow="How OORO works" title="A campaign workflow built around real screens." description="Plan, deliver, verify and learn from campaigns running on connected mobility displays."><PublicSection title="From brief to verified delivery"><div className="grid gap-px border border-neutral-300 bg-neutral-300 sm:grid-cols-4">{[["01", "Plan", "Choose a journey, city, dates and creative."], ["02", "Deliver", "OORO syncs eligible campaigns to connected screens."], ["03", "Verify", "Playback events and Proof-of-Play record delivery."], ["04", "Learn", "Review campaign and QR engagement where available."]].map(([number, title, copy]) => <div className="bg-[#f7f7f5] p-6" key={number}><p className="text-xs text-neutral-500">{number}</p><h2 className="mt-12 text-xl font-medium">{title}</h2><p className="mt-3 text-sm leading-6 text-neutral-500">{copy}</p></div>)}</div></PublicSection></PublicPage>; }
+
+export const metadata: Metadata = { title: "How OORO works", description: "Understand how OORO plans, reviews, schedules and reports mobility advertising." };
+
+const steps = [
+  { number: "01", title: "Set the brief", copy: "Choose a city, areas, dates and budget. These are planning inputs; OORO checks eligible screen inventory before confirming availability." },
+  { number: "02", title: "Review the creative", copy: "Submit image or video artwork for review. Only approved creative can move into the scheduling workflow." },
+  { number: "03", title: "Schedule eligible screens", copy: "The operations team confirms commercial terms and schedules approved media against eligible screens and campaign dates." },
+  { number: "04", title: "Read delivery evidence", copy: "Where supported, device-reported playback events provide evidence of delivery. Forecasts and schedules remain separate from verified plays." },
+] as const;
+
+export default function HowItWorksPage() {
+  return <PublicPage eyebrow="How OORO works" title="From campaign brief to delivery evidence." description="A clear operating path for mobility advertising: request a plan, review creative, confirm eligible inventory and understand what actually played.">
+    <PublicSection title="Four steps. Clear checkpoints.">
+      <ol className="mt-10 border-t border-black/15">
+        {steps.map(step => <li key={step.number} className="grid gap-4 border-b border-black/15 py-7 sm:grid-cols-[72px_minmax(0,1fr)_minmax(180px,.65fr)] sm:items-start sm:gap-8 sm:py-9">
+          <span className="font-mono text-sm tabular-nums text-[#687100]">{step.number}</span>
+          <h2 className="text-xl font-semibold tracking-tight text-[#101210] sm:text-2xl">{step.title}</h2>
+          <p className="max-w-xl text-sm leading-7 text-neutral-600">{step.copy}</p>
+        </li>)}
+      </ol>
+    </PublicSection>
+  </PublicPage>;
+}

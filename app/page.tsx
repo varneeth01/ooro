@@ -72,12 +72,14 @@ export default function Home() {
   };
 
   return <main id="main-content" className="overflow-x-clip bg-[#f5f6f1] text-[#0a0c0b]">
+    <a href="#main-content" className="sr-only fixed left-4 top-4 z-[100] rounded-md bg-[#dfff00] px-4 py-3 text-sm font-semibold text-black focus:not-sr-only focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Skip to content</a>
     <div className="relative overflow-hidden bg-[#080a09] text-white">
       <Navbar/>
-      <section className="container-ooro relative grid min-h-[100svh] items-center gap-14 pb-14 pt-32 lg:grid-cols-[.9fr_1.1fr] lg:gap-16 lg:pb-20 lg:pt-28">
+      <section id="main-content" tabIndex={-1} className="container-ooro relative grid min-h-[100svh] items-center gap-14 pb-14 pt-32 lg:grid-cols-[.9fr_1.1fr] lg:gap-16 lg:pb-20 lg:pt-28">
         <div className="relative z-10 min-w-0">
+          <p className="mb-5 text-[11px] font-semibold uppercase tracking-[.18em] text-[#dfff00]">Mobility advertising · Bengaluru</p>
           <HeroReveal/>
-          <p className="mt-7 max-w-[620px] text-lg leading-8 text-neutral-300 sm:text-xl">OORO puts approved brand stories inside everyday auto and cab journeys—planned around place, reviewed by people and reported with delivery evidence where available.</p>
+          <p className="mt-7 max-w-[620px] text-lg leading-8 text-neutral-300 sm:text-xl">Plan around places and dates. OORO reviews creative and confirms eligible screens before booking; playback reporting is available where supported.</p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/advertise" className="inline-flex min-h-12 items-center justify-between gap-8 rounded-xl bg-[#dfff00] px-6 py-4 text-sm font-semibold text-black transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#dfff00]">Plan your campaign <ArrowUpRight size={18}/></Link>
             <Link href="/how-it-works" className="inline-flex min-h-12 items-center justify-between gap-8 rounded-xl border border-white/20 px-6 py-4 text-sm font-semibold text-white transition hover:border-white/45 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#dfff00]">See how OORO works <MoveRight size={18}/></Link>

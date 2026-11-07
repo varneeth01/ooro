@@ -52,7 +52,6 @@ Desktop.ini
 *.swo
 *~
 .vercel/
-.netlify/
 
 # Runtime/generated data
 tmp/
@@ -62,10 +61,5 @@ logs/
 *.sqlite
 *.sqlite3
 *.db
-netlify/functions/api.zip
-netlify/functions/manifest.json
-netlify/functions/payments.mjs
-netlify/functions/*.zip
-
 # Generated local automation stack; not part of the OORO application.
 n8n/
