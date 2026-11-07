@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { creativeTypeMatchesWidget, normalizedPixelRect, standardPixelGeometry, standardV3Draft, validateLayoutDraft } from './layout-studio.js'
+import { creativeTypeMatchesWidget, keyboardMoveLayoutZoneGeometry, moveLayoutZoneGeometry, normalizedPixelRect, pointerDeltaToLayoutUnits, resizeLayoutZoneGeometry, standardPixelGeometry, standardV3Draft, validateLayoutDraft } from './layout-studio.js'
 import { canAdmin } from './admin-auth.js'
 
 test('layout mutation authorization excludes read-only support and finance roles', () => {
@@ -22,6 +22,38 @@ test('Standard V3 resolves to the documented 1280x720 pixel geometry', () => {
 test('normalized custom zone edge rounding matches native renderer golden vectors', () => {
   assert.deepEqual(normalizedPixelRect({ x: 0, y: 0, width: .8, height: .85 }, 854, 480), { x: 0, y: 0, width: 683, height: 408 })
   assert.deepEqual(normalizedPixelRect({ x: .8, y: .5, width: .2, height: .5 }, 1920, 1080), { x: 1536, y: 540, width: 384, height: 540 })
+})
+
+test('pointer movement stays normalized across CSS zoom levels', () => {
+  for (const zoom of [0.65, 1, 1.25]) {
+    const renderedWidth = 1000 * zoom
+    const renderedHeight = 562.5 * zoom
+    const delta = pointerDeltaToLayoutUnits(100 * zoom, 56.25 * zoom, renderedWidth, renderedHeight)
+    assert.ok(Math.abs(delta.x - 0.1) < 1e-9)
+    assert.ok(Math.abs(delta.y - 0.1) < 1e-9)
+  }
+})
+
+test('drag geometry snaps and clamps to the canvas after snapping', () => {
+  const moved = moveLayoutZoneGeometry({ x: 0.8, y: 0.7, width: 0.2, height: 0.3 }, 0.5, 0.5)
+  assert.deepEqual(moved, { x: 0.8, y: 0.7, width: 0.2, height: 0.3 })
+  const snapped = moveLayoutZoneGeometry({ x: 0.123, y: 0.234, width: 0.2, height: 0.3 }, 0.012, 0.017)
+  assert.deepEqual(snapped, { x: 0.14, y: 0.25, width: 0.2, height: 0.3 })
+})
+
+test('resize geometry respects minimum size and canvas boundaries', () => {
+  const bounded = resizeLayoutZoneGeometry({ x: 0.9, y: 0.9, width: 0.1, height: 0.1 }, 0.5, 0.5)
+  assert.ok(Math.abs(bounded.width - 0.1) < 1e-9)
+  assert.ok(Math.abs(bounded.height - 0.1) < 1e-9)
+  assert.deepEqual(resizeLayoutZoneGeometry({ x: 0.2, y: 0.3, width: 0.2, height: 0.2 }, -0.5, -0.5), { x: 0.2, y: 0.3, width: 0.05, height: 0.05 })
+})
+
+test('keyboard movement uses documented normal and shifted increments and clamps', () => {
+  const initial = { x: 0.1, y: 0.2, width: 0.5, height: 0.5 }
+  assert.ok(Math.abs(keyboardMoveLayoutZoneGeometry(initial, 'ArrowRight').x - 0.105) < 1e-9)
+  assert.ok(Math.abs(keyboardMoveLayoutZoneGeometry(initial, 'ArrowRight', true).x - 0.12) < 1e-9)
+  assert.equal(keyboardMoveLayoutZoneGeometry({ ...initial, x: 0.5 }, 'ArrowRight', true).x, 0.5)
+  assert.ok(Math.abs(keyboardMoveLayoutZoneGeometry(initial, 'ArrowDown').y - 0.205) < 1e-9)
 })
 
 test('Standard V3 is valid and rejects geometry edits', () => {
