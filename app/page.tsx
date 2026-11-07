@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CinematicHome } from "@/components/marketing/cinematic-home";
+import { CalmHome } from "@/components/marketing/calm-home";
 
 export const metadata: Metadata = {
   title: "The city moves. So should your brand. | OORO",
@@ -29,5 +29,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <CinematicHome />;
+  return <CalmHome />;
 }
