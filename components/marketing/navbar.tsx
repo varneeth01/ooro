@@ -7,7 +7,7 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Brand } from "../brand";
 
-const links=[["How it works","/#experience"],["Why OORO","/#features"],["Who it is for","/#solutions"],["Coverage","/coverage"]] as const;
+const links=[["How it works","/how-it-works"],["Why OORO","/#features"],["Who it is for","/#solutions"],["Coverage","/coverage"]] as const;
 export function Navbar(){
  const menuRef=useRef<HTMLButtonElement>(null);const [open,setOpen]=useState(false);const [scrolled,setScrolled]=useState(false);const [hovered,setHovered]=useState<string|null>(null);const reduced=useReducedMotion();const pathname=usePathname();
  useEffect(()=>{const change=()=>setScrolled(window.scrollY>34);change();window.addEventListener("scroll",change,{passive:true});return()=>window.removeEventListener("scroll",change)},[]);
