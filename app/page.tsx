@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { FieldHome } from "@/components/marketing/field-home";
+import { CinematicHome } from "@/components/marketing/cinematic-home";
 
 export const metadata: Metadata = {
-  title: "Advertising on Screens Inside Bengaluru Autos",
+  title: "The city moves. So should your brand. | OORO",
   description: "Your next customer could be in the next auto. OORO helps Bengaluru businesses and brands plan advertising on passenger-facing digital screens inside auto-rickshaws. Availability is confirmed before booking.",
   alternates: { canonical: "/" },
   keywords: [
@@ -29,5 +29,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <FieldHome />;
+  return <CinematicHome />;
 }

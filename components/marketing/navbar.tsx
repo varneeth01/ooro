@@ -7,7 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Brand } from "../brand";
 
-const links = [["How it works", "/#experience"], ["Why OORO", "/#features"], ["Who it is for", "/#solutions"], ["Coverage", "/coverage"]] as const;
+const links = [["How it works", "/#campaign-process"], ["Field work", "/#reality"], ["Why OORO", "/#features"], ["Coverage", "/coverage"]] as const;
 
 export function Navbar() {
   const rootRef = useRef<HTMLElement>(null);
