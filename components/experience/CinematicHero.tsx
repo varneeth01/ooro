@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { CinematicTypography } from "./CinematicTypography";
 import { HeroCanvasLoader } from "./HeroCanvasLoader";
 import { Navbar } from "@/components/marketing/navbar";
 import Image from "next/image";
+import { MagneticLink } from "./MagneticLink";
 
 export function CinematicHero() {
   return <section className="cinematic-hero" aria-labelledby="cinematic-title">
@@ -14,7 +14,7 @@ export function CinematicHero() {
     <div className="cinematic-container">
       <div className="hero-side-note"><span>Moving media</span><i /></div>
       <CinematicTypography />
-      <div className="hero-bottom"><Link href="/advertise" className="cinematic-button">Plan a campaign <ArrowUpRight size={17} /></Link><span className="hero-bottom-note">Real journeys. Real field work.<br />Availability confirmed before booking.</span><a href="#attention" className="hero-scroll" aria-label="Scroll to discover OORO"><span>Scroll to explore</span><ArrowDown size={15} /></a></div>
+      <div className="hero-bottom"><MagneticLink href="/advertise" className="cinematic-button">Plan a campaign <ArrowUpRight size={17} /></MagneticLink><span className="hero-bottom-note">Real journeys. Real field work.<br />Availability confirmed before booking.</span><a href="#attention" className="hero-scroll" aria-label="Scroll to discover OORO"><span>Scroll to explore</span><ArrowDown size={15} /></a></div>
     </div>
     <span className="hero-index" aria-hidden="true">01 <span>/</span> 05</span>
   </section>;
