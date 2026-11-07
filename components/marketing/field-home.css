@@ -1,0 +1,68 @@
+/* OORO field-first editorial homepage. Scoped to avoid changing admin and booking UI. */
+.field-site {
+  --field-accent: #dfff00;
+  isolation: isolate;
+  position: relative;
+  overflow: clip;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01" on;
+}
+.field-site .field-container { width: min(calc(100% - 48px), 1320px); margin-inline: auto; }
+.field-site .field-kicker { font-size: 11px; font-weight: 760; letter-spacing: .2em; text-transform: uppercase; color: var(--field-accent); }
+.field-site .field-headline { text-wrap: balance; }
+.field-site .field-highlight { color: var(--field-accent); }
+.field-site .field-title { font-size: clamp(2.75rem, 5.4vw, 5.8rem); font-weight: 630; letter-spacing: -.068em; line-height: .99; text-wrap: balance; }
+.field-site .field-section { padding-block: clamp(84px, 10vw, 160px); }
+.field-site .field-noise { position: fixed; z-index: -1; inset: 0; opacity: .15; background: radial-gradient(ellipse at 72% 25%, #172313 0%, transparent 35%); }
+.field-site .field-hero { background: radial-gradient(ellipse at 72% 23%, rgba(183,214,50,.07), transparent 43%); }
+.field-site .field-rise { animation: field-in .9s both cubic-bezier(.16,1,.3,1); }
+.field-site .field-rise:nth-child(2) { animation-delay: 90ms; }
+.field-site .field-rise:nth-child(3) { animation-delay: 180ms; }
+.field-site .field-rise:nth-child(4) { animation-delay: 240ms; }
+.field-site .field-rise:nth-child(5) { animation-delay: 300ms; }
+@keyframes field-in { from { opacity: 0; transform: translate3d(0,24px,0); } to { opacity: 1; transform: translate3d(0,0,0); } }
+.field-site .field-button-primary,
+.field-site .field-button-secondary,
+.field-site .field-button-dark {
+  display: inline-flex; min-height: 52px; align-items: center; justify-content: center; gap: 22px; padding: 14px 21px;
+  border-radius: 6px; font-size: 13px; font-weight: 740; line-height: 1.2; transition: background-color .25s, color .25s, border-color .25s, transform .25s;
+}
+.field-site .field-button-primary { background: var(--field-accent); color: #0d1007; }
+.field-site .field-button-primary:hover { background: #f0ffa3; }
+.field-site .field-button-secondary { border: 1px solid rgba(255,255,255,.22); color: #f4f5ed; }
+.field-site .field-button-secondary:hover { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.045); }
+.field-site .field-button-dark { background: #121610; color: white; }
+.field-site .field-button-dark:hover { background: #303a21; }
+.field-site .field-inline-link { display: inline-flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--field-accent); padding-bottom: 8px; font-size: 14px; font-weight: 650; color: var(--field-accent); transition: gap .25s; }
+.field-site .field-inline-link:hover { gap: 19px; }
+.field-site .field-hero-media { min-height: clamp(440px, 50vw, 680px); padding-right: 23%; padding-bottom: 4%; }
+.field-site .field-photo-primary { position: relative; width: 100%; height: 100%; min-height: 440px; border: 1px solid rgba(255,255,255,.13); border-radius: 4px; }
+.field-site .field-photo-secondary { position: absolute; right: 0; bottom: 8%; width: 42%; height: 56%; border: 6px solid #0a0b0a; border-radius: 4px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.field-site .field-photo-gradient { background: linear-gradient(180deg,transparent 62%,rgba(0,0,0,.68) 100%); }
+.field-site .field-photo-caption { text-shadow: 0 2px 18px rgba(0,0,0,.5); }
+.field-site .field-photo-index { padding: 8px 10px; border: 1px solid rgba(255,255,255,.4); font-size: 10px; letter-spacing: .12em; }
+.field-site .field-step { min-width: 0; }
+.field-site .field-feature-photo { border-radius: 3px; }
+.field-site .field-caption { position: absolute; inset: auto 0 0; padding: 30px 22px 19px; background: linear-gradient(transparent,rgba(0,0,0,.83)); color: white; font-size: 12px; font-weight: 700; letter-spacing: .025em; }
+.field-site .field-video { border: 1px solid rgba(255,255,255,.1); }
+.field-site .field-final { border-radius: 3px; }
+.field-site a:focus-visible, .field-site video:focus-visible { outline: 3px solid #f3ffb6; outline-offset: 4px; }
+.field-site .field-final a:focus-visible { outline-color: #10130a; }
+@media (max-width: 1023px) {
+ .field-site .field-hero-media { min-height: 510px; max-width: 720px; padding-right: 21%; }
+ .field-site .field-photo-primary { min-height: 470px; }
+}
+@media (max-width: 639px) {
+ .field-site .field-container { width: min(calc(100% - 36px), 1320px); }
+ .field-site .field-hero-media { min-height: 390px; padding-right: 19%; padding-bottom: 0; }
+ .field-site .field-photo-primary { min-height: 370px; }
+ .field-site .field-photo-secondary { width: 44%; height: 53%; border-width: 4px; bottom: 3%; }
+ .field-site .field-photo-caption { left: 15px; right: 15px; bottom: 16px; }
+ .field-site .field-button-primary, .field-site .field-button-secondary { width: 100%; justify-content: space-between; }
+ .field-site .field-step { padding-inline: 8px; }
+ .field-site .field-headline { letter-spacing: -.07em; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .field-site *, .field-site *::before, .field-site *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+ .field-site .field-rise { opacity: 1; transform: none; }
+}
