@@ -32,6 +32,22 @@ test("sitemap contains only reachable public content and excludes placeholder le
   for (const url of urls) expect((await page.request.get(url)).status(), url).toBe(200);
 });
 
+test("internal links across the public sitemap resolve", async ({ page, request, baseURL }) => {
+  const internal = new Set<string>();
+  for (const path of indexable) {
+    await page.goto(path);
+    const hrefs = await page.locator("a[href]").evaluateAll(nodes => nodes.map(node => (node as HTMLAnchorElement).href));
+    for (const href of hrefs) {
+      const url = new URL(href);
+      if (url.origin === baseURL && url.pathname !== "/") internal.add(`${url.pathname}${url.search}`);
+    }
+  }
+  for (const path of internal) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBeLessThan(400);
+  }
+});
+
 test("account, private, and placeholder legal pages opt out of indexing", async ({ page }) => {
   for (const path of ["/login", "/signup", "/verification", "/welcome", "/privacy", "/terms", "/network/status"]) {
     await page.goto(path);
