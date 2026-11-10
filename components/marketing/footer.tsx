@@ -3,7 +3,7 @@ import { MapPin } from "lucide-react";
 import { Brand } from "../brand";
 const navGroups=[
  {title:"Advertise",links:[["For brands","/for-brands"],["For agencies","/for-agencies"],["Bengaluru coverage","/coverage"]]},
- {title:"Explore",links:[["How it works","/how-it-works"],["Methodology","/methodology"],["Our team","/about"]]},
+ {title:"Explore",links:[["How it works","/how-it-works"],["Methodology","/methodology"],["Advertising guides","/guides"],["Field journal","/field-journal"]]},
  {title:"Information",links:[["Privacy","/privacy"],["Terms","/terms"],["Sign in","/login"]]},
  {title:"Company",links:[["About OORO","/about"],["Campaign enquiries","/advertise"]]},
 ] as const;

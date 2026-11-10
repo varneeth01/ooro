@@ -33,7 +33,7 @@ export function CalmHome() {
             <div className="calm-hero-footnote"><CheckCircle2 size={16} aria-hidden="true" /> Availability confirmed before booking</div>
           </div>
           <figure className="calm-hero-media">
-            <Image src="/field/ooro-bengaluru-auto-01.webp" alt="OORO field operations with an auto-rickshaw in Bengaluru" fill priority fetchPriority="high" sizes="(max-width: 799px) 100vw, 48vw" className="calm-cover" />
+            <Image src="/field/ooro-bengaluru-auto-01.webp" alt="OORO field operations with an auto-rickshaw in Bengaluru" fill priority fetchPriority="high" sizes="(max-width: 799px) calc(100vw - 40px), 48vw" className="calm-cover" />
             <FieldFilmButton />
             <figcaption><span>01 / THE REAL WORLD</span><span>BENGALURU, INDIA</span></figcaption>
           </figure>

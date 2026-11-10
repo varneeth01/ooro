@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { PublicPage, PublicSection } from "@/components/marketing/public-page";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "How OORO works", description: "Understand how OORO plans, reviews, schedules and reports mobility advertising." };
+export const metadata: Metadata = pageMetadata("how-it-works", "How OORO Campaign Planning Works", "Understand campaign briefs, creative review, eligible inventory confirmation and scheduling with OORO.");
 
 const steps = [
   { number: "01", title: "Set the brief", copy: "Choose a city, areas, dates and budget. These are planning inputs; OORO checks eligible screen inventory before confirming availability." },

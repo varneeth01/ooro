@@ -5,14 +5,6 @@ export const metadata: Metadata = {
   title: "The city moves. So should your brand. | OORO",
   description: "Your next customer could be in the next auto. OORO helps Bengaluru businesses and brands plan advertising on passenger-facing digital screens inside auto-rickshaws. Availability is confirmed before booking.",
   alternates: { canonical: "/" },
-  keywords: [
-    "OORO",
-    "auto rickshaw advertising Bengaluru",
-    "advertising inside autos",
-    "Bengaluru local advertising",
-    "passenger facing digital screens",
-    "mobility advertising",
-  ],
   openGraph: {
     title: "OORO | Your next customer could be in the next auto.",
     description: "Digital advertising inside everyday auto journeys. Built in Bengaluru, with real-world operations and a clear campaign process.",
