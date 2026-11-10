@@ -34,7 +34,7 @@ return <main className="min-h-screen bg-[#f3f3ef] text-[#111611]">
         <p className="mt-5 text-sm leading-7 text-neutral-700">{intro}</p>
         <h4 className="mt-8 font-semibold">What you will work on</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-neutral-700">{responsibilities.map(x=><li key={x}>{x}</li>)}</ul>
         <h4 className="mt-8 font-semibold">What helps</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-neutral-700">{skills.map(x=><li key={x}>{x}</li>)}</ul>
-        <div className="mt-auto border-t border-neutral-200 pt-8"><Link href={`/contact?topic=${slug}`} className="inline-flex min-h-12 w-full items-center justify-between gap-3 bg-[#111611] px-5 text-sm font-semibold text-white hover:bg-[#314015]">Apply by email <ArrowUpRight size={18}/></Link></div>
+        <div className="mt-auto border-t border-neutral-200 pt-8"><Link href={`mailto:jay@theooro.com?subject=${encodeURIComponent(`OORO Internship Application — ${title}`)}&body=${encodeURIComponent("Hello OORO team,\n\nI would like to apply for this internship. Please find my resume and portfolio/GitHub details attached or linked.\n\n")}`} className="inline-flex min-h-12 w-full items-center justify-between gap-3 bg-[#111611] px-5 text-sm font-semibold text-white hover:bg-[#314015]">Apply by email <ArrowUpRight size={18}/></Link></div>
       </article>)}
     </div>
     <div className="mt-14 grid gap-4 border-t border-neutral-300 pt-10 sm:grid-cols-3">
