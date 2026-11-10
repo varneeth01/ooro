@@ -20,7 +20,13 @@ export function FieldFilmButton() {
     return () => node.removeEventListener("close", stop);
   }, []);
 
-  const close = () => dialog.current?.close();
+  const close = () => {
+    const player = video.current;
+    player?.pause();
+    if (player) player.currentTime = 0;
+    if (dialog.current?.open) dialog.current.close();
+    trigger.current?.focus();
+  };
 
   return (
     <>
@@ -29,7 +35,7 @@ export function FieldFilmButton() {
         <span><strong>Watch OORO in motion</strong><small>Real field footage · Bengaluru</small></span>
       </button>
 
-      <dialog ref={dialog} className="ooro-film-dialog" aria-label="OORO on-ground film" onClick={(event) => {
+      <dialog ref={dialog} className="ooro-film-dialog" aria-label="OORO on-ground film" onCancel={(event) => { event.preventDefault(); close(); }} onClick={(event) => {
         if (event.target === dialog.current) close();
       }}>
         <div className="ooro-film-inner">

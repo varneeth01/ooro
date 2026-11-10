@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./experience-explorer.css";
 
@@ -102,20 +101,20 @@ export function ExperienceExplorer() {
             </div>
           </div>
         </div>
-        <Link href="/advertise" className="ooro-explore-link">Explore a campaign <ArrowUpRight size={18} aria-hidden="true" /></Link>
       </div>
     </section>
   );
 }
 
 export function ReadingProgress() {
-  const [progress, setProgress] = useState(0);
+  const progressBar = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     let frame = 0;
     const calculate = () => {
       frame = 0;
       const total = document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(total > 0 ? Math.min(100, Math.max(0, (window.scrollY / total) * 100)) : 0);
+      const progress = total > 0 ? Math.min(100, Math.max(0, (window.scrollY / total) * 100)) : 0;
+      progressBar.current?.style.setProperty("transform", `scaleX(${progress / 100})`);
     };
     const update = () => { if (!frame) frame = requestAnimationFrame(calculate); };
     calculate();
@@ -127,5 +126,5 @@ export function ReadingProgress() {
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
-  return <div className="ooro-reading-progress" aria-hidden="true"><span style={{ transform: `scaleX(${progress / 100})` }} /></div>;
+  return <div className="ooro-reading-progress" aria-hidden="true"><span ref={progressBar} /></div>;
 }

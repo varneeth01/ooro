@@ -82,7 +82,6 @@ export function CalmHome() {
             <p className="calm-section-id">04 — HOW IT WORKS</p>
             <h2 id="calm-process-title">Start simple.<br /><span>Move with purpose.</span></h2>
             <p>One clear path from an idea to a reviewed campaign. No inflated reach promises or complicated setup.</p>
-            <Link href="/advertise" className="calm-inline-cta">Explore the campaign planner <ArrowUpRight size={17} aria-hidden="true" /></Link>
           </div>
           <div className="calm-process-steps">
             {steps.map((step) => <article key={step.number}><span className="calm-number">{step.number}</span><div><h3>{step.title}</h3><p>{step.description}</p></div></article>)}
