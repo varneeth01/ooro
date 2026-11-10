@@ -3,13 +3,9 @@ import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, CheckCircle2, Play } from "lucide-react";
 import { Navbar } from "./navbar";
 import { Footer } from "./footer";
+import { ExperienceExplorer, ReadingProgress } from "./experience-explorer";
+import { FieldFilmButton } from "./field-film-button";
 import "./calm-home.css";
-
-const benefits = [
-  { number: "01", title: "A moment beyond the scroll", description: "Reach passengers during everyday journeys in a setting outside the usual social feed." },
-  { number: "02", title: "Built for local businesses", description: "Explore a campaign around the Bengaluru areas relevant to your business. Inventory is subject to confirmation." },
-  { number: "03", title: "Real people. Real operations.", description: "Our team reviews the creative and checks eligible screens before booking details are finalized." },
-] as const;
 
 const steps = [
   { number: "01", title: "Tell us your plan", description: "Choose your preferred areas, campaign dates and budget." },
@@ -22,6 +18,7 @@ export function CalmHome() {
     <main id="main-content" className="calm-site">
       <a href="#calm-hero-title" className="calm-skip">Skip to content</a>
       <Navbar />
+      <ReadingProgress />
 
       <section className="calm-hero" aria-labelledby="calm-hero-title">
         <div className="calm-shell calm-hero-grid">
@@ -36,7 +33,8 @@ export function CalmHome() {
             <div className="calm-hero-footnote"><CheckCircle2 size={16} aria-hidden="true" /> Availability confirmed before booking</div>
           </div>
           <figure className="calm-hero-media">
-            <Image src="/field/ooro-bengaluru-auto-01.webp" alt="OORO field operations with an auto-rickshaw in Bengaluru" fill priority sizes="(max-width: 799px) 100vw, 48vw" className="calm-cover" />
+            <Image src="/field/ooro-bengaluru-auto-01.webp" alt="OORO field operations with an auto-rickshaw in Bengaluru" fill priority fetchPriority="high" sizes="(max-width: 799px) calc(100vw - 40px), 48vw" className="calm-cover" />
+            <FieldFilmButton />
             <figcaption><span>01 / THE REAL WORLD</span><span>BENGALURU, INDIA</span></figcaption>
           </figure>
         </div>
@@ -76,17 +74,7 @@ export function CalmHome() {
         </div>
       </section>
 
-      <section id="features" className="calm-section calm-benefits" aria-labelledby="calm-benefits-title">
-        <div className="calm-shell">
-          <div className="calm-section-heading">
-            <div><p className="calm-section-id">03 — WHY OORO</p><h2 id="calm-benefits-title">A different place<br /><span>to be seen.</span></h2></div>
-            <p className="calm-section-aside">An advertising opportunity designed around ordinary journeys, clear expectations, and real-world operations.</p>
-          </div>
-          <div className="calm-benefit-grid">
-            {benefits.map((item) => <article key={item.number} className="calm-benefit"><span className="calm-number">{item.number}</span><h3>{item.title}</h3><p>{item.description}</p></article>)}
-          </div>
-        </div>
-      </section>
+      <ExperienceExplorer />
 
       <section id="campaign-process" className="calm-section calm-process" aria-labelledby="calm-process-title">
         <div className="calm-shell calm-process-grid">
@@ -94,7 +82,6 @@ export function CalmHome() {
             <p className="calm-section-id">04 — HOW IT WORKS</p>
             <h2 id="calm-process-title">Start simple.<br /><span>Move with purpose.</span></h2>
             <p>One clear path from an idea to a reviewed campaign. No inflated reach promises or complicated setup.</p>
-            <Link href="/advertise" className="calm-inline-cta">Explore the campaign planner <ArrowUpRight size={17} aria-hidden="true" /></Link>
           </div>
           <div className="calm-process-steps">
             {steps.map((step) => <article key={step.number}><span className="calm-number">{step.number}</span><div><h3>{step.title}</h3><p>{step.description}</p></div></article>)}

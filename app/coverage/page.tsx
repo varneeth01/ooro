@@ -3,19 +3,9 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { CityNetwork } from "@/components/marketing/city-network";
 import { PublicPage } from "@/components/marketing/public-page";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "OORO Coverage | Bengaluru Mobility Advertising",
-  description: "Explore OORO's Bengaluru launch network and city expansion roadmap. Screen and neighborhood availability is confirmed for each mobility advertising campaign.",
-  alternates: { canonical: "/coverage" },
-  openGraph: {
-    title: "OORO mobility advertising coverage",
-    description: "See OORO's Bengaluru launch market and city expansion roadmap.",
-    url: "/coverage",
-    type: "website",
-    images: [{ url: "/ooro-social-preview.png", width: 1200, height: 630, alt: "OORO advertising that moves" }],
-  },
-};
+export const metadata: Metadata = pageMetadata("coverage", "OORO Coverage and Campaign Availability", "Learn how OORO reviews preferred areas and confirms eligible inventory for each campaign request.");
 
 export default function CoveragePage() {
   return <PublicPage eyebrow="Coverage / India" title="A city network built one verified screen at a time." description="Bengaluru is OORO's launch market. Explore the network roadmap below, then tell us the neighborhoods and dates that matter to your campaign. Eligible screens are confirmed before booking.">

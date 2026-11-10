@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/site";
 
-const lastUpdated = new Date("2026-11-02T00:00:00.000Z");
+const lastUpdated = new Date("2026-11-11T00:00:00.000Z");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -18,18 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8,
     },
-    ...["advertise", "for-brands", "for-agencies", "how-it-works", "methodology", "bengaluru", "coverage"].map(path => ({ url: `${siteUrl}/${path}`, lastModified: lastUpdated, changeFrequency: "monthly" as const, priority: 0.8 })),
-    {
-      url: `${siteUrl}/privacy`,
-      lastModified: new Date("2026-01-01T00:00:00.000Z"),
-      changeFrequency: "yearly",
-      priority: 0.2,
-    },
-    {
-      url: `${siteUrl}/terms`,
-      lastModified: new Date("2026-01-01T00:00:00.000Z"),
-      changeFrequency: "yearly",
-      priority: 0.2,
-    },
+    ...["advertise", "for-brands", "for-agencies", "how-it-works", "methodology", "bengaluru", "coverage", "digital-advertising-bengaluru", "auto-rickshaw-advertising-bangalore", "outdoor-advertising-bengaluru", "small-business-advertising-bangalore", "auto-advertising-cost-bengaluru", "guides", "field-journal", "tools/ad-budget-planner"].map(path => ({ url: `${siteUrl}/${path}`, lastModified: lastUpdated, changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...["advertise-business-bengaluru", "outdoor-advertising-bangalore", "auto-rickshaw-advertising", "set-local-advertising-budget", "dooh-creative-specifications"].map(slug => ({ url: `${siteUrl}/guides/${slug}`, lastModified: lastUpdated, changeFrequency: "yearly" as const, priority: 0.6 })),
   ];
 }

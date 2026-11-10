@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight, Cpu, MapPin, Megaphone } from "lucide-react";
 import { PublicPage } from "@/components/marketing/public-page";
-export const metadata:Metadata={title:"About OORO | The team building mobility advertising",description:"Meet the OORO team building in-auto and cab display advertising in Bengaluru.",alternates:{canonical:"/about"}};
+import { pageMetadata } from "@/lib/seo";
+export const metadata:Metadata=pageMetadata("about","About OORO: Building Mobility Advertising in Bengaluru","Meet the OORO team building passenger-facing digital screen advertising inside autos and cabs in Bengaluru.");
 const team=[
  {name:"Varneeth Varma Nandimandalam",role:"Founder & CEO",detail:"Product, platform and company direction.",url:"https://www.linkedin.com/in/varneeth-varma-nandimandalam/",Icon:Cpu},
  {name:"Siri Girish",role:"CMO & Brand Strategist",detail:"Brands, positioning and growth.",url:"https://www.linkedin.com/in/siri-girish-7b7b65378/",Icon:Megaphone},
