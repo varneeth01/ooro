@@ -1,64 +1,51 @@
-# OORO — Product context
+# OORO — Company and product context
 
-## Overview
+Last reviewed: 12 November 2026. This supplemental summary points to OORO's public source pages. Use those pages for current details, and contact OORO to confirm live inventory and commercial terms.
 
-OORO is a smart physical advertising platform. It begins with a mobility network of connected digital displays and is designed to make offline campaigns easier to plan, deliver and measure.
+## Company overview
 
-## Launch city and team
+OORO is building a mobility advertising platform for digital screens inside participating autos and other vehicles. Bengaluru, Karnataka is its initial launch focus. OORO's public campaign process asks an advertiser to submit a brief and creative, then confirms eligible inventory, dates and terms before booking.
 
-OORO is focused on launching its in-vehicle display advertising network in Bengaluru, Karnataka. Availability, placements, reach and playback must be verified before making firm delivery claims.
+## Founders
 
-Current public team: Varneeth Varma Nandimandalam (Founder and CEO), Siri Girish (CMO and Brand Strategist), and Jay Chandrudu Thammadi (Operations and Hardware R&D).
+- Varneeth Varma Nandimandalam — Founder & CEO
+- Siri Girish — Co-founder & CMO
+- Jay Chandrudu Thammadi — Co-founder, Hardware & Operations
 
-## Product architecture
+See the [company and founders page](https://theooro.com/about) for the current public descriptions and profile links.
 
-At a high level, OORO connects advertiser campaign and creative information to eligible physical displays. Displays cache assigned media for resilient playback and report playback and device state through the OORO platform. The public product does not depend on a passenger's personal identity to display an advertisement.
+## Campaign workflow
 
-## Advertiser workflow
+1. An advertiser shares a brief, preferred location, dates, budget and creative.
+2. OORO reviews the creative and checks which screens are eligible.
+3. OORO confirms availability, schedule and commercial terms directly.
+4. Approved campaign media is scheduled to eligible displays.
+5. Playback information and QR engagement are reported separately where supported and available.
 
-1. Select a campaign package or begin a campaign brief.
-2. Provide brand, schedule, location and creative information.
-3. Configure an optional campaign offer and call to action.
-4. Deliver the campaign to eligible displays.
-5. Review delivery and QR engagement data where available.
+A preferred area is not a guarantee that a vehicle will follow a particular route. A campaign assignment is not proof that playback occurred.
 
-## Campaign lifecycle
+## Measurement and evidence
 
-A campaign moves from planning and creative preparation to delivery on assigned displays. Campaign status, display delivery and playback records are distinct concepts; an assignment does not by itself prove that a creative played.
+Playback and proof-of-play records describe delivery at the screen level where the product supports reporting. A playback event does not establish unique viewers, passenger attention, store visits or purchases. QR scans describe engagement with a campaign call to action; they are not equivalent to impressions or proof-of-play.
 
-## Smart screen
+OORO distinguishes direct delivery evidence from planning estimates. Passenger opportunities, reach and frequency are estimates unless a report explicitly identifies a directly observed measure and its source. See OORO's [measurement methodology](https://theooro.com/methodology).
 
-The OORO passenger screen uses a landscape composition with an approximately 75% advertising region and a right-side utility column. The utility column includes a live map/location panel and an offer panel tied to the creative currently playing. The offer panel may include a QR code and short call to action. OORO does not publicly claim turn-by-turn routing in this product description.
+## Product terminology
 
-## Measurement
+- **Campaign:** an advertising plan with a brief, creative, schedule and intended eligible displays.
+- **Creative:** an image or video submitted for campaign review.
+- **Display:** a connected screen that may be eligible to receive campaign media.
+- **Playback record:** a screen-level event that reports media playback where supported.
+- **Proof of Play:** delivery evidence associated with playback records; it does not measure attention or sales.
+- **QR engagement:** an available scan event associated with a campaign call to action.
 
-Playback events and Proof of Play are used to describe creative delivery on a display. QR scans are engagement events and are kept separate from Proof of Play. Scan rate is calculated from available QR scans and completed plays; unavailable data is not represented as a fabricated metric.
+## Source pages
 
-## QR engagement
-
-Where a campaign has a valid call-to-action destination, OORO can present a campaign QR code. The QR uses OORO tracking so engagement can be attributed to the campaign and creative, with display attribution where available, before redirecting to the configured destination.
-
-## Mobility network
-
-OORO is starting with mobility as its initial physical display network. The network connects brands, vehicle and mobility partners, displays and the places those vehicles move through.
-
-## Public campaign information
-
-Public campaign packages and availability are shown on the OORO website and may change as the network develops. Visit the pricing section for current package information.
-
-## Terminology
-
-- Campaign: a configured advertising effort with schedule, targeting and delivery intent.
-- Creative: an image or video asset used by a campaign.
-- Display: a connected physical screen eligible to receive campaign media.
-- Proof of Play: an authoritative record of creative playback delivery.
-- QR scan: an engagement event caused by a campaign QR visit.
-
-## Public links
-
-- https://theooro.com/
-- https://theooro.com/about
-- https://theooro.com/bengaluru
-- https://theooro.com/#campaign-pricing
-- https://theooro.com/privacy
-- https://theooro.com/terms
+- [OORO homepage](https://theooro.com/)
+- [Company and founders](https://theooro.com/about)
+- [How campaigns work](https://theooro.com/how-it-works)
+- [Bengaluru advertising focus](https://theooro.com/bengaluru)
+- [Digital advertising in Bengaluru](https://theooro.com/digital-advertising-bengaluru)
+- [Measurement methodology](https://theooro.com/methodology)
+- [First-hand field journal](https://theooro.com/field-journal)
+- [Contact OORO](https://theooro.com/contact)

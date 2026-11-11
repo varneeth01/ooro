@@ -1,47 +1,39 @@
 # OORO
 
-> OORO is a smart physical-media platform connecting brands with measurable digital displays in real-world environments, beginning with in-auto and cab screens in Bengaluru, Karnataka.
+> OORO is building a mobility advertising platform for digital screens inside participating autos and other vehicles. Bengaluru, Karnataka is its initial launch focus.
 
-## Launch city
+This file is a short index for systems that consume Markdown site indexes. For current product and company facts, use the linked public pages. A city or neighbourhood preference does not guarantee route coverage, screen availability, impressions, audience reach or campaign results; confirm inventory and terms with OORO.
 
-Bengaluru, Karnataka is the initial OORO launch focus. City-specific screen availability must be confirmed by OORO.
+## Company
 
-## Team
+- Company: OORO
+- Category: mobility advertising and digital out-of-home (DOOH)
+- Initial launch focus: Bengaluru, Karnataka, India
+- Founders: Varneeth Varma Nandimandalam (Founder & CEO); Siri Girish (Co-founder & CMO); Jay Chandrudu Thammadi (Co-founder, Hardware & Operations)
+- Current availability: confirmed per campaign request
 
-- Varneeth Varma Nandimandalam — Founder and CEO
-- Siri Girish — CMO and Brand Strategist
-- Jay Chandrudu Thammadi — Operations and Hardware R&D
+## What the product does
 
-## About
+OORO helps businesses submit a campaign brief and creative, review eligibility and available screens, confirm dates and commercial terms, and review playback information where supported. QR engagement is reported separately from playback and only where data is available.
 
-OORO helps brands plan, deliver and understand campaigns shown on connected displays across moving vehicles and other physical environments.
+## Measurement limits
 
-## Product
+- A campaign assignment does not itself establish that a creative played.
+- Playback records describe screen-level delivery where reporting is supported.
+- Playback records do not prove unique passengers, attention, store visits or sales.
+- QR scans are engagement events; they are not equivalent to impressions or proof of play.
+- Planning estimates are distinct from directly observed delivery evidence.
 
-- Connected digital advertising displays
-- Campaign and creative management
-- Context-aware delivery where supported
-- Proof of Play for delivered creative
-- QR-based campaign engagement
-- Advertiser campaign management and reporting
+## Primary source pages
 
-## Smart Screen
+- [OORO homepage](https://theooro.com/)
+- [Company and founders](https://theooro.com/about)
+- [How campaigns work](https://theooro.com/how-it-works)
+- [Bengaluru advertising focus](https://theooro.com/bengaluru)
+- [Digital advertising in Bengaluru](https://theooro.com/digital-advertising-bengaluru)
+- [Measurement methodology](https://theooro.com/methodology)
+- [First-hand field journal](https://theooro.com/field-journal)
+- [Contact OORO](https://theooro.com/contact)
+- [Full product context](https://theooro.com/llms-full.txt)
 
-OORO passenger screens combine an advertising region, a live location utility panel, and a campaign-specific offer and QR panel. The offer and QR follow the creative currently playing. Routing and turn-by-turn directions are not currently part of the public product claim.
-
-## Advertisers
-
-Brands can choose a campaign package, provide campaign and creative details, deliver media to assigned screens, and review playback and QR engagement data where available.
-
-## Measurement
-
-OORO separates delivery measurement from engagement measurement. Playback events and Proof of Play describe creative delivery; QR scans describe passenger engagement.
-
-## Links
-
-- https://theooro.com/
-- https://theooro.com/about
-- https://theooro.com/bengaluru
-- https://theooro.com/#campaign-pricing
-- https://theooro.com/privacy
-- https://theooro.com/terms
+Last reviewed: 2026-11-12.
