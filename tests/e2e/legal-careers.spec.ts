@@ -10,14 +10,14 @@ test("careers lists exactly the two requested internships with actionable links"
   const applyLinks = page.getByRole("link", { name: /apply by email/i });
   await expect(applyLinks).toHaveCount(2);
   for (const index of [0, 1]) {
-    await expect(applyLinks.nth(index)).toHaveAttribute("href", /^mailto:jay@theooro\.com\?subject=/);
+    await expect(applyLinks.nth(index)).toHaveAttribute("href", /^mailto:varneeth@theooro\.com\?subject=/);
   }
 });
 
 test("contact, policy and terms routes render substantive content, with legal drafts not indexed", async ({ page }) => {
   await page.goto("/contact");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: /jay@theooro.com/i })).toHaveAttribute("href", "mailto:jay@theooro.com");
+  await expect(page.getByRole("link", { name: /varneeth@theooro.com/i })).toHaveAttribute("href", "mailto:varneeth@theooro.com");
   for (const route of ["/privacy", "/terms"]) {
     await page.goto(route);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
