@@ -4,6 +4,7 @@ import { deliverOtp } from './domain/otp-delivery.js'
 import { registerNetworkOperations } from './network-operations.js'
 import { registerOperations } from './operations.js'
 import { registerAdminManagement } from './admin-management.js'
+import { registerAssetRoutes } from './asset-routes.js'
 import { Prisma } from '@prisma/client'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -1603,6 +1604,7 @@ app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { 
 
 registerOperations(app)
 registerAdminManagement(app)
+registerAssetRoutes(app)
 registerNetworkOperations(app)
 
 app.setErrorHandler((error, request, reply) => {
