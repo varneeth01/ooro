@@ -4,14 +4,14 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata(
   "outdoor-advertising-bengaluru",
-  "Digital Outdoor Advertising in Bengaluru: Compare Formats",
-  "Compare digital outdoor, fixed billboard and mobile DOOH formats in Bengaluru. Learn what OORO offers and what to confirm before booking."
+  "Outdoor Advertising Options in Bengaluru: Compare Formats",
+  "Compare outdoor advertising options in Bengaluru, including fixed billboards and mobile digital screens. Learn what OORO offers and what to confirm before booking."
 );
 
 export default function OutdoorAdvertisingPage() {
   return <ServiceLanding
     eyebrow="Bengaluru / Outdoor formats"
-    title="Compare digital outdoor advertising by placement."
+    title="Outdoor advertising options in Bengaluru, compared by placement."
     intro="Digital outdoor advertising in Bengaluru can mean fixed venue screens, roadside displays or screens inside vehicles. The placement changes the viewing context, permissions, creative needs and delivery evidence. OORO offers passenger-facing digital screens inside eligible autos and cabs; it does not sell fixed billboards."
     sections={[
       {
