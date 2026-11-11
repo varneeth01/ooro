@@ -4,8 +4,8 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata(
   "auto-advertising-cost-bengaluru",
-  "Auto Advertising Cost in Bengaluru: How to Plan",
-  "Understand the factors that shape an auto advertising proposal and plan a budget without assuming a media rate or guaranteed delivery."
+  "DOOH Advertising Cost in Bengaluru: Auto Screens",
+  "Understand the factors that shape a passenger-screen advertising proposal in Bengaluru. OORO confirms eligible inventory and terms before booking; estimates are not guaranteed rates or delivery."
 );
 
 export default function Page() {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicPage } from "@/components/marketing/public-page";
 import { guides } from "@/content/guides";
+import { ContentFaq } from "@/components/marketing/content-faq";
 import { articleJsonLd, breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 
 const published = guides.filter(g => !g.outline);
@@ -19,15 +20,19 @@ function paragraph(text: string) {
 export default async function GuideArticle({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const guide = published.find(g => g.slug === slug); if (!guide) notFound();
-  const schema = articleJsonLd(guide.slug, guide.title, guide.description, "2026-11-11");
+  const reviewedLabel = guide.dateModified
+    ? new Date(`${guide.dateModified}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    : "11 November 2026";
+  const schema = articleJsonLd(guide.slug, guide.title, guide.description, guide.dateModified ?? "2026-11-11");
   const breadcrumbs = breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Guides", path: "/guides" }, { name: guide.title, path: `/guides/${guide.slug}` }]);
   const related = published.filter(g => g.slug !== guide.slug).slice(0, 3);
   return <PublicPage eyebrow="OORO Guides / Bengaluru" title={guide.title} description={guide.intro}>
     <article className="container-ooro max-w-5xl py-14 sm:py-20">
       <nav aria-label="Breadcrumb" className="text-sm text-neutral-600"><ol className="flex gap-2"><li><Link href="/">Home</Link></li><li aria-hidden="true">/</li><li><Link href="/guides">Guides</Link></li><li aria-hidden="true">/</li><li aria-current="page" className="line-clamp-1">{guide.title}</li></ol></nav>
       {guide.slug === "auto-rickshaw-advertising" && <div className="relative mt-8 aspect-[16/8] overflow-hidden rounded-xl bg-neutral-200"><Image src="/field/ooro-bengaluru-auto-01.webp" alt="An OORO digital display installed inside an auto-rickshaw in Bengaluru" fill priority sizes="(max-width: 768px) calc(100vw - 40px), 960px" className="object-cover" /></div>}
-      <p className="mt-8 text-xs font-semibold uppercase tracking-[.13em] text-neutral-600">OORO Editorial · Reviewed 11 November 2026</p>
+      <p className="mt-8 text-xs font-semibold uppercase tracking-[.13em] text-neutral-600">OORO Editorial · Reviewed {reviewedLabel}</p>
       {guide.sections.map(section => <section key={section.title} className="mt-12 border-t border-black/15 pt-7"><h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{section.title}</h2><div className="mt-5 max-w-3xl space-y-5 text-base leading-8 text-neutral-700">{section.paragraphs.map((p, i) => <p key={i}>{paragraph(p)}</p>)}</div></section>)}
+      {guide.faqs?.length ? <ContentFaq title="Common questions" items={guide.faqs} /> : null}
       {guide.sources?.length ? <aside className="mt-12 border-t border-black/15 pt-7"><h2 className="text-lg font-semibold">Sources and further reading</h2><ul className="mt-4 list-disc space-y-2 pl-5 text-sm">{guide.sources.map(s => <li key={s.href}><a className="underline underline-offset-4" href={s.href} target="_blank" rel="noreferrer">{s.label}</a></li>)}</ul></aside> : null}
       <aside className="mt-14 rounded-xl bg-[#101210] p-7 text-white sm:p-10"><h2 className="text-2xl font-semibold">Planning a campaign in Bengaluru?</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-300">Explore OORO&apos;s passenger-facing screen format. Requests are subject to creative review, eligible inventory and confirmed terms.</p><Link href="/advertise" className="mt-6 inline-flex min-h-12 items-center rounded-lg bg-[#dfff00] px-5 font-semibold text-black">Plan a campaign ↗</Link></aside>
       <div className="mt-14"><h2 className="text-xl font-semibold">Related guides</h2><ul className="mt-4 grid gap-3 sm:grid-cols-3">{related.map(g => <li key={g.slug}><Link className="block h-full border border-black/15 p-4 text-sm font-medium hover:bg-white" href={`/guides/${g.slug}`}>{g.title} ↗</Link></li>)}</ul></div>

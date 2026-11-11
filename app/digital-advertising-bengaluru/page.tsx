@@ -136,7 +136,7 @@ export default function Page() {
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Planning a Bengaluru campaign?</h2>
         <p className="mt-4 max-w-3xl leading-8 text-neutral-700">Tell us your business, audience, preferred areas, dates and budget. OORO will review the request and confirm eligible inventory and the applicable terms before any campaign is booked.</p>
         <div className="mt-7"><PublicCta href="/advertise">Plan DOOH advertising in Bengaluru</PublicCta></div>
-        <p className="mt-5 text-sm text-neutral-700">You can also explore <Link className="underline underline-offset-4" href="/auto-rickshaw-advertising-bangalore">advertising inside auto-rickshaws</Link> or <Link className="underline underline-offset-4" href="/contact">contact the OORO team</Link>.</p>
+        <p className="mt-5 text-sm text-neutral-700">You can also explore <Link className="underline underline-offset-4" href="/auto-rickshaw-advertising-bangalore">advertising inside auto-rickshaws</Link>, <Link className="underline underline-offset-4" href="/cab-advertising-bengaluru">cab advertising in Bengaluru</Link>, or <Link className="underline underline-offset-4" href="/contact">contact the OORO team</Link>.</p>
       </section>
     </article>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbs) }} />
