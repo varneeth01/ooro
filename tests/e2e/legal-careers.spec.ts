@@ -42,3 +42,45 @@ test("footer surfaces careers, contact and legal policies", async ({ page }) => 
     await expect(footer.locator(`a[href="${route}"]`)).toHaveCount(1);
   }
 });
+
+
+test("policy layouts keep navbar and footer readable on desktop and mobile", async ({ page }) => {
+  const relativeLuminance = (rgb: string) => {
+    const values = rgb.match(/[\\d.]+/g)?.slice(0, 3).map(Number) ?? [];
+    if (values.length !== 3) throw new Error(`Unsupported color: ${rgb}`);
+    const linear = values.map(channel => {
+      const n = channel / 255;
+      return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  };
+  const contrastAgainstDark = (foreground: string, background: string) => {
+    const a = relativeLuminance(foreground);
+    const b = relativeLuminance(background);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+
+  for (const route of ["/privacy", "/terms"]) {
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(route);
+      const footerLink = page.getByRole("contentinfo", { name: "Site footer" }).getByRole("link", { name: "Privacy Policy" });
+      const footerColors = await footerLink.evaluate(el => ({
+        fg: getComputedStyle(el).color,
+        bg: "rgb(8, 10, 9)",
+      }));
+      expect(contrastAgainstDark(footerColors.fg, footerColors.bg), `${route} footer contrast at ${width}px`).toBeGreaterThanOrEqual(4.5);
+
+      if (width === 1440) {
+        const navLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "How it works" });
+        const navColor = await navLink.evaluate(el => getComputedStyle(el).color);
+        expect(contrastAgainstDark(navColor, "rgb(9, 11, 11)"), `${route} navbar contrast`).toBeGreaterThanOrEqual(4.5);
+      } else {
+        await page.getByRole("button", { name: "Open navigation" }).click();
+        const mobileLink = page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" });
+        const mobileColor = await mobileLink.evaluate(el => getComputedStyle(el).color);
+        expect(contrastAgainstDark(mobileColor, "rgb(12, 15, 14)"), `${route} mobile menu contrast`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  }
+});
