@@ -18,7 +18,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8,
     },
-    ...["careers", "contact", "advertise", "for-brands", "for-agencies", "how-it-works", "methodology", "bengaluru", "coverage", "digital-advertising-bengaluru", "auto-rickshaw-advertising-bangalore", "outdoor-advertising-bengaluru", "small-business-advertising-bangalore", "auto-advertising-cost-bengaluru", "guides", "field-journal", "tools/ad-budget-planner"].map(path => ({ url: `${siteUrl}/${path}`, lastModified: lastUpdated, changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...["careers", "contact", "advertise", "for-brands", "for-agencies", "how-it-works", "methodology", "bengaluru", "coverage", "digital-advertising-bengaluru", "auto-rickshaw-advertising-bangalore", "outdoor-advertising-bengaluru", "small-business-advertising-bangalore", "auto-advertising-cost-bengaluru", "guides", "field-journal", "tools/ad-budget-planner"].map(path => ({
+      url: `${siteUrl}/${path}`,
+      lastModified: lastUpdated,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+      ...(path === "digital-advertising-bengaluru" ? { images: [`${siteUrl}/field/ooro-bengaluru-auto-02.webp`] } : {}),
+    })),
     ...["advertise-business-bengaluru", "outdoor-advertising-bangalore", "auto-rickshaw-advertising", "set-local-advertising-budget", "dooh-creative-specifications"].map(slug => ({ url: `${siteUrl}/guides/${slug}`, lastModified: lastUpdated, changeFrequency: "yearly" as const, priority: 0.6 })),
   ];
 }

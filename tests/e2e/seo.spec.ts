@@ -25,6 +25,7 @@ test("sitemap contains only reachable public content and excludes unapproved leg
   const xml = await response.text();
   expect(xml).toContain("/guides/advertise-business-bengaluru");
   expect(xml).toContain("/tools/ad-budget-planner");
+  expect(xml).toContain("https://theooro.com/field/ooro-bengaluru-auto-02.webp");
   expect(xml).not.toContain("/privacy");
   expect(xml).not.toContain("/terms");
   const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => m[1].replace(/^https?:\/\/[^/]+/, ""));

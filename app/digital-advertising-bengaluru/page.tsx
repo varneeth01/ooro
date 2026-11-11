@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { PublicPage, PublicCta } from "@/components/marketing/public-page";
 import { pageMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata(
   "digital-advertising-bengaluru",
-  "Digital Advertising in Bengaluru: Auto Screens and Local Campaigns",
-  "Looking for digital advertising in Bengaluru? Compare Google and social ads with OORO's passenger-facing digital screens inside autos. Learn about creative, costs, booking and proof of play."
+  "Digital Ads in Bengaluru: Auto Screens",
+  "Plan digital ads in Bengaluru on passenger-facing auto screens. Learn how OORO reviews creative, confirms eligible inventory, and reports playback."
 );
 
 const questions = [
@@ -37,6 +38,25 @@ export default function Page() {
   >
     <article className="container-ooro max-w-5xl py-14 sm:py-20 text-[#182019]">
       <nav aria-label="Breadcrumb" className="text-sm text-neutral-600"><Link href="/">Home</Link><span className="px-2">/</span><Link href="/bengaluru">Bengaluru advertising</Link><span className="px-2">/</span><span aria-current="page">Digital advertising</span></nav>
+
+      <figure className="mt-8">
+        <div className="relative aspect-[16/8] overflow-hidden rounded-xl bg-neutral-200">
+          <Image
+            src="/field/ooro-bengaluru-auto-02.webp"
+            alt="OORO passenger-facing digital display installed inside an auto-rickshaw in Bengaluru"
+            fill
+            sizes="(max-width: 768px) calc(100vw - 40px), 960px"
+            className="object-cover"
+          />
+        </div>
+        <figcaption className="mt-3 text-sm leading-6 text-neutral-600">OORO field photography. Campaign availability is checked separately for each request.</figcaption>
+      </figure>
+
+      <section className="mt-12 grid gap-4 border-y border-black/15 py-7 sm:grid-cols-3" aria-label="OORO format at a glance">
+        <div><h2 className="font-semibold">The placement</h2><p className="mt-2 text-sm leading-6 text-neutral-700">A digital message on a passenger-facing screen inside an eligible auto.</p></div>
+        <div><h2 className="font-semibold">What gets confirmed</h2><p className="mt-2 text-sm leading-6 text-neutral-700">Eligible screens, dates and commercial terms are reviewed before booking.</p></div>
+        <div><h2 className="font-semibold">What playback means</h2><p className="mt-2 text-sm leading-6 text-neutral-700">A playback record, where supported, does not establish unique viewers or sales.</p></div>
+      </section>
 
       <section className="mt-12 border-t border-black/15 pt-8">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Which type of digital advertising fits your business?</h2>
@@ -70,6 +90,22 @@ export default function Page() {
           <Link href="/tools/ad-budget-planner" className="underline underline-offset-4">Use the budget planner</Link>
           <Link href="/methodology" className="underline underline-offset-4">Read measurement methodology</Link>
         </div>
+      </section>
+
+      <section className="mt-12 border-t border-black/15 pt-8">
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">What to confirm before you book</h2>
+        <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-700">Use these questions to compare an OORO proposal with any other advertising quote. Get the answers in writing so a preference, estimate or sample report is not mistaken for a confirmed placement.</p>
+        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+          {[
+            "Which screens and campaign dates are confirmed for this request?",
+            "What is included in the price, and what costs extra?",
+            "What file dimensions, duration and review deadline apply to this screen?",
+            "Which delivery records will the report show, and which figures are estimates?",
+            "What happens if inventory, artwork or dates need to change?",
+            "Who will approve the final creative and confirm the campaign is booked?",
+          ].map(question => <li key={question} className="border border-black/15 p-4 text-sm leading-6 text-neutral-700">{question}</li>)}
+        </ul>
+        <p className="mt-5 max-w-3xl text-sm leading-7 text-neutral-600">For a related format guide, read <Link className="underline underline-offset-4" href="/auto-rickshaw-advertising-bangalore">how advertising inside auto-rickshaws works</Link>. For OORO&apos;s reporting limits, see the <Link className="underline underline-offset-4" href="/methodology">measurement methodology</Link>.</p>
       </section>
 
       <section className="mt-12 border-t border-black/15 pt-8">
