@@ -47,10 +47,19 @@ export async function POST(request: Request) {
   const email = await owner();
   if (!email) return NextResponse.json({ error: { message: "Sign in to save campaigns" } }, { status: 401 });
   const input = await request.json().catch(() => null) as CampaignInput | null;
+  // Public advertisers may submit campaign drafts, but cannot authorize
+  // scheduling through a client-supplied status. Payment, approval, inventory
+  // reservation and activation are separate server-controlled workflows.
+  if (input?.status && input.status !== "DRAFT") return NextResponse.json({ error: { code: "CAMPAIGN_APPROVAL_REQUIRED", message: "Campaigns can only be submitted as drafts. OORO must approve and schedule delivery." } }, { status: 422 });
   const error = validate(input ?? {}, input?.status === "DRAFT");
   if (error) return NextResponse.json({ error: { message: error } }, { status: 422 });
   try {
     const context = await webContext();
+    // Match read permissions: a network/explorer account or unapproved
+    // agency/brand must not write advertiser campaigns through this route.
+    if (context?.account.accountType === "NETWORK" || context?.account.accountType === "EXPLORER") return NextResponse.json({ error: { code: "ADVERTISER_ACCESS_REQUIRED", message: "This account does not have advertiser campaign access." } }, { status: 403 });
+    if (context?.account.accountType === "BRAND" && (!context.organization || context.organization.verificationStatus !== "VERIFIED")) return NextResponse.json({ error: { code: "BRAND_VERIFICATION_REQUIRED", message: "Your Brand account is awaiting verification." } }, { status: 403 });
+    if (context?.account.accountType === "AGENCY" && (!context.organization || context.organization.verificationStatus !== "VERIFIED")) return NextResponse.json({ error: { code: "AGENCY_APPROVAL_REQUIRED", message: "Your Agency application is being reviewed." } }, { status: 403 });
     const forecastSettings = await webPrisma.forecastSetting.findUnique({ where: { key: "DEFAULT" } });
     const isSelfServe = !context?.organization || context.organization.type === "CONSUMER";
     if (input?.budget !== undefined && isSelfServe && input.budget < (forecastSettings?.minimumSelfServeBudget ?? MIN_SELF_SERVE_BUDGET_RUPEES)) return NextResponse.json({ error: { code: "MINIMUM_BUDGET", message: `Minimum OORO campaign budget is ₹${forecastSettings?.minimumSelfServeBudget ?? MIN_SELF_SERVE_BUDGET_RUPEES}.` } }, { status: 422 });
@@ -61,7 +70,7 @@ export async function POST(request: Request) {
     const rate = requestedPlan?.customerType === "SELF_SERVE" ? requestedPlan.impressionRate : requestedPlan?.autoDayRate;
     const metadata = { goal: input!.goal, audience: input!.audience, city: input!.city, area: input!.area, media: input!.media, budget: input!.budget, currency: input!.currency, ...input!.metadata };
     const campaign = await webPrisma.campaign.create({ data: {
-      ownerEmail: email, userId: context?.account.id, name: input!.name!.trim(), description: input!.description?.trim(), status: input!.status ?? "DRAFT",
+      ownerEmail: email, userId: context?.account.id, name: input!.name!.trim(), description: input!.description?.trim(), status: "DRAFT",
       startsAt: input!.startDate ? new Date(`${input!.startDate}T00:00:00.000Z`) : undefined, endsAt: input!.endDate ? new Date(`${input!.endDate}T23:59:59.999Z`) : undefined,
       timezone: String(input!.metadata?.timezone ?? "Asia/Kolkata"), layout: String(input!.media ?? "OORO Auto Screens"),
       campaignCenterLat: input!.campaignCenterLat, campaignCenterLng: input!.campaignCenterLng, radiusKm: input!.radiusKm,
