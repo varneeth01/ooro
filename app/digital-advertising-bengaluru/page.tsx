@@ -40,12 +40,12 @@ export default function Page() {
 
       <section className="mt-12 border-t border-black/15 pt-8">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Which type of digital advertising fits your business?</h2>
-        <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-700">The term “digital ads in Bengaluru” can mean an online campaign or a physical digital display. Before comparing quotes, start with the customer's context: are they actively searching for a service, scrolling through a feed, or traveling through the city?</p>
+        <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-700">The term “digital ads in Bengaluru” can mean an online campaign or a physical digital display. Before comparing quotes, start with the customer&apos;s context: are they actively searching for a service, scrolling through a feed, or traveling through the city?</p>
         <div className="mt-7 overflow-x-auto"><table className="w-full min-w-[580px] border-collapse text-left text-sm"><caption className="sr-only">Bengaluru advertising channel comparison</caption><thead><tr className="border-b border-black/20"><th scope="col" className="p-3">Format</th><th scope="col" className="p-3">Useful when</th><th scope="col" className="p-3">Evidence to request</th></tr></thead><tbody className="text-neutral-700">
           <tr className="border-b border-black/10"><th scope="row" className="p-3 font-semibold">Search advertising</th><td className="p-3">People are looking for your product or service now</td><td className="p-3">Clicks, queries, conversions and spend</td></tr>
           <tr className="border-b border-black/10"><th scope="row" className="p-3 font-semibold">Social media advertising</th><td className="p-3">You want to communicate an offer or build awareness in a feed</td><td className="p-3">Delivery metrics, clicks and measured outcomes</td></tr>
           <tr className="border-b border-black/10"><th scope="row" className="p-3 font-semibold">Fixed outdoor screens</th><td className="p-3">A fixed site or known viewing context suits the message</td><td className="p-3">Placement, schedule and playback records</td></tr>
-          <tr className="border-b border-black/10"><th scope="row" className="p-3 font-semibold">OORO auto screens</th><td className="p-3">You want a brand message inside a passenger's everyday journey</td><td className="p-3">Approved inventory and proof-of-play where supported</td></tr>
+          <tr className="border-b border-black/10"><th scope="row" className="p-3 font-semibold">OORO auto screens</th><td className="p-3">You want a brand message inside a passenger&apos;s everyday journey</td><td className="p-3">Approved inventory and proof-of-play where supported</td></tr>
         </tbody></table></div>
         <p className="mt-4 text-sm leading-6 text-neutral-600">OORO offers the last format. This comparison is educational, not an offer to buy Google Ads, Meta Ads or fixed billboards through OORO.</p>
       </section>
@@ -64,7 +64,7 @@ export default function Page() {
 
       <section className="mt-12 border-t border-black/15 pt-8">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Budget, creative and measurement</h2>
-        <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-700">A useful proposal separates media delivery from creative production, taxes, campaign dates and any optional services. OORO's planning tool starts at a ₹500 input budget, but a planning estimate is not confirmed availability or a final quote. For a first test, decide what you want the passenger to remember and how you will measure the result outside the screen.</p>
+        <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-700">A useful proposal separates media delivery from creative production, taxes, campaign dates and any optional services. OORO&apos;s planning tool starts at a ₹500 input budget, but a planning estimate is not confirmed availability or a final quote. For a first test, decide what you want the passenger to remember and how you will measure the result outside the screen.</p>
         <div className="mt-5 flex flex-wrap gap-4 text-sm font-medium">
           <Link href="/auto-advertising-cost-bengaluru" className="underline underline-offset-4">Understand auto advertising costs</Link>
           <Link href="/tools/ad-budget-planner" className="underline underline-offset-4">Use the budget planner</Link>
