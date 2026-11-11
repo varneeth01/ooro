@@ -13,7 +13,7 @@ const steps = [
 ] as const;
 
 export default function HowItWorksPage() {
-  return <PublicPage eyebrow="How OORO works" title="From campaign brief to delivery evidence." description="A clear operating path for mobility advertising: request a plan, review creative, confirm eligible inventory and understand what actually played.">
+  return <PublicPage eyebrow="How OORO works" title="From campaign brief to delivery evidence." description="A clear operating path for mobility advertising: request a plan, review creative, confirm eligible inventory and understand what actually played." size="compact" primaryAction={{ href: "/advertise", label: "Start a campaign request" }} secondaryAction={{ href: "/methodology", label: "Review measurement method" }}>
     <PublicSection title="Four steps. Clear checkpoints.">
       <ol className="mt-10 border-t border-black/15">
         {steps.map(step => <li key={step.number} className="grid gap-4 border-b border-black/15 py-7 sm:grid-cols-[72px_minmax(0,1fr)_minmax(180px,.65fr)] sm:items-start sm:gap-8 sm:py-9">

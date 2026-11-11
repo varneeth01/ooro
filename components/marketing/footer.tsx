@@ -2,10 +2,10 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { Brand } from "../brand";
 const navGroups=[
- {title:"Advertise",links:[["For brands","/for-brands"],["For agencies","/for-agencies"],["Digital advertising in Bengaluru","/digital-advertising-bengaluru"],["Bengaluru coverage","/coverage"]]},
- {title:"Explore",links:[["How it works","/how-it-works"],["Methodology","/methodology"],["Advertising guides","/guides"],["Field journal","/field-journal"]]},
+ {title:"Advertise",links:[["For brands","/for-brands"],["For agencies","/for-agencies"],["Digital advertising in Bengaluru","/digital-advertising-bengaluru"],["Auto-rickshaw advertising","/auto-rickshaw-advertising-bangalore"],["Cab advertising","/cab-advertising-bengaluru"],["Outdoor advertising","/outdoor-advertising-bengaluru"],["Small business advertising","/small-business-advertising-bangalore"],["Advertising costs","/auto-advertising-cost-bengaluru"],["Bengaluru coverage","/coverage"]]},
+ {title:"Explore",links:[["How it works","/how-it-works"],["Methodology","/methodology"],["Advertising guides","/guides"],["Field journal","/field-journal"],["Budget planner","/tools/ad-budget-planner"],["Campaign brief builder","/tools/campaign-brief-builder"]]},
  {title:"Information",links:[["Privacy Policy","/privacy"],["Terms of Use","/terms"],["Contact","/contact"],["Sign in","/login"]]},
- {title:"Company",links:[["OORO founders and story","/about"],["Careers — 2 internships","/careers"],["Campaign enquiries","/advertise"]]},
+ {title:"Company",links:[["OORO home","/"],["OORO founders and story","/about"],["Careers — 2 internships","/careers"],["Campaign enquiries","/advertise"]]},
 ] as const;
 export function Footer(){
  return <footer className="relative bg-[#080a09] text-white" aria-label="Site footer">

@@ -43,7 +43,8 @@ export default function Page() {
     eyebrow="Bengaluru / Digital out-of-home"
     title="DOOH advertising in Bengaluru, on the move."
     description="OORO offers mobile digital out-of-home (DOOH) advertising on passenger-facing screens inside eligible autos and cabs in Bengaluru. Inventory, dates and commercial terms are checked for each request."
-  >
+    primaryAction={{ href: "/advertise", label: "Plan DOOH advertising in Bengaluru" }} secondaryAction={{ href: "/coverage", label: "Check service coverage" }}
+    >
     <article className="container-ooro max-w-5xl py-14 sm:py-20 text-[#182019]">
       <nav aria-label="Breadcrumb" className="text-sm text-neutral-600"><Link href="/">Home</Link><span className="px-2">/</span><Link href="/bengaluru">Bengaluru advertising</Link><span className="px-2">/</span><span aria-current="page">DOOH advertising</span></nav>
 

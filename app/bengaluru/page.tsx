@@ -5,7 +5,7 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata("bengaluru", "Ads in Bengaluru for Local Businesses", "Plan ads in Bengaluru on OORO's passenger-facing digital screens inside autos and cabs. Explore campaign planning and availability confirmation before booking.");
 export default function BengaluruPage() {
- return <PublicPage eyebrow="Bengaluru / Mobility advertising" title="Reach customers on the move in Bengaluru." description="OORO helps businesses and brands request advertising placements on digital screens inside autos and cabs. Our Bengaluru network is the initial launch focus, and live screen availability is confirmed for every campaign.">
+ return <PublicPage eyebrow="Bengaluru / Mobility advertising" title="Reach customers on the move in Bengaluru." description="OORO helps businesses and brands request advertising placements on digital screens inside autos and cabs. Our Bengaluru network is the initial launch focus, and live screen availability is confirmed for every campaign." primaryAction={{ href: "/advertise", label: "Plan a Bengaluru campaign" }} secondaryAction={{ href: "/coverage", label: "Review coverage" }}>
  <PublicSection title="Advertising that moves through the city">
  <p>Plan a campaign around areas such as BTM Layout, Koramangala, Indiranagar or Marathahalli. Tell OORO the audience, schedule and budget you have in mind, and our team will confirm eligible vehicles and screens before booking. Neighborhood examples are targeting preferences, not a guarantee of coverage.</p>
  </PublicSection>

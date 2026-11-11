@@ -9,7 +9,7 @@ import { ContentFaq } from "@/components/marketing/content-faq";
 export const metadata: Metadata = pageMetadata("coverage", "OORO Coverage and Campaign Availability", "Learn how OORO reviews preferred areas and confirms eligible inventory for each campaign request.");
 
 export default function CoveragePage() {
-  return <PublicPage eyebrow="Coverage / India" title="A city network built one verified screen at a time." description="Bengaluru is OORO's launch market. Explore the network roadmap below, then tell us the neighborhoods and dates that matter to your campaign. Eligible screens are confirmed before booking.">
+  return <PublicPage eyebrow="Coverage / India" title="A city network built one verified screen at a time." description="Bengaluru is OORO's launch market. Explore the network roadmap below, then tell us the neighborhoods and dates that matter to your campaign. Eligible screens are confirmed before booking." primaryAction={{ href: "/advertise", label: "Share campaign areas" }} secondaryAction={{ href: "/bengaluru", label: "Explore Bengaluru advertising" }}>
     <section className="border-b border-black/10 bg-[#e8edcb] py-16 sm:py-24">
       <div className="container-ooro grid gap-10 lg:grid-cols-[.62fr_1.38fr] lg:gap-16">
         <div>
