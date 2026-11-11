@@ -1,5 +1,13 @@
 package com.ooro.driver
 
+enum class DriverRoute {
+    AUTH,
+    REGISTRATION,
+    REVIEW_STATUS,
+    DISPLAY_SETUP,
+    DASHBOARD
+}
+
 fun resolveDriverRoute(
     authenticated: Boolean,
     onboardingStatus: String?,
