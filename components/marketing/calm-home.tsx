@@ -46,7 +46,7 @@ export function CalmHome() {
           <p className="calm-section-id">01 — THE IDEA</p>
           <div>
             <h2 id="calm-intro-title">The city is moving.<br /><span>So is attention.</span></h2>
-            <p className="calm-lead">Your customers don&apos;t spend their entire day on a screen at home. They commute, they explore, they cross neighborhoods. OORO brings brands into those real journeys.</p>
+            <p className="calm-lead">Your customers don&apos;t spend their entire day on a screen at home. They commute, they explore, they cross neighborhoods. OORO brings brands into those real journeys. <Link href="/digital-advertising-bengaluru" className="underline underline-offset-4">Explore digital advertising options in Bengaluru</Link>.</p>
           </div>
         </div>
       </section>
