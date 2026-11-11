@@ -1,0 +1,2 @@
+b7e67df996be766c3f3f95472764dbdde9550b5f3b163acba944f9c7c387d15d  apps/screen-android/app/build/outputs/apk/debug/app-debug.apk
+b7e67df996be766c3f3f95472764dbdde9550b5f3b163acba944f9c7c387d15d  /tmp/ooro-screen-fit-thermal/evidence/screen-fit-thermal/reinstall-acceptance/installed-onboarding-base.apk

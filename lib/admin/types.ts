@@ -1,6 +1,6 @@
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "OPERATIONS" | "SUPPORT" | "FINANCE";
 export type ScreenType = "AUTO_SCREEN" | "CAB_SCREEN" | "RETAIL_SCREEN" | "BILLBOARD_SCREEN" | "OTHER";
-export type PairingStatus = "UNPAIRED" | "PAIRING_CODE_ACTIVE" | "PAIRING" | "PAIRED" | "PAIRING_FAILED" | "PAIRING_EXPIRED";
+export type PairingStatus = "UNPAIRED" | "PAIRING_CODE_ACTIVE" | "PAIRING" | "PAIRED" | "PAIRING_FAILED" | "PAIRING_EXPIRED" | "REMOVAL_PENDING";
 export type ConnectivityStatus = "ONLINE" | "STALE" | "OFFLINE" | "NEVER_CONNECTED";
 export type PlayerStatus = "STARTING" | "SYNCING" | "READY" | "IDLE" | "LOADING" | "PLAYING" | "PAUSED" | "FAILED" | "FALLBACK" | "OFFLINE_PLAYBACK" | "ERROR";
 export type ManifestStatus = "CURRENT" | "DOWNLOADING" | "PENDING_ACTIVATION" | "OUTDATED" | "ERROR";
@@ -13,7 +13,10 @@ export interface Screen {
   screenType: ScreenType; city: string; area: string; createdAt: string; pairedAt?: string; pairingStatus: PairingStatus;
   vehicleIdentifier?: string | null; latitude?: number | null; longitude?: number | null; lastLocationAt?: string | null; lastHeartbeatAt?: string | null;
   connectivity?: ConnectivityStatus;
-  currentCampaignId?: string | null; currentCreativeId?: string | null; playbackState?: string | null; manifestVersion?: number | null; networkType?: string | null; appVersion?: string | null;
+  currentCampaignId?: string | null; currentCampaignName?: string | null; currentCreativeId?: string | null; currentCreativeName?: string | null;
+  currentCreativeUrl?: string | null; currentCreativeMimeType?: string | null; currentCreativeFileName?: string | null;
+  playbackState?: string | null; playbackStartedAt?: string | null; playbackPositionMs?: number | null; expectedDurationMs?: number | null;
+  manifestVersion?: number | null; networkType?: string | null; appVersion?: string | null;
 }
 export interface DeviceHeartbeat {
   id: string; screenId: string; deviceId: string; timestamp: string; appVersion: string; appVersionCode?: number;

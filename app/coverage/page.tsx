@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PublicPage, PublicSection, PublicCta } from "@/components/marketing/public-page";
+import { ArrowUpRight } from "lucide-react";
 import { CityNetwork } from "@/components/marketing/city-network";
+import { PublicPage } from "@/components/marketing/public-page";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Bengaluru Coverage | Auto & Cab Screen Advertising",
-  description: "Explore OORO's Bengaluru-first launch market, choose a neighborhood to target and request a mobility advertising campaign. Live screen inventory is confirmed before booking.",
-  alternates: { canonical: "/coverage" },
-  openGraph: { title: "OORO Bengaluru Mobility Advertising Coverage", description: "Find out where OORO is launching, see planned city expansion and request advertising on in-auto and cab screens in Bengaluru.", url: "/coverage", type: "website" },
-};
+export const metadata: Metadata = pageMetadata("coverage", "OORO Coverage and Campaign Availability", "Learn how OORO reviews preferred areas and confirms eligible inventory for each campaign request.");
+
 export default function CoveragePage() {
-  return <PublicPage eyebrow="Network coverage" title="Bengaluru first. Advertising that moves." description="We're building OORO's first in-vehicle advertising network in Bengaluru. Select a target area and send us your campaign brief; we confirm available screens and delivery before any booking.">
-    <PublicSection title="Plan for Bengaluru"><p>Choose preferred neighborhoods such as BTM Layout, Koramangala, Indiranagar or Marathahalli, plus your budget and dates. Areas are planning preferences, not a guarantee that specific vehicles or screens are currently available.</p><div className="mt-7 flex flex-wrap gap-3"><PublicCta href="/advertise">Plan a Bengaluru campaign</PublicCta><Link href="/bengaluru" className="inline-flex items-center rounded-lg border border-neutral-300 px-5 py-3.5 text-sm font-medium">Explore Bengaluru advertising</Link></div></PublicSection>
-    <div className="container-ooro pb-16 sm:pb-24"><div className="mb-7"><h2 className="display text-3xl font-medium sm:text-5xl">Our city rollout</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">Bengaluru is our launch focus. Other cities are listed for future interest only. Markers describe a launch market, not live or sold screen counts.</p></div><CityNetwork/></div>
+  return <PublicPage eyebrow="Coverage / India" title="A city network built one verified screen at a time." description="Bengaluru is OORO's launch market. Explore the network roadmap below, then tell us the neighborhoods and dates that matter to your campaign. Eligible screens are confirmed before booking.">
+    <section className="border-b border-black/10 bg-[#e8edcb] py-16 sm:py-24">
+      <div className="container-ooro grid gap-10 lg:grid-cols-[.62fr_1.38fr] lg:gap-16">
+        <div>
+          <p className="text-sm font-semibold text-[#596944]">Bengaluru first</p>
+          <h2 className="landing-display mt-5 text-4xl font-semibold leading-none tracking-[-.04em] sm:text-5xl">Request the places. We confirm the inventory.</h2>
+          <p className="mt-6 text-base leading-8 text-[#4f5542]">Coverage is operational, not decorative: a city or neighborhood shown here is not a guarantee that a specific screen is available for every date. OORO verifies eligible inventory for each campaign.</p>
+          <Link href="/bengaluru" className="mt-8 inline-flex min-h-12 items-center gap-3 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2a2d2b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">Explore Bengaluru advertising <ArrowUpRight size={17}/></Link>
+        </div>
+        <CityNetwork/>
+      </div>
+    </section>
   </PublicPage>;
 }

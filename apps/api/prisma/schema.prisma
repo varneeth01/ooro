@@ -446,6 +446,7 @@ model Display {
   tags                      String[]                    @default([])
   zoneConfig                DisplayZoneConfig?
   deviceOsDevice            ManagedDevice?
+  layoutAssignments         LayoutAssignment[]
 
   @@index([vehicleId, state])
 }
@@ -462,6 +463,7 @@ model Campaign {
   endsAt                  DateTime?
   timezone                String                      @default("Asia/Kolkata")
   layout                  String                      @default("FULLSCREEN_AD")
+  deliverySlot            String                      @default("MAIN")
   priority                Int                         @default(0)
   campaignCenterLat       Float?
   campaignCenterLng       Float?
@@ -494,6 +496,7 @@ model Campaign {
 model DisplayZoneConfig {
   id                  String   @id @default(uuid()) @db.Uuid
   displayId           String   @unique @db.Uuid
+  layoutContractVersion Int    @default(2)
   primaryWidthPercent Int      @default(67)
   adHeightPercent     Int      @default(86)
   qrHeightPercent     Int      @default(47)
@@ -501,6 +504,62 @@ model DisplayZoneConfig {
   display             Display  @relation(fields: [displayId], references: [id], onDelete: Cascade)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// Layout Studio stores presentation contracts separately from ad authorization.
+// Draft JSON is mutable under rowVersion; published revisions are immutable snapshots.
+model LayoutTemplate {
+  id             String            @id @default(uuid()) @db.Uuid
+  name           String
+  mode           String
+  preset         String
+  state          String            @default("DRAFT")
+  profileId      String
+  draftContract  Json
+  rowVersion     Int               @default(1)
+  createdBy      String?            @db.Uuid
+  updatedBy      String?            @db.Uuid
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  revisions      LayoutRevision[]
+  assignments    LayoutAssignment[]
+
+  @@index([state, mode, updatedAt])
+}
+
+model LayoutRevision {
+  id             String        @id @default(uuid()) @db.Uuid
+  templateId     String        @db.Uuid
+  revision       Int
+  contract       Json
+  contractHash   String
+  validation     Json
+  publishedBy    String?       @db.Uuid
+  publishedAt    DateTime      @default(now())
+  template       LayoutTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  assignments    LayoutAssignment[]
+
+  @@unique([templateId, revision])
+  @@unique([templateId, contractHash])
+  @@index([publishedAt])
+}
+
+model LayoutAssignment {
+  id             String          @id @default(uuid()) @db.Uuid
+  displayId      String          @db.Uuid
+  templateId     String          @db.Uuid
+  revisionId     String          @db.Uuid
+  state          String          @default("PREPARED")
+  compatibility  Json
+  assignedBy     String?         @db.Uuid
+  assignedAt     DateTime        @default(now())
+  revokedAt      DateTime?
+  display        Display         @relation(fields: [displayId], references: [id], onDelete: Restrict)
+  template       LayoutTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  revision       LayoutRevision  @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@index([displayId, state, assignedAt])
+  @@index([templateId, revisionId])
 }
 
 model NewsAnnouncement {
@@ -1034,6 +1093,7 @@ model ProofOfPlay {
   actualDuration     Int?
   manifestVersion    Int?
   playerVersion      String?
+  slot               String           @default("MAIN")
   playbackCompleted  Boolean
   status             String           @default("PENDING")
   invalidReason      String?

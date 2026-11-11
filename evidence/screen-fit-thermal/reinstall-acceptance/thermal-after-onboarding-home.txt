@@ -1,0 +1,12 @@
+/sys/class/thermal/thermal_zone0
+cpu_thermal_zone
+66887
+/sys/class/thermal/thermal_zone1
+gpu_thermal_zone
+64619
+/sys/class/thermal/thermal_zone2
+ve_thermal_zone
+64214
+/sys/class/thermal/thermal_zone3
+ddr_thermal_zone
+62756

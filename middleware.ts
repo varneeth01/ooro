@@ -1,4 +1,5 @@
 import { verifyAdminEnvelope } from "@/lib/auth/admin-edge";
+import { sameOriginRedirect } from "@/lib/auth/same-origin-redirect";
 import { isAcceptedAdminRequestOrigin } from "@/lib/auth/request-origin";
 import { NextRequest, NextResponse } from "next/server";
 import { protectedRoutePrefixes, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/lib/auth/session";
@@ -23,21 +24,17 @@ export async function middleware(request: NextRequest) {
     // A previously issued access token may expire while the refresh session remains valid.
     // Resume through a Node route handler (which may securely rotate the HttpOnly cookie).
     if (access === "anonymous" && request.cookies.has(SESSION_COOKIE)) {
-      const resume = new URL("/api/auth/admin/resume", request.url);
-      resume.searchParams.set("next", pathname + request.nextUrl.search);
-      return NextResponse.redirect(resume);
+      const next = pathname + request.nextUrl.search;
+      return sameOriginRedirect(`/api/auth/admin/resume?${new URLSearchParams({ next })}`);
     }
     if (access === "unavailable") return new NextResponse("Admin authentication service unavailable. Please retry.", { status:503, headers:{"cache-control":"no-store"} });
-    const destination = new URL(access === "forbidden" ? "/unauthorized" : "/admin/login",request.url);
-    if(access === "anonymous") destination.searchParams.set("next",pathname);
-    return NextResponse.redirect(destination);
+    const destination = access === "forbidden" ? "/unauthorized" : `/admin/login?${new URLSearchParams({ next: pathname + request.nextUrl.search })}`;
+    return sameOriginRedirect(destination);
   }
   const protectedRoute = protectedRoutePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
   if (!protectedRoute || request.cookies.has(SESSION_COOKIE) || request.cookies.has(WEB_SESSION_COOKIE)) return NextResponse.next();
   const loginPath = pathname === "/admin" || pathname.startsWith("/admin/") ? "/admin/login" : "/login";
-  const login = new URL(loginPath, request.url);
-  login.searchParams.set("next", pathname);
-  return NextResponse.redirect(login);
+  return sameOriginRedirect(`${loginPath}?${new URLSearchParams({ next: pathname + request.nextUrl.search })}`);
 }
 
 export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)", "/api/admin/:path*", "/api/auth/admin/:path*"] };

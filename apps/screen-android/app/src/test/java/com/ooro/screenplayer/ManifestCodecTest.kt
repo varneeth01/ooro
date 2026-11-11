@@ -27,11 +27,49 @@ class ManifestCodecTest {
         assertEquals("https://theooro.com/go/token-b", manifest.items[1].offer.qrUrl)
     }
 
+    @Test fun layoutVersionDefaultsToV1AndV2RoundTrips() {
+        val legacy = ManifestCodec.parse(payload)
+        assertEquals(1, legacy.layoutContractVersion)
+        val v2 = ManifestCodec.parse(payload.replace("\"type\":\"FOUR_ZONE\"", "\"type\":\"FOUR_ZONE\",\"contractVersion\":2"))
+        assertEquals(2, v2.layoutContractVersion)
+        assertEquals(2, ManifestCodec.parse(ManifestCodec.encode(v2)).layoutContractVersion)
+    }
+
+    @Test fun v3SponsoredImageIsSeparateAndSurvivesCachedManifestEncoding() {
+        val body = """{"version":43,"screenId":"screen-1","timezone":"UTC","validUntil":"2030-01-01T00:00:00Z","layout":{"type":"FOUR_ZONE","contractVersion":3,"primaryWidthPercent":80,"adHeightPercent":85,"qrHeightPercent":50},"news":{"announcements":[]},"items":[{"id":"main","campaignId":"main-campaign","creativeId":"main-creative","type":"VIDEO","url":"https://cdn.example/main.mp4","durationSeconds":15}],"sponsoredItem":{"id":"sponsor","campaignId":"sponsor-campaign","creativeId":"sponsor-creative","assetId":"asset-s","type":"IMAGE","url":"https://cdn.example/sponsor.png","checksum":"sha256-value","durationSeconds":10,"fitMode":"FIT"}}"""
+        val parsed = ManifestCodec.parse(body)
+        assertEquals(3, parsed.layoutContractVersion)
+        assertEquals("main", parsed.items.single().id)
+        assertEquals(CreativeType.IMAGE, parsed.sponsoredItem?.type)
+        assertEquals("sponsor", parsed.sponsoredItem?.id)
+        val restored = ManifestCodec.parse(ManifestCodec.encode(parsed))
+        assertEquals("sponsor", restored.sponsoredItem?.id)
+        assertEquals("sha256-value", restored.sponsoredItem?.checksum)
+    }
+
+    @Test fun customLayoutContractRoundTripsAsPresentationMetadata() {
+        val contract = """{"contractVersion":1,"mode":"CUSTOM","target":{"width":1280,"height":720},"zones":[]}"""
+        val parsed = ManifestCodec.parse(payload.replace("\"items\":", "\"layoutStudioContract\":$contract,\"items\":"))
+        assertTrue(parsed.layoutStudioContract?.contains("\"mode\":\"CUSTOM\"") == true)
+        val restored = ManifestCodec.parse(ManifestCodec.encode(parsed))
+        assertTrue(restored.layoutStudioContract?.contains("\"contractVersion\":1") == true)
+        // Layout metadata remains a presentation field; creative and authorization data are unchanged.
+        assertEquals(parsed.items.map { it.id }, restored.items.map { it.id })
+        assertEquals(parsed.screenId, restored.screenId)
+    }
+
     @Test fun acceptsEmptyManifestAndMissingOptionalOfferMetadata() {
         val empty = ManifestCodec.parse("""{"version":0,"screenId":"screen-1","timezone":"UTC","items":[]}""")
         assertTrue(empty.items.isEmpty())
         val withoutOffer = ManifestCodec.parse("""{"version":1,"screenId":"screen-1","items":[{"id":"i","campaignId":"c","creativeId":"cr","type":"IMAGE","url":"https://example.com/a.png"}]}""")
         assertEquals(null, withoutOffer.items.single().offer.offerTitle)
+    }
+
+    @Test fun `authorized QR destination record ID survives manifest cache round trip`() {
+        val payloadWithDestination = payload.replace("\"qrUrl\":\"https://theooro.com/go/token-a\"", "\"qrUrl\":\"https://theooro.com/go/token-a\",\"authorizedDestinationId\":\"destination-uuid\"")
+        val parsed = ManifestCodec.parse(payloadWithDestination)
+        assertEquals("destination-uuid", parsed.items.first().offer.authorizedDestinationId)
+        assertEquals("destination-uuid", ManifestCodec.parse(ManifestCodec.encode(parsed)).items.first().offer.authorizedDestinationId)
     }
 
     @Test fun malformedOrUnknownMediaManifestIsRejectedForLastKnownGoodFallback() {

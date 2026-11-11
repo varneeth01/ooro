@@ -3,7 +3,28 @@ import { requireAdminPermission, getAuthenticatedAdmin, AdminAuthError } from "@
 import { webPrisma } from "@/lib/web-prisma";
 import { safeDestination } from "@/apps/api/src/domain/qr-destination";
 const safe = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? Number(item) : item));
-export async function GET() { try { await getAuthenticatedAdmin(); const rows = await webPrisma.creative.findMany({ include: { asset: true, campaign: { select: { id: true, name: true, status: true } } }, orderBy: { displayOrder: "asc" } }); return NextResponse.json({ data: safe(rows) }); } catch (error) { return NextResponse.json({ error: { message: error instanceof AdminAuthError ? "Admin access required" : "Creative library unavailable" } }, { status: error instanceof AdminAuthError ? error.status : 503 }); } }
+export async function GET() { try { await getAuthenticatedAdmin(); const rows = await webPrisma.creative.findMany({ where: { status: { not: "ARCHIVED" }, campaign: { status: { not: "ARCHIVED" } } }, include: { asset: true, campaign: { select: { id: true, name: true, status: true } } }, orderBy: { displayOrder: "asc" } }); return NextResponse.json({ data: safe(rows) }); } catch (error) { return NextResponse.json({ error: { message: error instanceof AdminAuthError ? "Admin access required" : "Creative library unavailable" } }, { status: error instanceof AdminAuthError ? error.status : 503 }); } }
+export async function DELETE(request: Request) {
+  try {
+    const admin = await requireAdminPermission("creative:write");
+    const body = await request.json().catch(() => null) as { creativeId?: string } | null;
+    const creativeId = body?.creativeId?.trim();
+    if (!creativeId) return NextResponse.json({ error: { message: "Creative id is required." } }, { status: 422 });
+    const previous = await webPrisma.creative.findUnique({ where: { id: creativeId }, include: { campaign: { select: { status: true } } } });
+    if (!previous || previous.status === "ARCHIVED") return NextResponse.json({ error: { message: "Creative not found." } }, { status: 404 });
+    const result = await webPrisma.$transaction(async tx => {
+      const archived = await tx.creative.update({ where: { id: creativeId }, data: { status: "ARCHIVED" } });
+      const targets = await tx.displayCampaignAssignment.findMany({ where: { campaignId: previous.campaignId, active: true }, select: { displayId: true } });
+      await tx.displayCommand.createMany({ data: targets.map(target => ({ displayId: target.displayId, commandType: "REFRESH_MANIFEST", expiresAt: null })) });
+      await tx.auditLog.create({ data: { actorId: admin.userId, actorRole: admin.role, action: "CREATIVE_ARCHIVED", entityType: "Creative", entityId: creativeId, before: { status: previous.status }, after: { status: "ARCHIVED", manifestRefreshQueued: targets.length } } });
+      return { archived, manifestRefreshQueued: targets.length };
+    });
+    return NextResponse.json({ data: { id: result.archived.id, status: result.archived.status, manifestRefreshQueued: result.manifestRefreshQueued } });
+  } catch (error) {
+    const status = error instanceof AdminAuthError ? error.status : 503;
+    return NextResponse.json({ error: { message: error instanceof AdminAuthError ? "Admin access required" : "Creative could not be removed. Please retry." } }, { status });
+  }
+}
 export async function PATCH(request: Request) {
   try {
     const admin = await requireAdminPermission("creative:write"); const body = await request.json() as { creativeId?: string; status?: string; brandName?: string | null; promotionalText?: string | null; qrEnabled?: boolean; qrTargetUrl?: string | null; qrLabel?: string | null };

@@ -1,0 +1,14 @@
+11-04 13:50:03.778 11275 11275 I OoroScreen: media playback prepared file=video-landscape-720p.mp4
+11-04 13:50:04.585 11275 11275 I OoroScreen: video decoder initialized name=OMX.allwinner.video.decoder.avc initMs=143
+11-04 13:50:04.717 11275 11275 I OoroScreen: video size width=1280 height=720 rotation=0 pixelRatio=1.0
+11-04 13:50:04.817 11275 11275 I OoroRenderTest: video creativeId=local-video-landscape-720p sourcePx=1280x720 rotation=0 pixelRatio=1.0 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:50:08.014 11275 11275 I OoroScreen: media playback prepared file=video-portrait.mp4
+11-04 13:50:08.306 11275 11275 I OoroScreen: video decoder initialized name=OMX.allwinner.video.decoder.avc initMs=140
+11-04 13:50:08.487 11275 11275 I OoroScreen: media playback released
+11-04 13:50:08.556 11275 11275 I OoroScreen: video size width=720 height=1280 rotation=0 pixelRatio=1.0
+11-04 13:50:08.655 11275 11275 I OoroRenderTest: video creativeId=local-video-portrait sourcePx=720x1280 rotation=0 pixelRatio=1.0 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:50:24.305 11275 11275 I OoroScreen: video size width=0 height=0 rotation=0 pixelRatio=1.0
+11-04 13:51:54.764 11904 11904 I OoroScreen: media playback prepared file=video-landscape-720p.mp4
+11-04 13:51:55.434 11904 11904 I OoroScreen: video decoder initialized name=OMX.allwinner.video.decoder.avc initMs=73
+11-04 13:51:55.549 11904 11904 I OoroScreen: video size width=1280 height=720 rotation=0 pixelRatio=1.0
+11-04 13:51:55.624 11904 11904 I OoroRenderTest: video creativeId=local-video-landscape-720p sourcePx=1280x720 rotation=0 pixelRatio=1.0 mediaPx=1280x720 viewportPx=1280x720 fit=FIT

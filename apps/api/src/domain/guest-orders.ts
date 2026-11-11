@@ -35,7 +35,8 @@ export async function findGuestOrder(orderNumber: string) { await connectMongo()
 export async function findGuestOrderByRazorpayOrder(razorpayOrderId: string) { await connectMongo(); return GuestCampaignOrderModel.findOne({ razorpayOrderId }) }
 export async function listGuestOrders(query: { status?: string; search?: string; skip: number; take: number }) {
   await connectMongo(); const filter: Record<string, unknown> = {}
-  if (query.status) filter.status = query.status
+  if (query.status === 'UNPAID') filter.status = { $in: ['CREATED', 'PAYMENT_PENDING'] }
+  else if (query.status) filter.status = query.status
   if (query.search) { const expression = new RegExp(query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); const normalizedPhone = normalizeIndianPhone(query.search); filter.$or = [{ orderNumber: expression }, { email: expression }, { phone: expression }, ...(normalizedPhone ? [{ phone: normalizedPhone }] : []), { businessName: expression }, { name: expression }] }
   return GuestCampaignOrderModel.find(filter).sort({ createdAt: -1 }).skip(query.skip).limit(query.take).lean()
 }

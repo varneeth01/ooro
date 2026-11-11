@@ -13,5 +13,6 @@
         "reason": "Sanctioned email-client compatibility fallback; system fonts are intentional for broad transactional email rendering."
       }
     ]
-  }
+  },
+  "buildPath": "code"
 }

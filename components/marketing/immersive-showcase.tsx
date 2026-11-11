@@ -35,17 +35,17 @@ export function ImmersiveShowcase(){
  const {scrollYProgress}=useScroll({target:ref,offset:["start start","end end"]});
  const progress=useSpring(scrollYProgress,{stiffness:90,damping:30,mass:.35});
  const bar=useTransform(progress,[0,1],["0%","100%"]);
- return <section id="experience" ref={ref} className="relative scroll-mt-28 bg-[#f6f7f3] text-[#101210]">
-  <div className="container-ooro pb-3 pt-20 sm:pt-28"><h2 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">From a place on the map to <span className="text-[#66724d]">a moment that matters.</span></h2><p className="mt-5 max-w-xl text-base leading-7 text-neutral-600">A simpler way to plan mobility advertising, deliver approved creatives, and understand playback.</p></div>
-  <div className="container-ooro md:hidden"><MobileStories/></div>
-  {reduced?<div className="container-ooro hidden gap-10 pb-24 md:grid">{stories.map((s,i)=><div key={s.number} className="grid items-center gap-8 md:grid-cols-2"><div><h3 className="text-3xl font-semibold">{s.title}</h3><p className="mt-4 text-base leading-7 text-neutral-600">{s.body}</p></div><StoryGraphic index={i}/></div>)}</div>:<div className="relative hidden h-[230vh] md:block"><div className="sticky top-0 flex h-screen items-center"><div className="container-ooro grid w-full items-center gap-14 lg:grid-cols-[.85fr_1.15fr]">
+ return <section id="experience" ref={ref} className="relative scroll-mt-28 bg-[#f6f7f3] text-[#101210] md:bg-[#090b0a]">
+  <div className="bg-[#f6f7f3]"><div className="container-ooro pb-3 pt-20 sm:pt-28"><h2 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">From a place on the map to <span className="text-[#66724d]">a moment that matters.</span></h2><p className="mt-5 max-w-xl text-base leading-7 text-neutral-600">A simpler way to plan mobility advertising, deliver approved creatives, and understand playback.</p></div></div>
+  <div className="bg-[#f6f7f3] md:hidden"><div className="container-ooro"><MobileStories/></div></div>
+  {reduced?<div className="hidden bg-[#f6f7f3] md:block"><div className="container-ooro grid gap-10 pb-24 md:grid">{stories.map((s,i)=><div key={s.number} className="grid items-center gap-8 md:grid-cols-2"><div><h3 className="text-3xl font-semibold">{s.title}</h3><p className="mt-4 text-base leading-7 text-neutral-600">{s.body}</p></div><StoryGraphic index={i}/></div>)}</div></div>:<div className="relative hidden h-[230vh] md:block"><div className="sticky top-0 flex h-screen items-center bg-[#f6f7f3]"><div className="container-ooro grid w-full items-center gap-14 lg:grid-cols-[.85fr_1.15fr]">
     <div><span className="text-sm font-medium text-neutral-500">An OORO campaign, in three moments</span><div className="mt-9 space-y-8">{stories.map((s,i)=><StoryCopy key={s.number} index={i} progress={progress} title={s.title} body={s.body} />)}</div><Link href="/advertise" className="mt-8 inline-flex min-h-12 items-center gap-2 text-sm font-semibold underline underline-offset-4 hover:text-[#53632d] focus-visible:outline-2 focus-visible:outline-offset-4">Plan a Bengaluru campaign <ArrowUpRight size={17}/></Link></div>
     <div className="relative h-[430px] lg:h-[510px]">{stories.map((s,i)=><StoryFrame key={s.number} index={i} progress={progress}/>)}</div>
-   </div></div><div className="pointer-events-none absolute bottom-0 inset-x-0 h-[3px] bg-[#d9ded2]"><motion.div style={{width:bar}} className="h-full bg-[#6b8129]"/></div></div>}
+   </div></div><div className="pointer-events-none absolute bottom-0 inset-x-0 h-px bg-white/10"><motion.div style={{width:bar}} className="h-full bg-[#dfff00]"/></div></div>}
  </section>;
 }
 function StoryCopy({index,progress,title,body}:{index:number;progress:ReturnType<typeof useSpring>;title:string;body:string}){
  const start=index/3,stop=(index+1)/3;
- const opacity=useTransform(progress,[Math.max(0,start-.04),Math.min(start+.08,stop),Math.max(start+.12,stop-.08),Math.min(1,stop+.04)],[index===0?1:.36,1,1,index===2?1:.36]);
+ const opacity=useTransform(progress,[Math.max(0,start-.04),Math.min(start+.08,stop),Math.max(start+.12,stop-.08),Math.min(1,stop+.04)],[index===0?1:.82,1,1,index===2?1:.82]);
  return <motion.div style={{opacity}} className="border-l border-[#abb6a0] pl-5"><p className="text-xs font-semibold text-[#596944]">{String(index+1).padStart(2,"0")} / 03</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h3><p className="mt-2 max-w-md text-sm leading-6 text-neutral-600">{body}</p></motion.div>;
 }

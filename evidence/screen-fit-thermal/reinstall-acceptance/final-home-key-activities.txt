@@ -1,0 +1,400 @@
+ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+Display #0 (activities from top to bottom):
+
+  Stack #0: type=home mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+    Task id #275
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{f7edcf2 #275 A=com.ooro.screenplayer U=0 StackId=0 sz=1}
+      userId=0 effectiveUid=u0a93 mCallingUid=2000 mUserSetupComplete=true mCallingPackage=null
+      affinity=com.ooro.screenplayer
+      intent={act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000000 cmp=com.ooro.screenplayer/.MainActivity}
+      mActivityComponent=com.ooro.screenplayer/.MainActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=2
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      mRootProcess=ProcessRecord{36bbc54 12765:com.ooro.screenplayer/u0a93}
+      stackId=0
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_UNRESIZEABLE mSupportsPictureInPicture=false isResizeable=false lastActiveTime=2485869 (inactive for 384s)
+      * Hist #0: ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}
+          packageName=com.ooro.screenplayer processName=com.ooro.screenplayer
+          launchedFromUid=2000 launchedFromPackage=null userId=0
+          app=ProcessRecord{36bbc54 12765:com.ooro.screenplayer/u0a93}
+          Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000000 cmp=com.ooro.screenplayer/.MainActivity }
+          frontOfTask=true task=TaskRecord{f7edcf2 #275 A=com.ooro.screenplayer U=0 StackId=0 sz=1}
+          taskAffinity=com.ooro.screenplayer
+          mActivityComponent=com.ooro.screenplayer/.MainActivity
+          baseDir=/data/app/com.ooro.screenplayer-XqDLJo-ABqz51_xMq09rrg==/base.apk
+          dataDir=/data/user/0/com.ooro.screenplayer
+          stateNotNeeded=false componentSpecified=false mActivityType=home
+          compat={213dpi always-compat} labelRes=0x0 icon=0x7f080077 theme=0x7f0f002f
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0} s.2}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0} s.2}
+          RequestedOverrideConfiguration={0.0 ?mcc?mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mWindowingMode=undefined mDisplayWindowingMode=undefined mActivityType=home mAlwaysOnTop=undefined mRotation=undefined}}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff212121
+           backgroundColor=ff303030
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=1 lastLaunchTime=-6m24s844ms
+          haveState=false icicle=null
+          state=RESUMED stopped=false delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=true sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_NOT_SHOWN
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=home
+           nowVisible=true lastVisibleTime=-6m14s769ms
+          resizeMode=RESIZE_MODE_UNRESIZEABLE
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+    Task id #270
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{e5c93d4 #270 A=com.swe.dgbluancher U=0 StackId=0 sz=1}
+      userId=0 effectiveUid=u0a31 mCallingUid=0 mUserSetupComplete=true mCallingPackage=null
+      affinity=com.swe.dgbluancher
+      intent={act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x13000100 cmp=com.swe.dgbluancher/.MainActivity}
+      mActivityComponent=com.swe.dgbluancher/.MainActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=2
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{a1a91e0 u0 com.swe.dgbluancher/.MainActivity t270}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      mRootProcess=ProcessRecord{8254be6 10728:com.swe.dgbluancher/u0a31}
+      stackId=0
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_UNRESIZEABLE mSupportsPictureInPicture=false isResizeable=false lastActiveTime=2485524 (inactive for 384s)
+      * Hist #0: ActivityRecord{a1a91e0 u0 com.swe.dgbluancher/.MainActivity t270}
+          packageName=com.swe.dgbluancher processName=com.swe.dgbluancher
+          launchedFromUid=0 launchedFromPackage=null userId=0
+          app=ProcessRecord{8254be6 10728:com.swe.dgbluancher/u0a31}
+          Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x13000100 cmp=com.swe.dgbluancher/.MainActivity (has extras) }
+          frontOfTask=true task=TaskRecord{e5c93d4 #270 A=com.swe.dgbluancher U=0 StackId=0 sz=1}
+          taskAffinity=com.swe.dgbluancher
+          mActivityComponent=com.swe.dgbluancher/.MainActivity
+          baseDir=/system/priv-app/Launcher10/Launcher10.apk
+          dataDir=/data/user/0/com.swe.dgbluancher
+          stateNotNeeded=true componentSpecified=true mActivityType=home
+          compat={213dpi always-compat} labelRes=0x7f0e0002 icon=0x7f07002f theme=0x103005f
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0} s.2}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0} s.2}
+          RequestedOverrideConfiguration={0.0 ?mcc?mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mWindowingMode=undefined mDisplayWindowingMode=undefined mActivityType=home mAlwaysOnTop=undefined mRotation=undefined}}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff222222
+           backgroundColor=ff000000
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-38m32s153ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=2308]
+          state=STOPPED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_NOT_SHOWN
+          fullscreen=true noDisplay=false immersive=false launchMode=2
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=home
+           nowVisible=false lastVisibleTime=-6m58s59ms
+          resizeMode=RESIZE_MODE_UNRESIZEABLE
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{f7edcf2 #275 A=com.ooro.screenplayer U=0 StackId=0 sz=1}
+        Run #1: ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}
+      TaskRecord{e5c93d4 #270 A=com.swe.dgbluancher U=0 StackId=0 sz=1}
+        Run #0: ActivityRecord{a1a91e0 u0 com.swe.dgbluancher/.MainActivity t270}
+
+    mResumedActivity: ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}
+
+  Stack #16: type=standard mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #267
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{5bdbd05 #267 A=eu.darken.sdmse U=0 StackId=16 sz=1}
+      userId=0 effectiveUid=u0a91 mCallingUid=u0a31 mUserSetupComplete=true mCallingPackage=com.swe.dgbluancher
+      affinity=eu.darken.sdmse
+      intent={flg=0x10000000 cmp=eu.darken.sdmse/.main.ui.MainActivity}
+      mActivityComponent=eu.darken.sdmse/.main.ui.MainActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{9776a4c u0 eu.darken.sdmse/.main.ui.MainActivity t267}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      stackId=16
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=548718 (inactive for 2321s)
+      * Hist #0: ActivityRecord{9776a4c u0 eu.darken.sdmse/.main.ui.MainActivity t267}
+          packageName=eu.darken.sdmse processName=eu.darken.sdmse
+          launchedFromUid=10031 launchedFromPackage=com.swe.dgbluancher userId=0
+          app=null
+          Intent { flg=0x10000000 cmp=eu.darken.sdmse/.main.ui.MainActivity }
+          frontOfTask=true task=TaskRecord{5bdbd05 #267 A=eu.darken.sdmse U=0 StackId=16 sz=1}
+          taskAffinity=eu.darken.sdmse
+          mActivityComponent=eu.darken.sdmse/.main.ui.MainActivity
+          baseDir=/data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/base.apk
+          dataDir=/data/user/0/eu.darken.sdmse
+          splitDir=[/data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/split_config.armeabi_v7a.apk, /data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/split_config.en.apk, /data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/split_config.gu.apk, /data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/split_config.kn.apk, /data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/split_config.mr.apk, /data/app/eu.darken.sdmse-c0vpTDI2bcoWAqVQZClrHQ==/split_config.tvdpi.apk]
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={213dpi always-compat} labelRes=0x7f10005d icon=0x7f0d0000 theme=0x7f11000b
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff2f6a43
+           backgroundColor=fff6fbf3
+           statusBarColor=fff6fbf3
+           navigationBarColor=fff6fbf3
+          launchFailed=false launchCount=0 lastLaunchTime=-39m32s728ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=3652]
+          state=DESTROYED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_REMOVED
+          fullscreen=true noDisplay=false immersive=false launchMode=2
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+           nowVisible=false lastVisibleTime=-38m48s826ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+  Stack #4: type=standard mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #255
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{b9bb1d8 #255 A=com.swe.dgbluancher U=0 StackId=4 sz=1}
+      userId=0 effectiveUid=u0a31 mCallingUid=1000 mUserSetupComplete=true mCallingPackage=android
+      affinity=com.swe.dgbluancher
+      intent={flg=0x10000000 cmp=com.swe.dgbluancher/.appActivity}
+      mActivityComponent=com.swe.dgbluancher/.appActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{8bdd312 u0 com.swe.dgbluancher/.appActivity t255}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      stackId=4
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=497657 (inactive for 2372s)
+      * Hist #0: ActivityRecord{8bdd312 u0 com.swe.dgbluancher/.appActivity t255}
+          packageName=com.swe.dgbluancher processName=com.swe.dgbluancher
+          launchedFromUid=1000 launchedFromPackage=android userId=0
+          app=null
+          Intent { flg=0x10000000 cmp=com.swe.dgbluancher/.appActivity }
+          frontOfTask=true task=TaskRecord{b9bb1d8 #255 A=com.swe.dgbluancher U=0 StackId=4 sz=1}
+          taskAffinity=com.swe.dgbluancher
+          mActivityComponent=com.swe.dgbluancher/.appActivity
+          baseDir=/system/priv-app/Launcher10/Launcher10.apk
+          dataDir=/data/user/0/com.swe.dgbluancher
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={213dpi always-compat} labelRes=0x7f0e0002 icon=0x7f07002f theme=0x103005f
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff222222
+           backgroundColor=ff000000
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-41m6s10ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=696]
+          state=DESTROYED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_REMOVED
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+           nowVisible=false lastVisibleTime=-39m55s242ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+  Stack #5: type=standard mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #256
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{68ab931 #256 A=com.precisebytes.androidtoggles.free.release U=0 StackId=5 sz=1}
+      userId=0 effectiveUid=u0a89 mCallingUid=u0a31 mUserSetupComplete=true mCallingPackage=com.swe.dgbluancher
+      affinity=com.precisebytes.androidtoggles.free.release
+      intent={flg=0x10000000 cmp=com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity}
+      mActivityComponent=com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=0 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{3887626 u0 com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity t256}]
+      askedCompatMode=false inRecents=false isAvailable=true
+      stackId=5
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=451395 (inactive for 2419s)
+      * Hist #0: ActivityRecord{3887626 u0 com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity t256}
+          packageName=com.precisebytes.androidtoggles.free.release processName=com.precisebytes.androidtoggles.free.release
+          launchedFromUid=10031 launchedFromPackage=com.swe.dgbluancher userId=0
+          app=ProcessRecord{125706a 3967:com.precisebytes.androidtoggles.free.release/u0a89}
+          Intent { flg=0x10000000 cmp=com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity }
+          frontOfTask=true task=TaskRecord{68ab931 #256 A=com.precisebytes.androidtoggles.free.release U=0 StackId=5 sz=1}
+          taskAffinity=com.precisebytes.androidtoggles.free.release
+          mActivityComponent=com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity
+          baseDir=/data/app/com.precisebytes.androidtoggles.free.release-Ubt2Lk97S0JxEUbQPl8e3g==/base.apk
+          dataDir=/data/user/0/com.precisebytes.androidtoggles.free.release
+          splitDir=[/data/app/com.precisebytes.androidtoggles.free.release-Ubt2Lk97S0JxEUbQPl8e3g==/split_config.armeabi_v7a.apk, /data/app/com.precisebytes.androidtoggles.free.release-Ubt2Lk97S0JxEUbQPl8e3g==/split_config.en.apk, /data/app/com.precisebytes.androidtoggles.free.release-Ubt2Lk97S0JxEUbQPl8e3g==/split_config.tvdpi.apk]
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={213dpi always-compat} labelRes=0x7f0b0002 icon=0x7f050005 theme=0x7f0c0010
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff222222
+           backgroundColor=ff000000
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-44m39s500ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=3280]
+          state=STOPPED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_NOT_SHOWN
+          fullscreen=false noDisplay=false immersive=false launchMode=3
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+           nowVisible=false lastVisibleTime=-40m22s159ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{68ab931 #256 A=com.precisebytes.androidtoggles.free.release U=0 StackId=5 sz=1}
+        Run #0: ActivityRecord{3887626 u0 com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity t256}
+
+    mLastPausedActivity: ActivityRecord{3887626 u0 com.precisebytes.androidtoggles.free.release/com.precisebytes.androidtoggles.MainActivity t256}
+
+  Stack #12: type=standard mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #263
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{a63f816 #263 A=com.simplemobiletools.filemanager U=0 StackId=12 sz=1}
+      userId=0 effectiveUid=u0a90 mCallingUid=u0a90 mUserSetupComplete=true mCallingPackage=com.simplemobiletools.filemanager
+      affinity=com.simplemobiletools.filemanager
+      intent={flg=0x10000000 cmp=com.simplemobiletools.filemanager/.activities.SplashActivity.Orange}
+      origActivity=com.simplemobiletools.filemanager/.activities.SplashActivity.Orange
+      mActivityComponent=com.simplemobiletools.filemanager/.activities.SplashActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{8d26756 u0 com.simplemobiletools.filemanager/com.zipoapps.premiumhelper.ui.startlikepro.StartLikeProActivity t263}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      stackId=12
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=401405 (inactive for 2469s)
+      * Hist #0: ActivityRecord{8d26756 u0 com.simplemobiletools.filemanager/com.zipoapps.premiumhelper.ui.startlikepro.StartLikeProActivity t263}
+          packageName=com.simplemobiletools.filemanager processName=com.simplemobiletools.filemanager
+          launchedFromUid=10090 launchedFromPackage=com.simplemobiletools.filemanager userId=0
+          app=null
+          Intent { cmp=com.simplemobiletools.filemanager/com.zipoapps.premiumhelper.ui.startlikepro.StartLikeProActivity }
+          frontOfTask=true task=TaskRecord{a63f816 #263 A=com.simplemobiletools.filemanager U=0 StackId=12 sz=1}
+          taskAffinity=com.simplemobiletools.filemanager
+          mActivityComponent=com.simplemobiletools.filemanager/com.zipoapps.premiumhelper.ui.startlikepro.StartLikeProActivity
+          baseDir=/data/app/com.simplemobiletools.filemanager-CUkBNcnO5qA3lvCSD_LQ_g==/base.apk
+          dataDir=/data/user/0/com.simplemobiletools.filemanager
+          splitDir=[/data/app/com.simplemobiletools.filemanager-CUkBNcnO5qA3lvCSD_LQ_g==/split_config.en.apk, /data/app/com.simplemobiletools.filemanager-CUkBNcnO5qA3lvCSD_LQ_g==/split_config.tvdpi.apk]
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={213dpi always-compat} labelRes=0x7f130085 icon=0x7f100001 theme=0x7f14002d
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=fff57c00
+           backgroundColor=ff121212
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-41m15s167ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=4252]
+          state=DESTROYED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_NOT_SHOWN
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+           nowVisible=false lastVisibleTime=-41m13s614ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+  Stack #3: type=standard mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #254
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{92b8597 #254 A=org.xbmc.kodi U=0 StackId=3 sz=1}
+      userId=0 effectiveUid=u0a79 mCallingUid=u0a79 mUserSetupComplete=true mCallingPackage=org.xbmc.kodi
+      affinity=org.xbmc.kodi
+      intent={flg=0x11000000 cmp=org.xbmc.kodi/.Main}
+      mActivityComponent=org.xbmc.kodi/.Main
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{24c283c u0 org.xbmc.kodi/.Main t254}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      stackId=3
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=368684 (inactive for 2501s)
+      * Hist #0: ActivityRecord{24c283c u0 org.xbmc.kodi/.Main t254}
+          packageName=org.xbmc.kodi processName=org.xbmc.kodi
+          launchedFromUid=10079 launchedFromPackage=org.xbmc.kodi userId=0
+          app=null
+          Intent { flg=0x11000000 cmp=org.xbmc.kodi/.Main }
+          frontOfTask=true task=TaskRecord{92b8597 #254 A=org.xbmc.kodi U=0 StackId=3 sz=1}
+          taskAffinity=org.xbmc.kodi
+          mActivityComponent=org.xbmc.kodi/.Main
+          baseDir=/data/app/org.xbmc.kodi-AxPqr6tCIvKi-AIioqUn0w==/base.apk
+          dataDir=/data/user/0/org.xbmc.kodi
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={213dpi always-compat} labelRes=0x7f060001 icon=0x7f020001 theme=0x7f0a0006
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.4}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w961dp h516dp 213dpi lrg long land television -touch qwerty/v/v dpad/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} s.1}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff31afe1
+           backgroundColor=ff000000
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-45m15s717ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=332]
+          state=DESTROYED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_REMOVED
+          fullscreen=true noDisplay=false immersive=false launchMode=3
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+           nowVisible=false lastVisibleTime=-41m54s213ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+ ResumedActivity:ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}
+
+  ResumedActivity: ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}
+
+ActivityStackSupervisor state:
+  topDisplayFocusedStack=ActivityStack{ca0b76d stackId=0 type=home mode=fullscreen visible=true translucent=false, 2 tasks}
+  displayId=0 stacks=6
+   mHomeStack=ActivityStack{ca0b76d stackId=0 type=home mode=fullscreen visible=true translucent=false, 2 tasks}
+   mPreferredTopFocusableStack=ActivityStack{ca0b76d stackId=0 type=home mode=fullscreen visible=true translucent=false, 2 tasks}
+   mLastFocusedStack=ActivityStack{ca0b76d stackId=0 type=home mode=fullscreen visible=true translucent=false, 2 tasks}
+  mCurTaskIdForUser={0=275}
+  mUserStackInFront={}
+  isHomeRecentsComponent=false  KeyguardController:
+    mKeyguardShowing=false
+    mAodShowing=false
+    mKeyguardGoingAway=false
+    Occluded=false DismissingKeyguardActivity=null at display=0
+    mDismissalRequested=false
+    mVisibilityTransactionDepth=0
+  LockTaskController
+    mLockTaskModeState=NONE
+    mLockTaskModeTasks=
+    mLockTaskPackages (userId:packages)=
+      u0:[]

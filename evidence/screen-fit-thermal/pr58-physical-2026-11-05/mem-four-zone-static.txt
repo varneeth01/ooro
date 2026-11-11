@@ -1,0 +1,56 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 2753796 Realtime: 2753797
+
+** MEMINFO in pid 12674 [com.ooro.screenplayer] **
+                   Pss  Private  Private     Swap     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap     9306     9208        0        0    11568     9921     1646
+  Dalvik Heap     4457     4408        0        0     9020     4510     4510
+ Dalvik Other     2660     2660        0        0
+        Stack      144      144        0        0
+       Ashmem        2        0        0        0
+    Other dev       16        0       16        0
+     .so mmap     6251       72      796        0
+    .jar mmap     3031        0      700        0
+    .apk mmap     1599        0        8        0
+    .ttf mmap      461        0      172        0
+    .dex mmap    34579    34576        0        0
+    .oat mmap      139        0        0        0
+    .art mmap     4717     4304        0        0
+   Other mmap      329       84       36        0
+      Unknown     1110     1092        0        0
+        TOTAL    68801    56548     1728        0    20588    14431     6156
+
+ App Summary
+                       Pss(KB)
+                        ------
+           Java Heap:     8712
+         Native Heap:     9208
+                Code:    36324
+               Stack:      144
+            Graphics:        0
+       Private Other:     3888
+              System:    10525
+
+               TOTAL:    68801      TOTAL SWAP (KB):        0
+
+ Objects
+               Views:       12         ViewRootImpl:        2
+         AppContexts:        7           Activities:        2
+              Assets:        6        AssetManagers:        0
+       Local Binders:       14        Proxy Binders:       41
+       Parcel memory:       10         Parcel count:       42
+    Death Recipients:        0      OpenSSL Sockets:        3
+            WebViews:        0
+
+ SQL
+         MEMORY_USED:      364
+  PAGECACHE_OVERFLOW:      202          MALLOC_SIZE:      117
+
+ DATABASES
+      pgsz     dbsz   Lookaside(b)          cache  Dbname
+         4      104                    176/181/25  /data/user/0/com.ooro.screenplayer/no_backup/androidx.work.workdb
+         4        8                         0/0/0    (attached) temp
+         4       40                       16/34/8  /data/user/0/com.ooro.screenplayer/databases/ooro.db
+         4        8                         0/0/0    (attached) temp

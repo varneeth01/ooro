@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageHeader, PrimaryButton, SecondaryButton, SectionCard, StatusBadge } from "@/components/app/app-ui";
+import { deploymentRequestError, validateDeploymentForm } from "@/lib/admin/deviceos-deployment-form";
 
 type Device = { id: string; displayId: string; enrollmentStatus: string; agentVersionName?: string | null; androidVersion?: string | null; manufacturer?: string | null; model?: string | null; lastSeenAt?: string | null; display?: { name: string; deviceId: string; state: string; vehicle?: { registrationNumber?: string | null; city?: string | null } | null } };
 type InventoryItem = { id: string; packageName: string; versionCode: string; versionName?: string | null; certificateSha256?: string | null; installSource?: string | null; isCompliant: boolean; lastSeenAt?: string | null; application?: { displayName: string; packageName: string } | null };
@@ -14,7 +15,7 @@ type TelemetryDevice = { id: string; displayId: string; enrollmentStatus: string
 type AuditEvent = { id: string; action: string; entityType: string; entityId: string; createdAt: string; requestId?: string | null; managedDevice?: { display?: { name?: string | null; deviceId?: string | null } | null } | null; campaign?: { name?: string | null } | null };
 type ScreenGroup = { id: string; name: string };
 
-const json = async (url: string, init?: RequestInit) => { const response = await fetch(url, { cache: "no-store", ...init }); const body = await response.json(); if (!response.ok) { const error = new Error(body.error?.message || "DeviceOS request failed") as Error & { status?: number }; error.status = response.status; throw error; } return body.data; };
+const json = async (url: string, init?: RequestInit) => { const response = await fetch(url, { cache: "no-store", ...init }); const body = await response.json(); if (!response.ok) { const error = new Error(body.error?.message || "DeviceOS request failed") as Error & { status?: number; code?: string }; error.status = response.status; error.code = body.error?.code; throw error; } return body.data; };
 
 export function DeviceOsDashboard() {
   const [devices, setDevices] = useState<Device[]>([]); const [applications, setApplications] = useState<Application[]>([]); const [deployments, setDeployments] = useState<Deployment[]>([]); const [error, setError] = useState("");
@@ -46,11 +47,11 @@ export function DeviceOsDevices() {
 
 export function DeviceOsApplications() {
   const [items, setItems] = useState<Application[]>([]); const [name, setName] = useState(""); const [packageName, setPackageName] = useState(""); const [error, setError] = useState("");
-  const load = () => json("/api/admin/deviceos/applications").then(setItems).catch(e => setError(String(e)));
+  const load = () => { setError(""); return json("/api/admin/deviceos/applications").then(setItems).catch((e: Error & { status?: number }) => setError(e.status === 500 ? "The application registry failed on the API. Confirm the current DeviceOS Prisma migration is applied, then retry." : e.message || "Unable to load applications.")); };
   useEffect(() => { void load(); }, []);
   async function create(event: React.FormEvent) { event.preventDefault(); setError(""); try { await json("/api/admin/deviceos/applications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ displayName: name, packageName }) }); setName(""); setPackageName(""); await load(); } catch (e) { setError(String(e)); } }
   async function setAllowlisted(item: Application) { const action = item.allowed ? "block" : "allow"; if (!window.confirm(`Confirm ${action}ing ${item.packageName}?`)) return; try { await json(`/api/admin/deviceos/applications/${item.id}/allowlist`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ allowed: !item.allowed }) }); await load(); } catch (e) { setError(String(e)); } }
-  return <div className="space-y-7"><PageHeader eyebrow="Admin / DeviceOS" title="Managed applications" description="Register and control the Android package allowlist before uploading immutable releases."/><SectionCard title="Register application"><form onSubmit={create} className="grid gap-4 md:grid-cols-3"><input className="rounded border px-3 py-2 text-sm" placeholder="Display name" value={name} onChange={e => setName(e.target.value)} required/><input className="rounded border px-3 py-2 font-mono text-sm" placeholder="com.example.app" value={packageName} onChange={e => setPackageName(e.target.value)} required/><PrimaryButton type="submit">Register</PrimaryButton></form>{error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}</SectionCard><SectionCard title="Application registry"><div className="divide-y">{items.map(item => <div className="flex items-center justify-between gap-4 py-4" key={item.id}><div><p className="font-medium">{item.displayName}</p><p className="font-mono text-xs text-neutral-500">{item.packageName}</p></div><div className="flex items-center gap-4 text-right text-xs text-neutral-500"><span>{item._count?.releases ?? 0} releases · {item._count?.inventory ?? 0} installs · {item.allowed ? "Allowlisted" : "Blocked"}</span><SecondaryButton onClick={() => void setAllowlisted(item)}>{item.allowed ? "Block" : "Allow"}</SecondaryButton></div></div>)}</div></SectionCard></div>;
+  return <div className="space-y-7"><PageHeader eyebrow="Admin / DeviceOS" title="Managed applications" description="Register and control the Android package allowlist before uploading immutable releases."/><SectionCard title="Register application"><form onSubmit={create} className="grid gap-4 md:grid-cols-3"><input className="rounded border px-3 py-2 text-sm" placeholder="Display name" value={name} onChange={e => setName(e.target.value)} required/><input className="rounded border px-3 py-2 font-mono text-sm" placeholder="com.example.app" value={packageName} onChange={e => setPackageName(e.target.value)} required/><PrimaryButton type="submit">Register</PrimaryButton></form>{error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}</SectionCard><SectionCard title="Application registry">{error && <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><span>{error}</span><button type="button" className="shrink-0 font-medium underline underline-offset-4" onClick={() => void load()}>Retry</button></div>}<div className="divide-y">{items.map(item => <div className="flex items-center justify-between gap-4 py-4" key={item.id}><div><p className="font-medium">{item.displayName}</p><p className="font-mono text-xs text-neutral-500">{item.packageName}</p></div><div className="flex items-center gap-4 text-right text-xs text-neutral-500"><span>{item._count?.releases ?? 0} releases · {item._count?.inventory ?? 0} installs · {item.allowed ? "Allowlisted" : "Blocked"}</span><SecondaryButton onClick={() => void setAllowlisted(item)}>{item.allowed ? "Block" : "Allow"}</SecondaryButton></div></div>)}</div>{!items.length && <p className="py-8 text-sm text-neutral-500">No managed applications registered yet.</p>}</SectionCard></div>;
 }
 
 export function DeviceOsReleases() {
@@ -62,11 +63,194 @@ export function DeviceOsReleases() {
 }
 
 export function DeviceOsDeployments() {
-  const [devices, setDevices] = useState<Device[]>([]); const [apps, setApps] = useState<Application[]>([]); const [groups, setGroups] = useState<ScreenGroup[]>([]); const [releases, setReleases] = useState<Release[]>([]); const [items, setItems] = useState<Deployment[]>([]); const [detail, setDetail] = useState<DeploymentDetail | null>(null); const [form, setForm] = useState({ name: "", applicationId: "", releaseId: "", targetingMode: "DEVICES", groupId: "", city: "", targetPercentage: "", maintenanceWindowStart: "", maintenanceWindowEnd: "", maxFailureRatePercent: "10", stopOnHealthFailure: false, minimumHealthyPercent: "" }); const [deviceIds, setDeviceIds] = useState<string[]>([]); const [idempotencyKey, setIdempotencyKey] = useState(""); const [error, setError] = useState("");
-  const load = () => Promise.all([json("/api/admin/deviceos/devices"), json("/api/admin/deviceos/applications"), json("/api/admin/deviceos/deployments"), json("/api/admin/operations")]).then(([d, a, c, operations]) => { setDevices(d); setApps(a); setItems(c); setGroups((operations.groups ?? []).map((group: { id: string; name: string }) => ({ id: group.id, name: group.name }))); }).catch(e => setError(String(e)));
-  useEffect(() => { void load(); }, []); useEffect(() => { if (form.applicationId) void json(`/api/admin/deviceos/applications/${form.applicationId}/releases`).then((r: Release[]) => setReleases(r.filter(x => x.approvalStatus === "APPROVED"))).catch(e => setError(String(e))); }, [form.applicationId]);
-  async function create(event: React.FormEvent) { event.preventDefault(); setError(""); const requestKey = idempotencyKey || crypto.randomUUID(); setIdempotencyKey(requestKey); try { await json("/api/admin/deviceos/deployments", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": requestKey }, body: JSON.stringify({ ...form, groupId: form.targetingMode === "GROUP" ? form.groupId : undefined, targetPercentage: form.targetPercentage ? Number(form.targetPercentage) : undefined, maxFailureRatePercent: Number(form.maxFailureRatePercent), healthGate: { stopOnHealthFailure: form.stopOnHealthFailure, ...(form.minimumHealthyPercent ? { minimumHealthyPercent: Number(form.minimumHealthyPercent) } : {}) }, maintenanceWindowStart: form.maintenanceWindowStart ? new Date(form.maintenanceWindowStart).toISOString() : undefined, maintenanceWindowEnd: form.maintenanceWindowEnd ? new Date(form.maintenanceWindowEnd).toISOString() : undefined, deviceIds: form.targetingMode === "DEVICES" ? deviceIds : undefined }) }); setForm({ name: "", applicationId: "", releaseId: "", targetingMode: "DEVICES", groupId: "", city: "", targetPercentage: "", maintenanceWindowStart: "", maintenanceWindowEnd: "", maxFailureRatePercent: "10", stopOnHealthFailure: false, minimumHealthyPercent: "" }); setDeviceIds([]); setIdempotencyKey(crypto.randomUUID()); await load(); } catch (e) { if (e instanceof Error && typeof (e as Error & { status?: number }).status === "number" && ((e as Error & { status: number }).status < 500)) setIdempotencyKey(crypto.randomUUID()); setError(String(e)); } }
-  async function toggle(item: Deployment) { const action = item.state === "PAUSED" ? "resume" : "pause"; try { await json(`/api/admin/deviceos/deployments/${item.id}/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: action === "pause" ? JSON.stringify({ reason: "Paused by administrator" }) : "{}" }); await load(); } catch (e) { setError(String(e)); } }
-  async function showDetail(id: string) { try { setDetail(await json(`/api/admin/deviceos/deployments/${id}`)); } catch (e) { setError(String(e)); } }
-  return <div className="space-y-7"><PageHeader eyebrow="Admin / DeviceOS" title="Deployment campaigns" description="Assignments are durable in PostgreSQL and remain auditable when devices are offline."/><SectionCard title="Create deployment"><form onSubmit={create} className="grid gap-4 md:grid-cols-2"><input className="rounded border px-3 py-2 text-sm" placeholder="Campaign name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required/><select className="rounded border px-3 py-2 text-sm" value={form.applicationId} onChange={e => setForm({ ...form, applicationId: e.target.value, releaseId: "" })}><option value="">Application</option>{apps.map(app => <option key={app.id} value={app.id}>{app.displayName}</option>)}</select><select className="rounded border px-3 py-2 text-sm" value={form.releaseId} onChange={e => setForm({ ...form, releaseId: e.target.value })}><option value="">Approved release</option>{releases.map(release => <option key={release.id} value={release.id}>v{release.versionName} · {release.versionCode}</option>)}</select><select className="rounded border px-3 py-2 text-sm" value={form.targetingMode} onChange={e => setForm({ ...form, targetingMode: e.target.value })}><option value="DEVICES">Individual devices</option><option value="GROUP">Device group</option><option value="CITY">City</option><option value="PERCENTAGE">Percentage cohort</option></select>{form.targetingMode === "DEVICES" && <select multiple className="h-32 rounded border px-3 py-2 text-sm" value={deviceIds} onChange={e => setDeviceIds(Array.from(e.target.selectedOptions, option => option.value))}>{devices.filter(d => d.enrollmentStatus === "ENROLLED").map(device => <option key={device.id} value={device.id}>{device.display?.name || device.id}</option>)}</select>}{form.targetingMode === "GROUP" && <select className="rounded border px-3 py-2 text-sm" value={form.groupId} onChange={e => setForm({ ...form, groupId: e.target.value })}><option value="">Select device group</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select>}{form.targetingMode === "CITY" && <input className="rounded border px-3 py-2 text-sm" placeholder="City" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}/>} {form.targetingMode === "PERCENTAGE" && <input type="number" min="1" max="100" className="rounded border px-3 py-2 text-sm" placeholder="Percentage" value={form.targetPercentage} onChange={e => setForm({ ...form, targetPercentage: e.target.value })}/>}<label className="text-sm">Maximum failure rate (%)<input type="number" min="0" max="100" className="mt-1 block w-full rounded border px-3 py-2 text-sm" value={form.maxFailureRatePercent} onChange={e => setForm({ ...form, maxFailureRatePercent: e.target.value })}/></label><label className="text-sm">Minimum healthy rate (%)<input type="number" min="0" max="100" className="mt-1 block w-full rounded border px-3 py-2 text-sm" placeholder="Optional" value={form.minimumHealthyPercent} onChange={e => setForm({ ...form, minimumHealthyPercent: e.target.value })}/></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.stopOnHealthFailure} onChange={e => setForm({ ...form, stopOnHealthFailure: e.target.checked })}/> Stop on health failure</label><label className="text-sm">Maintenance start<input type="datetime-local" className="mt-1 block w-full rounded border px-3 py-2 text-sm" value={form.maintenanceWindowStart} onChange={e => setForm({ ...form, maintenanceWindowStart: e.target.value })}/></label><label className="text-sm">Maintenance end<input type="datetime-local" className="mt-1 block w-full rounded border px-3 py-2 text-sm" value={form.maintenanceWindowEnd} onChange={e => setForm({ ...form, maintenanceWindowEnd: e.target.value })}/></label><PrimaryButton type="submit">Create campaign</PrimaryButton></form>{error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}</SectionCard><SectionCard title="Campaign history"><div className="divide-y">{items.map(item => <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" key={item.id}><div><p className="font-medium">{item.name}</p><p className="text-xs text-neutral-500">{item.application.displayName} · v{item.release.versionName} · {item.targetingMode}</p><p className="mt-1 text-xs text-neutral-500">{Object.entries(item.targetSummary || {}).map(([state, count]) => `${state}: ${count}`).join(" · ") || "No target events"}</p></div><div className="flex items-center gap-3"><StatusBadge tone={item.state === "ACTIVE" ? "yellow" : "neutral"}>{item.state}</StatusBadge><SecondaryButton onClick={() => void showDetail(item.id)}>View logs</SecondaryButton>{["ACTIVE", "PAUSED"].includes(item.state) && <SecondaryButton onClick={() => void toggle(item)}>{item.state === "PAUSED" ? "Resume" : "Pause"}</SecondaryButton>}</div></div>)}</div>{!items.length && <p className="py-8 text-sm text-neutral-500">No deployment campaigns created.</p>}</SectionCard>{detail && <SectionCard title="Installation logs"><div className="divide-y">{detail.targets.map(target => { const attempt = target.attempts[0]; return <div className="py-3 text-sm" key={target.id}><div className="flex justify-between gap-4"><span>{target.managedDevice?.display?.name || "Managed device"}</span><StatusBadge tone={target.state === "HEALTHY" ? "yellow" : "neutral"}>{target.state}</StatusBadge></div><p className="mt-1 text-xs text-neutral-500">{attempt?.installerStatus || "No installer result"}{attempt?.installationResult?.healthStatus ? ` · health ${attempt.installationResult.healthStatus}` : ""}{attempt?.errorCode ? ` · ${attempt.errorCode}` : ""}</p>{attempt?.errorMessage && <p className="mt-1 text-xs text-red-700">{attempt.errorMessage}</p>}</div> })}</div></SectionCard>}</div>;
+  const emptyForm = { name: "", applicationId: "", releaseId: "", targetingMode: "DEVICES", groupId: "", city: "", targetPercentage: "", maintenanceWindowStart: "", maintenanceWindowEnd: "", maxFailureRatePercent: "10", stopOnHealthFailure: false, minimumHealthyPercent: "" };
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [apps, setApps] = useState<Application[]>([]);
+  const [groups, setGroups] = useState<ScreenGroup[]>([]);
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [items, setItems] = useState<Deployment[]>([]);
+  const [detail, setDetail] = useState<DeploymentDetail | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [deviceIds, setDeviceIds] = useState<string[]>([]);
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+
+  const load = () => Promise.all([
+    json("/api/admin/deviceos/devices"),
+    json("/api/admin/deviceos/applications"),
+    json("/api/admin/deviceos/deployments"),
+    json("/api/admin/operations"),
+  ]).then(([deviceRows, appRows, deploymentRows, operations]) => {
+    setDevices(deviceRows);
+    setApps(appRows);
+    setItems(deploymentRows);
+    setGroups((operations.groups ?? []).map((group: { id: string; name: string }) => ({ id: group.id, name: group.name })));
+  }).catch(e => setError(String(e)));
+
+  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!form.applicationId) {
+      setReleases([]);
+      setReleasesLoading(false);
+      return;
+    }
+    let active = true;
+    setReleases([]);
+    setReleasesLoading(true);
+    void json(`/api/admin/deviceos/applications/${form.applicationId}/releases`)
+      .then((rows: Release[]) => { if (active) setReleases(rows.filter(item => item.approvalStatus === "APPROVED")); })
+      .catch(e => { if (active) setError(String(e)); })
+      .finally(() => { if (active) setReleasesLoading(false); });
+    return () => { active = false; };
+  }, [form.applicationId]);
+
+  const validationErrors = validateDeploymentForm(form, apps, releases, devices, groups, deviceIds);
+  const valid = Object.keys(validationErrors).length === 0;
+  const enrolledDevices = devices.filter(device => device.enrollmentStatus === "ENROLLED");
+  const showFieldError = (field: string) => submitAttempted && validationErrors[field]
+    ? <p className="mt-1 text-xs font-medium text-red-700">{validationErrors[field]}</p>
+    : null;
+
+  async function create(event: React.FormEvent) {
+    event.preventDefault();
+    setSubmitAttempted(true);
+    setError("");
+    if (!valid || pending) return;
+    setPending(true);
+    const requestKey = idempotencyKey || crypto.randomUUID();
+    setIdempotencyKey(requestKey);
+    const payload = {
+      name: form.name.trim(),
+      applicationId: form.applicationId,
+      releaseId: form.releaseId,
+      targetingMode: form.targetingMode,
+      ...(form.targetingMode === "DEVICES" ? { deviceIds } : {}),
+      ...(form.targetingMode === "GROUP" ? { groupId: form.groupId } : {}),
+      ...(form.targetingMode === "CITY" ? { city: form.city.trim() } : {}),
+      ...(form.targetingMode === "PERCENTAGE" ? { targetPercentage: Number(form.targetPercentage) } : {}),
+      maxFailureRatePercent: Number(form.maxFailureRatePercent),
+      healthGate: {
+        stopOnHealthFailure: form.stopOnHealthFailure,
+        ...(form.minimumHealthyPercent.trim() ? { minimumHealthyPercent: Number(form.minimumHealthyPercent) } : {}),
+      },
+      ...(form.maintenanceWindowStart ? { maintenanceWindowStart: new Date(form.maintenanceWindowStart).toISOString() } : {}),
+      ...(form.maintenanceWindowEnd ? { maintenanceWindowEnd: new Date(form.maintenanceWindowEnd).toISOString() } : {}),
+    };
+    try {
+      await json("/api/admin/deviceos/deployments", {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": requestKey },
+        body: JSON.stringify(payload),
+      });
+      setForm(emptyForm);
+      setDeviceIds([]);
+      setReleases([]);
+      setIdempotencyKey("");
+      setSubmitAttempted(false);
+      await load();
+    } catch (e) {
+      const requestError = e as Error & { status?: number; code?: string };
+      setError(deploymentRequestError(requestError.code, requestError.message));
+      if (requestError.status && requestError.status < 500) setIdempotencyKey("");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function toggle(item: Deployment) {
+    const action = item.state === "PAUSED" ? "resume" : "pause";
+    try {
+      await json(`/api/admin/deviceos/deployments/${item.id}/${action}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: action === "pause" ? JSON.stringify({ reason: "Paused by administrator" }) : "{}",
+      });
+      await load();
+    } catch (e) { setError(String(e)); }
+  }
+
+  async function showDetail(id: string) {
+    try { setDetail(await json(`/api/admin/deviceos/deployments/${id}`)); }
+    catch (e) { setError(String(e)); }
+  }
+
+  return <div className="space-y-7">
+    <PageHeader eyebrow="Admin / DeviceOS" title="Deployment campaigns" description="Assignments are durable in PostgreSQL and remain auditable when devices are offline."/>
+    <SectionCard title="Create deployment" description="Choose an approved application release, target the enrolled devices, and set rollout safeguards.">
+      <form onSubmit={create} className="grid gap-4 md:grid-cols-2" noValidate>
+        {submitAttempted && !valid && <p role="status" className="rounded-lg border border-amber-400/30 bg-amber-400/[.06] px-4 py-3 text-sm text-amber-100 md:col-span-2">Complete the highlighted fields to create this deployment.</p>}
+        <label className="text-sm">Campaign name
+          <input className="mt-1 block w-full rounded border px-3 py-2" placeholder="Campaign name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}/>
+          {showFieldError("name")}
+        </label>
+        <label className="text-sm">Application
+          <select className="mt-1 block w-full rounded border px-3 py-2" value={form.applicationId} onChange={e => { setReleases([]); setForm({ ...form, applicationId: e.target.value, releaseId: "" }); }}>
+            <option value="">Select application</option>
+            {apps.filter(app => app.allowed).map(app => <option key={app.id} value={app.id}>{app.displayName} · {app.packageName}</option>)}
+          </select>
+          {!apps.some(app => app.allowed) && <p className="mt-1 text-xs text-neutral-500">No allowlisted applications are available.</p>}
+          {showFieldError("applicationId")}
+        </label>
+        <label className="text-sm">Approved release
+          <select className="mt-1 block w-full rounded border px-3 py-2 disabled:bg-neutral-100" value={form.releaseId} disabled={!form.applicationId || releasesLoading || releases.length === 0} onChange={e => setForm({ ...form, releaseId: e.target.value })}>
+            <option value="">{!form.applicationId ? "Select an application first" : releasesLoading ? "Loading approved releases…" : "Select approved release"}</option>
+            {releases.map(release => <option key={release.id} value={release.id}>v{release.versionName} · {release.versionCode}</option>)}
+          </select>
+          {form.applicationId && !releasesLoading && releases.length === 0 && <p className="mt-1 text-xs text-neutral-500">No approved releases exist for this application.</p>}
+          {showFieldError("releaseId")}
+        </label>
+        <label className="text-sm">Targeting method
+          <select className="mt-1 block w-full rounded border px-3 py-2" value={form.targetingMode} onChange={e => { setDeviceIds([]); setForm({ ...form, targetingMode: e.target.value }); }}>
+            <option value="DEVICES">Individual devices</option><option value="GROUP">Device group</option><option value="CITY">City</option><option value="PERCENTAGE">Percentage cohort</option>
+          </select>
+          {showFieldError("targetingMode")}
+        </label>
+        {form.targetingMode === "DEVICES" && <label className="text-sm">Enrolled devices
+          <select multiple className="mt-1 block h-32 w-full rounded border px-3 py-2" value={deviceIds} onChange={e => setDeviceIds(Array.from(e.target.selectedOptions, option => option.value))}>
+            {enrolledDevices.map(device => <option key={device.id} value={device.id}>{device.display?.name || device.id}</option>)}
+          </select>
+          {!enrolledDevices.length && <p className="mt-1 text-xs text-neutral-500">No enrolled devices are available.</p>}
+          {showFieldError("deviceIds")}
+        </label>}
+        {form.targetingMode === "GROUP" && <label className="text-sm">Device group
+          <select className="mt-1 block w-full rounded border px-3 py-2" value={form.groupId} onChange={e => setForm({ ...form, groupId: e.target.value })}>
+            <option value="">Select device group</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+          {!groups.length && <p className="mt-1 text-xs text-neutral-500">No device groups are available.</p>}
+          {showFieldError("groupId")}
+        </label>}
+        {form.targetingMode === "CITY" && <label className="text-sm">City
+          <input className="mt-1 block w-full rounded border px-3 py-2" placeholder="City" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}/>
+          {showFieldError("city")}
+        </label>}
+        {form.targetingMode === "PERCENTAGE" && <label className="text-sm">Target cohort (%)
+          <input type="number" min="1" max="100" step="1" className="mt-1 block w-full rounded border px-3 py-2" placeholder="1–100" value={form.targetPercentage} onChange={e => setForm({ ...form, targetPercentage: e.target.value })}/>
+          {showFieldError("targetPercentage")}
+        </label>}
+        <label className="text-sm">Maximum failure rate (%)
+          <input type="number" min="0" max="100" step="1" className="mt-1 block w-full rounded border px-3 py-2" value={form.maxFailureRatePercent} onChange={e => setForm({ ...form, maxFailureRatePercent: e.target.value })}/>
+          {showFieldError("maxFailureRatePercent")}
+        </label>
+        <label className="text-sm">Minimum healthy rate (%)
+          <input type="number" min="0" max="100" step="1" className="mt-1 block w-full rounded border px-3 py-2" placeholder="Optional" value={form.minimumHealthyPercent} onChange={e => setForm({ ...form, minimumHealthyPercent: e.target.value })}/>
+          {showFieldError("minimumHealthyPercent")}
+        </label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.stopOnHealthFailure} onChange={e => setForm({ ...form, stopOnHealthFailure: e.target.checked })}/>Stop on health failure</label>
+        <label className="text-sm">Maintenance start
+          <input type="datetime-local" className="mt-1 block w-full rounded border px-3 py-2" value={form.maintenanceWindowStart} onChange={e => setForm({ ...form, maintenanceWindowStart: e.target.value })}/>
+        </label>
+        <label className="text-sm">Maintenance end
+          <input type="datetime-local" className="mt-1 block w-full rounded border px-3 py-2" value={form.maintenanceWindowEnd} onChange={e => setForm({ ...form, maintenanceWindowEnd: e.target.value })}/>
+          {showFieldError("maintenanceWindowEnd")}
+        </label>
+        {error && <p role="alert" className="text-sm text-red-700 md:col-span-2">{error}</p>}
+        <PrimaryButton type="submit" disabled={pending}>{pending ? "Creating deployment…" : "Create deployment"}</PrimaryButton>
+      </form>
+    </SectionCard>
+    <SectionCard title="Campaign history"><div className="divide-y">{items.map(item => <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" key={item.id}><div><p className="font-medium">{item.name}</p><p className="text-xs text-neutral-500">{item.application.displayName} · v{item.release.versionName} · {item.targetingMode}</p><p className="mt-1 text-xs text-neutral-500">{Object.entries(item.targetSummary || {}).map(([state, count]) => `${state}: ${count}`).join(" · ") || "No target events"}</p></div><div className="flex items-center gap-3"><StatusBadge tone={item.state === "ACTIVE" ? "yellow" : "neutral"}>{item.state}</StatusBadge><SecondaryButton onClick={() => void showDetail(item.id)}>View logs</SecondaryButton>{["ACTIVE", "PAUSED"].includes(item.state) && <SecondaryButton onClick={() => void toggle(item)}>{item.state === "PAUSED" ? "Resume" : "Pause"}</SecondaryButton>}</div></div>)}</div>{!items.length && <p className="py-8 text-sm text-neutral-500">No deployment campaigns created.</p>}</SectionCard>
+    {detail && <SectionCard title="Installation logs"><div className="divide-y">{detail.targets.map(target => { const attempt = target.attempts[0]; return <div className="py-3 text-sm" key={target.id}><div className="flex justify-between gap-4"><span>{target.managedDevice?.display?.name || "Managed device"}</span><StatusBadge tone={target.state === "HEALTHY" ? "yellow" : "neutral"}>{target.state}</StatusBadge></div><p className="mt-1 text-xs text-neutral-500">{attempt?.installerStatus || "No installer result"}{attempt?.installationResult?.healthStatus ? ` · health ${attempt.installationResult.healthStatus}` : ""}{attempt?.errorCode ? ` · ${attempt.errorCode}` : ""}</p>{attempt?.errorMessage && <p className="mt-1 text-xs text-red-700">{attempt.errorMessage}</p>}</div>; })}</div></SectionCard>}
+  </div>;
 }
