@@ -8,7 +8,9 @@
  * Does not run migrations, print environment variable values, enumerate rows,
  * modify database content, or use Docker/sudo.
  */
-import { Prisma, PrismaClient } from '@prisma/client';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { Prisma, PrismaClient } = require('@prisma/client');
 
 const db = new PrismaClient();
 const output = { service: 'OORO Super Admin read-only diagnostics', checks: [] };
