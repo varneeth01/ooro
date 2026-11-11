@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { Brand } from "../brand";
 const navGroups=[
- {title:"Advertise",links:[["For brands","/for-brands"],["For agencies","/for-agencies"],["Bengaluru coverage","/coverage"]]},
+ {title:"Advertise",links:[["For brands","/for-brands"],["For agencies","/for-agencies"],["Digital advertising in Bengaluru","/digital-advertising-bengaluru"],["Bengaluru coverage","/coverage"]]},
  {title:"Explore",links:[["How it works","/how-it-works"],["Methodology","/methodology"],["Advertising guides","/guides"],["Field journal","/field-journal"]]},
  {title:"Information",links:[["Privacy Policy","/privacy"],["Terms of Use","/terms"],["Contact","/contact"],["Sign in","/login"]]},
  {title:"Company",links:[["About OORO","/about"],["Careers — 2 internships","/careers"],["Campaign enquiries","/advertise"]]},
