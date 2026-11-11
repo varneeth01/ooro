@@ -10,7 +10,7 @@
  */
 import { Prisma, PrismaClient } from '@prisma/client';
 
-const db = new PrismaClient({ log: ['error'] });
+const db = new PrismaClient();
 const output = { service: 'OORO Super Admin read-only diagnostics', checks: [] };
 const diagnostics = [
   ['database_connection', () => db.$queryRaw`SELECT 1`],
