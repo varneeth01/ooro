@@ -17,7 +17,7 @@ export default function TermsPage() {
      <Link className="ooro-policy-back" href="/">← Back to OORO</Link>
      <p className="ooro-policy-meta">OORO / Legal · Draft for operator review · 11 November 2026</p>
      <h1>Terms of Use</h1>
-     <p>These draft terms describe expected rules for browsing OORO's public website and exploring advertising services. They are not a substitute for approved campaign order terms, and they require company/legal review before publication as binding terms.</p>
+     <p>These draft terms describe expected rules for browsing OORO&apos;s public website and exploring advertising services. They are not a substitute for approved campaign order terms, and they require company/legal review before publication as binding terms.</p>
      <p className="ooro-policy-note"><strong>Publication review:</strong> Confirm the contracting legal entity, applicable law and jurisdiction, payment/refund policy, cancellation terms, dispute process and authorized contact before treating this page as final. It remains noindex pending approval.</p>
      <h2>1. Using the website</h2>
      <p>Visitors should use the website lawfully and avoid interfering with security, availability, accounts, content or systems. Access to authenticated features is limited to authorized users.</p>
@@ -30,7 +30,7 @@ export default function TermsPage() {
      <h2>5. Service limitations</h2>
      <p>Connected inventory, network conditions, device status and scheduling may affect service availability. Unless expressly agreed in a confirmed order, website content does not guarantee a level of impressions, audience reach, geographic targeting, conversion or return on investment.</p>
      <h2>6. Intellectual property</h2>
-     <p>OORO branding and website materials remain subject to applicable ownership and licensing rights. Submitted campaign content remains subject to its owners' rights and the permissions granted under an approved campaign agreement.</p>
+     <p>OORO branding and website materials remain subject to applicable ownership and licensing rights. Submitted campaign content remains subject to its owners&apos; rights and the permissions granted under an approved campaign agreement.</p>
      <h2>7. Third-party services and links</h2>
      <p>Payment gateways, maps, hosting providers and external links may have their own terms. OORO is not responsible for third-party information outside its control.</p>
      <h2>8. Privacy and contact</h2>
