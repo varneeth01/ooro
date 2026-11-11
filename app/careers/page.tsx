@@ -34,15 +34,15 @@ return <main className="min-h-screen bg-[#f3f3ef] text-[#111611]">
         <p className="mt-5 text-sm leading-7 text-neutral-700">{intro}</p>
         <h4 className="mt-8 font-semibold">What you will work on</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-neutral-700">{responsibilities.map(x=><li key={x}>{x}</li>)}</ul>
         <h4 className="mt-8 font-semibold">What helps</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-neutral-700">{skills.map(x=><li key={x}>{x}</li>)}</ul>
-        <div className="mt-auto border-t border-neutral-200 pt-8"><Link href={`mailto:jay@theooro.com?subject=${encodeURIComponent(`OORO Internship Application — ${title}`)}&body=${encodeURIComponent("Hello OORO team,\n\nI would like to apply for this internship. Please find my resume and portfolio/GitHub details attached or linked.\n\n")}`} className="inline-flex min-h-12 w-full items-center justify-between gap-3 bg-[#111611] px-5 text-sm font-semibold text-white hover:bg-[#314015]">Apply by email <ArrowUpRight size={18}/></Link></div>
+        <div className="mt-auto border-t border-neutral-200 pt-8"><Link href={`mailto:varneeth@theooro.com?subject=${encodeURIComponent(`OORO Internship Application — ${title}`)}&body=${encodeURIComponent("Hello OORO team,\n\nI would like to apply for this internship. Please find my resume and portfolio/GitHub details attached or linked.\n\n")}`} className="inline-flex min-h-12 w-full items-center justify-between gap-3 bg-[#111611] px-5 text-sm font-semibold text-white hover:bg-[#314015]">Apply by email <ArrowUpRight size={18}/></Link></div>
       </article>)}
     </div>
     <div className="mt-14 grid gap-4 border-t border-neutral-300 pt-10 sm:grid-cols-3">
       <div><BriefcaseBusiness className="text-[#53640f]"/><h3 className="mt-3 font-semibold">Build with ownership</h3><p className="mt-2 text-sm leading-6 text-neutral-600">Learn by working on practical product problems with review and guidance.</p></div>
       <div><Smartphone className="text-[#53640f]"/><h3 className="mt-3 font-semibold">Real devices and software</h3><p className="mt-2 text-sm leading-6 text-neutral-600">Work spans mobile experiences, connected hardware and web platforms.</p></div>
-      <div><MapPin className="text-[#53640f]"/><h3 className="mt-3 font-semibold">Built in Bengaluru</h3><p className="mt-2 text-sm leading-6 text-neutral-600">OORO's current operational focus is Bengaluru; internship work arrangements are discussed individually.</p></div>
+      <div><MapPin className="text-[#53640f]"/><h3 className="mt-3 font-semibold">Built in Bengaluru</h3><p className="mt-2 text-sm leading-6 text-neutral-600">OORO&apos;s current operational focus is Bengaluru; internship work arrangements are discussed individually.</p></div>
     </div>
-    <p className="mt-10 text-sm leading-7 text-neutral-600">OORO aims to assess candidates on relevant skills and potential. No application fee is required. Applications currently go to the OORO operations contact, jay@theooro.com; verify the recipient before production. Openings and terms may change; no offer is made until OORO confirms it directly.</p>
+    <p className="mt-10 text-sm leading-7 text-neutral-600">OORO aims to assess candidates on relevant skills and potential. No application fee is required. Internship applications should be addressed to varneeth@theooro.com. Openings and terms may change; no offer is made until OORO confirms it directly.</p>
   </section>
   <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(breadcrumbs)}}/>
   <Footer/>
