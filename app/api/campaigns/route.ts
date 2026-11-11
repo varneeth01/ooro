@@ -55,6 +55,11 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: { message: error } }, { status: 422 });
   try {
     const context = await webContext();
+    // Match read permissions: a network/explorer account or unapproved
+    // agency/brand must not write advertiser campaigns through this route.
+    if (context?.account.accountType === "NETWORK" || context?.account.accountType === "EXPLORER") return NextResponse.json({ error: { code: "ADVERTISER_ACCESS_REQUIRED", message: "This account does not have advertiser campaign access." } }, { status: 403 });
+    if (context?.account.accountType === "BRAND" && (!context.organization || context.organization.verificationStatus !== "VERIFIED")) return NextResponse.json({ error: { code: "BRAND_VERIFICATION_REQUIRED", message: "Your Brand account is awaiting verification." } }, { status: 403 });
+    if (context?.account.accountType === "AGENCY" && (!context.organization || context.organization.verificationStatus !== "VERIFIED")) return NextResponse.json({ error: { code: "AGENCY_APPROVAL_REQUIRED", message: "Your Agency application is being reviewed." } }, { status: 403 });
     const forecastSettings = await webPrisma.forecastSetting.findUnique({ where: { key: "DEFAULT" } });
     const isSelfServe = !context?.organization || context.organization.type === "CONSUMER";
     if (input?.budget !== undefined && isSelfServe && input.budget < (forecastSettings?.minimumSelfServeBudget ?? MIN_SELF_SERVE_BUDGET_RUPEES)) return NextResponse.json({ error: { code: "MINIMUM_BUDGET", message: `Minimum OORO campaign budget is ₹${forecastSettings?.minimumSelfServeBudget ?? MIN_SELF_SERVE_BUDGET_RUPEES}.` } }, { status: 422 });
