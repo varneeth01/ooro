@@ -1,6 +1,16 @@
 # OORO
 
-> OORO is a smart physical-media platform connecting brands with measurable digital displays in real-world environments, beginning with mobility.
+> OORO is a smart physical-media platform connecting brands with measurable digital displays in real-world environments, beginning with in-auto and cab screens in Bengaluru, Karnataka.
+
+## Launch city
+
+Bengaluru, Karnataka is the initial OORO launch focus. City-specific screen availability must be confirmed by OORO.
+
+## Team
+
+- Varneeth Varma Nandimandalam — Founder and CEO
+- Siri Girish — CMO and Brand Strategist
+- Jay Chandrudu Thammadi — Operations and Hardware R&D
 
 ## About
 
@@ -31,6 +41,7 @@ OORO separates delivery measurement from engagement measurement. Playback events
 
 - https://theooro.com/
 - https://theooro.com/about
+- https://theooro.com/bengaluru
 - https://theooro.com/#campaign-pricing
 - https://theooro.com/privacy
 - https://theooro.com/terms

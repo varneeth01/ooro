@@ -4,6 +4,12 @@
 
 OORO is a smart physical advertising platform. It begins with a mobility network of connected digital displays and is designed to make offline campaigns easier to plan, deliver and measure.
 
+## Launch city and team
+
+OORO is focused on launching its in-vehicle display advertising network in Bengaluru, Karnataka. Availability, placements, reach and playback must be verified before making firm delivery claims.
+
+Current public team: Varneeth Varma Nandimandalam (Founder and CEO), Siri Girish (CMO and Brand Strategist), and Jay Chandrudu Thammadi (Operations and Hardware R&D).
+
 ## Product architecture
 
 At a high level, OORO connects advertiser campaign and creative information to eligible physical displays. Displays cache assigned media for resilient playback and report playback and device state through the OORO platform. The public product does not depend on a passenger's personal identity to display an advertisement.
@@ -52,6 +58,7 @@ Public campaign packages and availability are shown on the OORO website and may 
 
 - https://theooro.com/
 - https://theooro.com/about
+- https://theooro.com/bengaluru
 - https://theooro.com/#campaign-pricing
 - https://theooro.com/privacy
 - https://theooro.com/terms

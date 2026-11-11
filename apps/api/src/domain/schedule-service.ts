@@ -16,6 +16,7 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     const creatives = input.rules.creativeIds.map(id => campaign.creatives.find(c => c.id === id))
     if (creatives.some(c => !c || c.status !== 'APPROVED' || !c.asset?.active || !c.asset.url)) warn('CREATIVE_NOT_APPROVED','Every selected creative must be approved and available')
     if (creatives.some(c => c && (!['IMAGE','VIDEO'].includes(c.type.toUpperCase()) || (c.type.toUpperCase() === 'VIDEO' && !c.asset?.durationSeconds)))) warn('INCOMPATIBLE_MEDIA','Video duration must be known and media must be IMAGE or VIDEO')
+    if (campaign.deliverySlot === 'SPONSORED' && creatives.some(c => c?.type.toUpperCase() !== 'IMAGE')) warn('SPONSOR_IMAGE_REQUIRED','Sponsored placement accepts approved static image creatives only')
     const target = input.target
     const constrained = target.all || target.screenIds.length || target.groupIds.length || target.vehicleIds.length || target.routeId || target.depotId || target.city || target.area || target.vehicleType || target.tags.length || target.geofence
     if (!constrained) throw new ApiError('EMPTY_TARGET','Select a target',422)
@@ -23,13 +24,22 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     if (target.screenIds.length) explicit.push({ id: { in: target.screenIds } })
     if (target.groupIds.length) explicit.push({ groups: { some: { groupId: { in: target.groupIds } } } })
     if (target.vehicleIds.length) explicit.push({ vehicleId: { in: target.vehicleIds } })
+    const city = target.city?.trim()
+    const area = target.area?.trim()
+    const vehicleType = target.vehicleType?.trim()
     const displays = (await tx.display.findMany({ where: {
       ...(explicit.length && !target.all ? { OR: explicit } : {}),
       ...(target.tags.length ? { tags: { hasSome: target.tags } } : {}),
-      ...((target.routeId || target.depotId || target.city || target.area || target.vehicleType) ? { vehicle: { is: { routeId: target.routeId, depotId: target.depotId, city: target.city, area: target.area, type: target.vehicleType } } } : {}),
+      ...((target.routeId || target.depotId || city || area || vehicleType) ? { vehicle: { is: {
+        routeId: target.routeId,
+        depotId: target.depotId,
+        ...(city ? { city: { equals: city, mode: 'insensitive' as const } } : {}),
+        ...(area ? { area: { equals: area, mode: 'insensitive' as const } } : {}),
+        ...(vehicleType ? { type: { equals: vehicleType, mode: 'insensitive' as const } } : {}),
+      } } } : {}),
     }, include: { inventoryConfig: true }, take: 1001 })).filter(d => !target.geofence || (d.lastLatitude !== null && d.lastLongitude !== null && distanceKm(target.geofence.latitude,target.geofence.longitude,d.lastLatitude,d.lastLongitude) <= target.geofence.radiusKm))
     if (!displays.length || displays.length > 1000) warn('TARGET_SIZE','Choose between 1 and 1000 screens')
-    for (const id of target.screenIds) if (!displays.some(d => d.id === id)) warn('TARGET_MISSING','Selected screen does not match targeting or no longer exists',id)
+    for (const id of target.screenIds) if (!displays.some(d => d.id === id)) warn('TARGET_MISSING','Selected screen is excluded by the current filters or no longer exists. Clear or adjust the filters to include it.',id)
     const ids = displays.map(d => d.id)
     const others = await tx.adSchedule.findMany({ where: { campaignId: { not: campaign.id }, status: 'PUBLISHED', startsAt: { lt: input.endsAt }, endsAt: { gt: input.startsAt }, campaign: { assignments: { some: { displayId: { in: ids }, active: true } } } } })
     for (const other of others) if ((input.exclusive || other.exclusive || input.priority === 'EMERGENCY') && rulesOverlap(input.rules,scheduleRules.parse(other.rules))) warn('EXCLUSIVE_CONFLICT',`Overlaps campaign ${other.campaignId}`,undefined,true)

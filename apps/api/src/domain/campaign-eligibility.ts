@@ -6,7 +6,21 @@ import { scheduleRules, intervalSeconds } from './scheduling.js'
 import { safeDestination } from './qr-destination.js'
 
 export type ManifestReason = 'NO_ASSIGNMENT' | 'DISPLAY_DISABLED' | 'NO_ACTIVE_CAMPAIGN' | 'OUTSIDE_SCHEDULE' | 'NO_ELIGIBLE_CREATIVE'
-export type DisplayManifest = { manifestId: string; version: number; generatedAt: string; expiresAt: string; layout: string | { type: string; primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number }; news: { scrollSpeed: number; announcements: Array<{ id: string; text: string; priority: number }> }; items: Array<{ id: string; campaignId: string; creativeId: string; assetId: string; type: string; url: string; checksum: string | null; durationSeconds: number; priority: number; playsPerLoop: number; exclusive?: boolean; sequence?: number; intervalSeconds?: number; scheduleId?: string; startAt: string | null; endAt: string | null; daysOfWeek: number[]; startTime: string | null; endTime: string | null; fitMode: string; qrEnabled: boolean; qrTargetUrl: string | null; qrLabel: string | null; qrVersion: number; offer: Record<string, unknown> }> }
+export type DisplayManifestItem = { id: string; campaignId: string; creativeId: string; assetId: string; type: string; url: string; checksum: string | null; durationSeconds: number; priority: number; playsPerLoop: number; exclusive?: boolean; sequence?: number; intervalSeconds?: number; scheduleId?: string; startAt: string | null; endAt: string | null; daysOfWeek: number[]; startTime: string | null; endTime: string | null; fitMode: string; qrEnabled: boolean; qrTargetUrl: string | null; qrLabel: string | null; qrVersion: number; offer: Record<string, unknown> }
+export type DisplayManifest = { manifestId: string; version: number; generatedAt: string; expiresAt: string; layout: string | { type: string; contractVersion: number; primaryWidthPercent: number; adHeightPercent: number; qrHeightPercent: number; newsScrollSpeed: number }; news: { scrollSpeed: number; announcements: Array<{ id: string; text: string; priority: number }> }; items: DisplayManifestItem[]; sponsoredItem?: DisplayManifestItem | null }
+export const MANIFEST_AUTHORIZATION_LEASE_MS = 15 * 60_000
+export const manifestValidUntil = (now: Date) => new Date(now.getTime() + MANIFEST_AUTHORIZATION_LEASE_MS)
+export function selectManifestDeliverySlots<T extends { campaignId: string; type: string; priority: number; id: string }>(items: T[], campaigns: Array<{ id: string; deliverySlot?: string | null }>, v3: boolean) {
+  const slots = new Map(campaigns.map(campaign => [campaign.id, campaign.deliverySlot ?? 'MAIN']))
+  const mainItems = items.filter(item => slots.get(item.campaignId) !== 'SPONSORED')
+  const sponsoredItem = v3 ? items.filter(item => slots.get(item.campaignId) === 'SPONSORED' && item.type.toUpperCase() === 'IMAGE').sort((a,b) => b.priority - a.priority || a.campaignId.localeCompare(b.campaignId) || a.id.localeCompare(b.id))[0] ?? null : null
+  return { mainItems, sponsoredItem }
+}
+export function authorizedAllocationWindow(scheduleStart: Date, scheduleEnd: Date, allocationDate: Date, campaignStart: Date | null, campaignEnd: Date | null) {
+  const startAt = new Date(Math.max(scheduleStart.getTime(), allocationDate.getTime(), campaignStart?.getTime() ?? Number.NEGATIVE_INFINITY))
+  const endAt = new Date(Math.min(scheduleEnd.getTime(), allocationDate.getTime() + 86_400_000, campaignEnd?.getTime() ?? Number.POSITIVE_INFINITY))
+  return endAt > startAt ? { startAt, endAt } : null
+}
 // Display manifest versions are persisted in PostgreSQL INT4-backed fields.
 // Seven hex digits keep the deterministic hash-derived version positive and
 // within the signed 32-bit range while retaining stable change detection.
@@ -25,14 +39,14 @@ export const deliveryAssetUrl = (url: string) => {
 
 const trackingToken = () => randomBytes(24).toString('base64url')
 
-async function trackingUrlFor(displayId: string, campaignId: string, creativeId: string, destination: unknown, ctaTypeValue: unknown) {
+async function trackingUrlFor(displayId: string, campaignId: string, creativeId: string, destination: unknown, ctaTypeValue: unknown, now: Date) {
   const destinationUrl = safeDestination(destination, config.nodeEnv === 'development')
   if (!destinationUrl) return null
   const ctaType = typeof ctaTypeValue === 'string' ? ctaTypeValue : 'WEBSITE'
-  let link = await prisma.campaignTrackingLink.findFirst({ where: { campaignId, creativeId, displayId, active: true }, orderBy: { createdAt: 'asc' } })
+  let link = await prisma.campaignTrackingLink.findFirst({ where: { campaignId, creativeId, displayId, active: true, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { createdAt: 'asc' } })
   if (!link) link = await prisma.campaignTrackingLink.create({ data: { token: trackingToken(), campaignId, creativeId, displayId, destinationUrl, ctaType } })
   else if (link.destinationUrl !== destinationUrl || link.ctaType !== ctaType) link = await prisma.campaignTrackingLink.update({ where: { id: link.id }, data: { destinationUrl, ctaType } })
-  return `${config.trackingBaseUrl}/go/${link.token}`
+  return { id: link.id, url: `${config.trackingBaseUrl}/go/${link.token}` }
 }
 
 export async function buildDisplayManifest(displayId: string, now = new Date()): Promise<{ manifest: DisplayManifest; reasons: ManifestReason[] }> {
@@ -50,14 +64,15 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
     const legacyOffer = metadata.offer && typeof metadata.offer === 'object' && !Array.isArray(metadata.offer) ? metadata.offer as Record<string, unknown> : metadata
     const qrEnabled = creative.qrEnabled || Boolean(legacyOffer.ctaUrl ?? metadata.ctaUrl)
     const qrTarget = creative.qrTargetUrl ?? legacyOffer.ctaUrl ?? metadata.ctaUrl
-    const trackingUrl = qrEnabled ? await trackingUrlFor(displayId, campaign.id, creative.id, qrTarget, legacyOffer.ctaType ?? metadata.ctaType) : null
+    const trackingLink = qrEnabled ? await trackingUrlFor(displayId, campaign.id, creative.id, qrTarget, legacyOffer.ctaType ?? metadata.ctaType, now) : null
+    const trackingUrl = trackingLink?.url ?? null
     const indiaDayStart = new Date(`${now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })}T00:00:00+05:30`)
     const scanCount = trackingUrl ? await prisma.qrScan.count({ where: { campaignId: campaign.id, creativeId: creative.id, displayId, occurredAt: { gte: indiaDayStart } } }) : null
     const schedule = metadata.adminSchedule && typeof metadata.adminSchedule === 'object' && !Array.isArray(metadata.adminSchedule) ? metadata.adminSchedule as Record<string, unknown> : metadata;
     const playsPerLoop = typeof schedule.playsPerLoop === 'number' ? Math.max(1, Math.min(28, Math.round(schedule.playsPerLoop))) : 1;
     const dayNumbers: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7 };
     const daysOfWeek = Array.isArray(schedule.days) ? schedule.days.map(day => dayNumbers[String(day).slice(0, 3).toUpperCase()]).filter((day): day is number => Boolean(day)) : [];
-    return { id: creative.id, campaignId: campaign.id, creativeId: creative.id, assetId: creative.asset!.id, type: creative.type.toUpperCase() === 'VIDEO' ? 'VIDEO' : 'IMAGE', url: deliveryAssetUrl(creative.asset!.url), checksum: creative.asset!.checksum, durationSeconds: creative.asset!.durationSeconds ?? creative.durationSeconds, priority: campaign.priority, playsPerLoop, startAt: campaign.startsAt?.toISOString() ?? null, endAt: campaign.endsAt?.toISOString() ?? null, daysOfWeek, startTime: typeof schedule.startTime === 'string' ? schedule.startTime : null, endTime: typeof schedule.endTime === 'string' ? schedule.endTime : null, fitMode: typeof metadata.fitMode === 'string' ? metadata.fitMode : 'FIT', qrEnabled: Boolean(trackingUrl), qrTargetUrl: trackingUrl, qrLabel: creative.qrLabel ?? (typeof legacyOffer.ctaLabel === 'string' ? legacyOffer.ctaLabel : null), qrVersion: creative.qrVersion, offer: { ...offer, brandName: creative.brandName ?? metadata.brand ?? metadata.brandName, promotionalText: creative.promotionalText, ...(trackingUrl ? { qrUrl: trackingUrl, scanCount, scanCountDisplayEnabled: offer.scanCountDisplayEnabled === true } : { qrUrl: null, scanCount: null }) } }
+    return { id: creative.id, campaignId: campaign.id, creativeId: creative.id, assetId: creative.asset!.id, type: creative.type.toUpperCase() === 'VIDEO' ? 'VIDEO' : 'IMAGE', url: deliveryAssetUrl(creative.asset!.url), checksum: creative.asset!.checksum, durationSeconds: creative.asset!.durationSeconds ?? creative.durationSeconds, priority: campaign.priority, playsPerLoop, startAt: campaign.startsAt?.toISOString() ?? null, endAt: campaign.endsAt?.toISOString() ?? null, daysOfWeek, startTime: typeof schedule.startTime === 'string' ? schedule.startTime : null, endTime: typeof schedule.endTime === 'string' ? schedule.endTime : null, fitMode: typeof metadata.fitMode === 'string' ? metadata.fitMode : 'FIT', qrEnabled: Boolean(trackingUrl), qrTargetUrl: trackingUrl, qrLabel: creative.qrLabel ?? (typeof legacyOffer.ctaLabel === 'string' ? legacyOffer.ctaLabel : null), qrVersion: creative.qrVersion, offer: { ...offer, brandName: creative.brandName ?? metadata.brand ?? metadata.brandName, promotionalText: creative.promotionalText, ...(trackingUrl ? { qrUrl: trackingUrl, authorizedDestinationId: trackingLink?.id, scanCount, scanCountDisplayEnabled: offer.scanCountDisplayEnabled === true } : { qrUrl: null, authorizedDestinationId: null, scanCount: null }) } }
   })))).sort((a, b) => b.priority - a.priority || a.campaignId.localeCompare(b.campaignId) || a.id.localeCompare(b.id))
   const scheduledItems: DisplayManifest['items'] = []
   for (const assignment of eligible) {
@@ -67,16 +82,15 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
     if (schedule.status !== 'PUBLISHED' || schedule.endsAt <= now) continue
     const rules = scheduleRules.parse(schedule.rules)
     // Only deliver paid/reserved dates. Prefetch remains safe for disconnected players.
-    const allocations = await prisma.inventoryAllocation.findMany({ where: { campaignId: assignment.campaign.id, screenId: displayId, status: { in: ['RESERVED','ACTIVE'] }, date: { gte: new Date(schedule.startsAt.toISOString().slice(0,10)), lte: new Date(Math.min(schedule.endsAt.getTime(),now.getTime()+7*86400000)).toISOString().slice(0,10)+'T00:00:00.000Z' } }, select: {date:true}, distinct:['date'] })
+    const allocations = await prisma.inventoryAllocation.findMany({ where: { campaignId: assignment.campaign.id, screenId: displayId, status: { in: ['RESERVED','ACTIVE'] }, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], date: { gte: new Date(schedule.startsAt.toISOString().slice(0,10)), lte: new Date(Math.min(schedule.endsAt.getTime(),now.getTime()+7*86400000)).toISOString().slice(0,10)+'T00:00:00.000Z' } }, select: {date:true}, distinct:['date'] })
     for (const allocation of allocations) {
-      const start = new Date(Math.max(schedule.startsAt.getTime(), allocation.date.getTime()))
-      const end = new Date(Math.min(schedule.endsAt.getTime(), allocation.date.getTime()+86400000))
-      if (end <= now || end <= start) continue
+      const window = authorizedAllocationWindow(schedule.startsAt, schedule.endsAt, allocation.date, assignment.campaign.startsAt, assignment.campaign.endsAt)
+      if (!window || window.endAt <= now) continue
       for (const [sequence,creativeId] of rules.creativeIds.entries()) {
         const item = campaignItems.find(i=>i.creativeId===creativeId)
         if (!item) continue
         const windows = rules.windows.length ? rules.windows : [{start:null,end:null}]
-        for (const [windowIndex,window] of windows.entries()) scheduledItems.push({...item,id:`${schedule.id}:${allocation.date.toISOString().slice(0,10)}:${sequence}:${windowIndex}`,scheduleId:schedule.id,sequence,exclusive:schedule.exclusive,priority:schedule.priority,daysOfWeek:rules.days,startAt:start.toISOString(),endAt:end.toISOString(),startTime:window.start,endTime:window.end,intervalSeconds:intervalSeconds(rules),playsPerLoop:rules.mode==='WEIGHTED'?rules.value:rules.mode==='SHARE'?Math.max(1,Math.round(28*rules.value/100)):1,durationSeconds:item.type==='IMAGE'?rules.imageDurationSeconds:item.durationSeconds})
+        for (const [windowIndex,windowRule] of windows.entries()) scheduledItems.push({...item,id:`${schedule.id}:${allocation.date.toISOString().slice(0,10)}:${sequence}:${windowIndex}`,scheduleId:schedule.id,sequence,exclusive:schedule.exclusive,priority:schedule.priority,daysOfWeek:rules.days,startAt:window.startAt.toISOString(),endAt:window.endAt.toISOString(),startTime:windowRule.start,endTime:windowRule.end,intervalSeconds:intervalSeconds(rules),playsPerLoop:rules.mode==='WEIGHTED'?rules.value:rules.mode==='SHARE'?Math.max(1,Math.round(28*rules.value/100)):1,durationSeconds:item.type==='IMAGE'?rules.imageDurationSeconds:item.durationSeconds})
       }
     }
   }
@@ -85,12 +99,15 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
   // Restore the established passenger layout for legacy campaigns that still
   // carry the old fullscreen default.
   const configured = display.zoneConfig
-  const layout = { type: 'FOUR_ZONE', primaryWidthPercent: configured?.primaryWidthPercent ?? 67, adHeightPercent: configured?.adHeightPercent ?? 86, qrHeightPercent: configured?.qrHeightPercent ?? 47, newsScrollSpeed: configured?.newsScrollSpeed ?? 42 }
+  const contractVersion = configured?.layoutContractVersion ?? 2
+  const v3 = contractVersion >= 3
+  const layout = { type: 'FOUR_ZONE', contractVersion, primaryWidthPercent: v3 ? 80 : configured?.primaryWidthPercent ?? 67, adHeightPercent: v3 ? 85 : configured?.adHeightPercent ?? 86, qrHeightPercent: v3 ? 50 : configured?.qrHeightPercent ?? 47, newsScrollSpeed: configured?.newsScrollSpeed ?? 42 }
   const city = display.vehicle?.city
-  const announcements = await prisma.newsAnnouncement.findMany({ where: { active: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, display.vehicleId ? { OR: [{ vehicleId: null }, { vehicleId: display.vehicleId }] } : { vehicleId: null }, city ? { OR: [{ city: null }, { city }] } : { city: null }] }, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: 12, select: { id: true, text: true, priority: true } })
-  const versionItems = items.map((item) => ({ ...item, offer: Object.fromEntries(Object.entries(item.offer).filter(([key]) => key !== 'scanCount')) }))
+  const announcements = v3 ? [] : await prisma.newsAnnouncement.findMany({ where: { active: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, display.vehicleId ? { OR: [{ vehicleId: null }, { vehicleId: display.vehicleId }] } : { vehicleId: null }, city ? { OR: [{ city: null }, { city }] } : { city: null }] }, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: 12, select: { id: true, text: true, priority: true } })
+  const { mainItems, sponsoredItem } = selectManifestDeliverySlots(scheduledItems, eligible.map(({ campaign }) => ({ id: campaign.id, deliverySlot: campaign.deliverySlot })), v3)
+  const versionItems = mainItems.map((item) => ({ ...item, offer: Object.fromEntries(Object.entries(item.offer).filter(([key]) => key !== 'scanCount')) }))
   const news = { scrollSpeed: layout.newsScrollSpeed, announcements }
-  const digest = createHash('sha256').update(JSON.stringify({ displayId, layout, news, items: versionItems })).digest('hex')
-  return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(), layout, news, items }, reasons }
+  const digest = createHash('sha256').update(JSON.stringify({ displayId, layout, news, items: versionItems, ...(v3 ? { sponsoredItem } : {}) })).digest('hex')
+  return { manifest: { manifestId: `manifest-${digest.slice(0, 24)}`, version: manifestVersionFromDigest(digest), generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout, news, items: mainItems, ...(v3 ? { sponsoredItem } : {}) }, reasons }
 }
-const emptyManifest = (now: Date): DisplayManifest => ({ manifestId: 'manifest-empty', version: 0, generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(), layout: { type: 'FOUR_ZONE', primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42 }, news: { scrollSpeed: 42, announcements: [] }, items: [] })
+const emptyManifest = (now: Date): DisplayManifest => ({ manifestId: 'manifest-empty', version: 0, generatedAt: now.toISOString(), expiresAt: manifestValidUntil(now).toISOString(), layout: { type: 'FOUR_ZONE', contractVersion: 2, primaryWidthPercent: 67, adHeightPercent: 86, qrHeightPercent: 47, newsScrollSpeed: 42 }, news: { scrollSpeed: 42, announcements: [] }, items: [] })

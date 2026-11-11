@@ -23,6 +23,17 @@ test('admin email/password workflow, generic failures, session revocation, and s
   assert.equal(wrongPassword.statusCode, 401)
   assert.equal(nonAdmin.statusCode, 401)
   assert.equal(wrongPassword.json().error.message, nonAdmin.json().error.message)
+  const unknownAccount = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: `missing-${suffix}@example.test`, password: 'correct horse battery staple' } })
+  assert.equal(unknownAccount.statusCode, 401)
+  assert.equal(unknownAccount.json().error.message, wrongPassword.json().error.message)
+  const suspended = await prisma.user.create({ data: { phone: `suspended-auth-${suffix}`, email: `suspended-${suffix}@example.test`, passwordHash: await hashPassword('correct horse battery staple'), role: 'ADMIN', accountStatus: 'SUSPENDED' } })
+  const suspendedLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: suspended.email, password: 'correct horse battery staple' } })
+  assert.equal(suspendedLogin.statusCode, 401)
+  assert.equal(suspendedLogin.json().error.message, wrongPassword.json().error.message)
+  assert.equal((await prisma.user.findUnique({ where: { id: suspended.id }, select: { accountStatus: true } }))?.accountStatus, 'SUSPENDED')
+
+  // Tests share Fastify's loopback IP; isolate independent scenarios without weakening production throttling.
+  await prisma.adminLoginAttempt.deleteMany({ where: { key: 'ip:127.0.0.1' } })
   const roleTokens = new Map<string, string>()
   for (const roleUser of roleUsers) {
     const roleLogin = await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: roleUser.email, password: 'role test password 123' } })
@@ -37,6 +48,23 @@ test('admin email/password workflow, generic failures, session revocation, and s
   for (const role of ['FINANCE', 'SUPPORT']) {
     const response = await app.inject({ method: 'POST', url: `/api/admin/displays/${randomUUID()}/commands`, headers: { authorization: `Bearer ${roleTokens.get(role)}` }, payload: { commandType: 'HEALTH_CHECK' } })
     assert.equal(response.statusCode, 403, `${role} must be denied device writes`)
+  }
+  const privilegedDeviceOsWrites = [
+    ['/api/admin/deviceos/applications', { packageName: 'com.example.test', displayName: 'Test' }],
+    [`/api/admin/deviceos/applications/${randomUUID()}/allowlist`, { allowed: true }],
+    [`/api/admin/deviceos/applications/${randomUUID()}/releases`, { apkBase64: 'not-used' }],
+    [`/api/admin/deviceos/releases/${randomUUID()}/approve`, {}],
+    ['/api/admin/deviceos/deployments', {}],
+    [`/api/admin/deviceos/deployments/${randomUUID()}/pause`, { reason: 'test' }],
+    [`/api/admin/deviceos/deployments/${randomUUID()}/resume`, {}],
+  ] as const
+  for (const [url, payload] of privilegedDeviceOsWrites) {
+    assert.equal((await app.inject({ method: 'POST', url, payload })).statusCode, 401, `Unauthenticated request must be denied: ${url}`)
+    for (const role of ['ADMIN', 'OPERATIONS']) {
+      const response = await app.inject({ method: 'POST', url, headers: { authorization: `Bearer ${roleTokens.get(role)}` }, payload })
+      assert.equal(response.statusCode, 403, `${role} must not perform privileged DeviceOS mutation: ${url}`)
+      assert.equal(response.json().data, null)
+    }
   }
   assert.equal((await app.inject({ method: 'GET', url: '/api/admin/earnings', headers: { authorization: `Bearer ${roleTokens.get('FINANCE')}` } })).statusCode, 200)
   for (const role of ['OPERATIONS', 'SUPPORT']) assert.equal((await app.inject({ method: 'GET', url: '/api/admin/earnings', headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 403, `${role} must not read finance data`)
@@ -64,6 +92,7 @@ test('admin email/password workflow, generic failures, session revocation, and s
   }
   for (const role of ['ADMIN', 'SUPER_ADMIN']) assert.equal((await app.inject({ method: 'POST', url: `/api/admin/drivers/${randomUUID()}/restrict`, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 404, `${role} must reach admin driver restriction`)
   for (const role of ['OPERATIONS', 'FINANCE', 'SUPPORT']) assert.equal((await app.inject({ method: 'POST', url: `/api/admin/drivers/${randomUUID()}/restrict`, headers: { authorization: `Bearer ${roleTokens.get(role)}` } })).statusCode, 403, `${role} must not restrict drivers`)
+  await prisma.adminLoginAttempt.deleteMany({ where: { key: 'ip:127.0.0.1' } })
   const lockUser = await prisma.user.create({ data: { phone: `lock-auth-${suffix}`, email: `lock-${suffix}@example.test`, passwordHash: await hashPassword('lock password 123'), role: 'ADMIN', accountStatus: 'ACTIVE' } })
   const lockoutResponses = []
   for (let attempt = 0; attempt < 5; attempt++) lockoutResponses.push((await app.inject({ method: 'POST', url: '/api/auth/admin/login', payload: { email: lockUser.email, password: 'incorrect password 123' } })).statusCode)

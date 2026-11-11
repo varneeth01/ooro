@@ -1,0 +1,3 @@
+  mCurrentFocus=Window{ae285d9 u0 com.ooro.screenplayer/com.ooro.screenplayer.MainActivity}
+  mFocusedApp=AppWindowToken{d866545 token=Token{650f1bc ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}}}
+    mFocusedApp=Token{650f1bc ActivityRecord{12a99af u0 com.ooro.screenplayer/.MainActivity t275}}

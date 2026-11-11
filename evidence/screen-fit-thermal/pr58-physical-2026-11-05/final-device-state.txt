@@ -1,0 +1,11 @@
+2026-11-05T00:36:39+05:30
+device
+priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+com.ooro.screenplayer/.MainActivity
+  mHomeProcess: ProcessRecord{cf89d7b 14383:com.ooro.screenplayer/u0a93}
+    mResumedActivity: ActivityRecord{c6e3d5a u0 com.ooro.screenplayer/.MainActivity t305}
+    versionCode=1 minSdk=26 targetSdk=35
+    versionName=0.1.0
+    firstInstallTime=2026-11-04 11:34:13
+    lastUpdateTime=2026-11-04 14:02:39
+package:com.ooro.deviceagent

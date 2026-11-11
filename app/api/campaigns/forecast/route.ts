@@ -9,7 +9,13 @@ export async function POST(request: Request) {
   const deliveryTier = input?.deliveryTier === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : input?.deliveryTier === undefined || input?.deliveryTier === "STANDARD" ? "STANDARD" : null;
   if (!Number.isFinite(budget) || budget < MIN_SELF_SERVE_BUDGET_RUPEES) return NextResponse.json({ error: { code: "MINIMUM_BUDGET", message: `Minimum OORO campaign budget is ₹${MIN_SELF_SERVE_BUDGET_RUPEES}.` } }, { status: 422 });
   if (![latitude, longitude, radiusKm].every(Number.isFinite) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || radiusKm < 1 || radiusKm > 10) return NextResponse.json({ error: { message: "Choose a valid location and radius between 1 km and 10 km." } }, { status: 422 });
-  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt < startsAt) return NextResponse.json({ error: { message: "Choose a valid campaign date range." } }, { status: 422 });
+  const calendarDate = /^\\d{4}-\\d{2}-\\d{2}$/;
+  const indiaParts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const datePart = (type: string) => indiaParts.find(part => part.type === type)?.value ?? "";
+  const todayIndia = `${datePart("year")}-${datePart("month")}-${datePart("day")}`;
+  const startValue = String(input?.startDate ?? "");
+  const endValue = String(input?.endDate ?? "");
+  if (!calendarDate.test(startValue) || !calendarDate.test(endValue) || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || startsAt.toISOString().slice(0, 10) !== startValue || endsAt.toISOString().slice(0, 10) !== endValue || startValue < todayIndia || endValue < startValue) return NextResponse.json({ error: { message: "Choose a future campaign date range in India time (IST)." } }, { status: 422 });
   if (!deliveryTier) return NextResponse.json({ error: { message: "Choose a valid delivery tier." } }, { status: 422 });
   try {
     const forecast = await createSelfServeForecast({ budget, startsAt, endsAt, latitude, longitude, radiusKm, deliveryTier });

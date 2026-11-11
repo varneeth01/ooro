@@ -1,0 +1,291 @@
+# OORO idle baseline before test APK installation
+No creative was active; the screen showed the empty-content placeholder.
+
+## 2026-11-05T00:05:21+05:30
+PID 2809
+Thermal sensors (milli°C):
+cpu_thermal_zone 63323
+gpu_thermal_zone 62513
+ve_thermal_zone 65591
+ddr_thermal_zone 63728
+Thread snapshot:
+Threads: 36 total,   0 running,  36 sleeping,   0 stopped,   0 zombie
+  Mem:       16E total,       16E used,      550M free,       19M buffers
+ Swap:       16E total,         0 used,       16E free,      696M cached
+400%cpu  13%user   0%nice  13%sys 373%idle   0%iow   0%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+ 3436 u0_a93       18  -2 1.0G 144M  83M S  0.0   3.7   0:00.00 queued-work-loo com.ooro.screenplayer
+ 3422 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.05 arch_disk_io_3  com.ooro.screenplayer
+ 3420 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.00 Okio Watchdog   com.ooro.screenplayer
+ 3417 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.00 OkHttp Connecti com.ooro.screenplayer
+ 3411 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.01 DefaultDispatch com.ooro.screenplayer
+ 3405 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 Binder:2809_5   com.ooro.screenplayer
+ 3404 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.66 DefaultDispatch com.ooro.screenplayer
+ 3398 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.04 arch_disk_io_2  com.ooro.screenplayer
+ 3391 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.69 DefaultDispatch com.ooro.screenplayer
+ 3390 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.40 DefaultDispatch com.ooro.screenplayer
+ 3385 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3389 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-cmar-backe com.ooro.screenplayer
+ 3388 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3387 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3386 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3384 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-mem-purge  com.ooro.screenplayer
+ 3377 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.09 arch_disk_io_0  com.ooro.screenplayer
+ 3378 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.05 arch_disk_io_1  com.ooro.screenplayer
+ 3348 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.39 WM.task-3       com.ooro.screenplayer
+ 3347 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.26 WM.task-2       com.ooro.screenplayer
+ 3344 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.09 RenderThread    com.ooro.screenplayer
+ 3343 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.01 ConnectivityThr com.ooro.screenplayer
+ 3342 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.49 WM.task-1       com.ooro.screenplayer
+ 3340 u0_a93       29   9 1.0G 144M  83M S  0.0   3.7   0:00.55 Profile Saver   com.ooro.screenplayer
+ 2851 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.10 Binder:2809_4   com.ooro.screenplayer
+ 2837 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.07 Binder:2809_3   com.ooro.screenplayer
+ 2830 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.53 Binder:2809_2   com.ooro.screenplayer
+ 2829 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.07 Binder:2809_1   com.ooro.screenplayer
+ 2824 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 ADB-JDWP Connec com.ooro.screenplayer
+ 2828 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.00 FinalizerWatchd com.ooro.screenplayer
+ 2827 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.01 FinalizerDaemon com.ooro.screenplayer
+ 2826 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.01 ReferenceQueueD com.ooro.screenplayer
+ 2825 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.60 HeapTaskDaemon  com.ooro.screenplayer
+ 2818 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.77 Jit thread pool com.ooro.screenplayer
+ 2823 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 Signal Catcher  com.ooro.screenplayer
+ 2809 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:15.93 ro.screenplayer com.ooro.screenplayer
+
+## 2026-11-05T00:05:27+05:30
+PID 2809
+Thermal sensors (milli°C):
+cpu_thermal_zone 62513
+gpu_thermal_zone 62513
+ve_thermal_zone 65024
+ddr_thermal_zone 63323
+Thread snapshot:
+Threads: 36 total,   0 running,  36 sleeping,   0 stopped,   0 zombie
+  Mem:       16E total,       16E used,      549M free,       19M buffers
+ Swap:       16E total,         0 used,       16E free,      696M cached
+400%cpu  13%user   0%nice  13%sys 373%idle   0%iow   0%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+ 3436 u0_a93       18  -2 1.0G 144M  83M S  0.0   3.7   0:00.00 queued-work-loo com.ooro.screenplayer
+ 3422 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.05 arch_disk_io_3  com.ooro.screenplayer
+ 3420 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.00 Okio Watchdog   com.ooro.screenplayer
+ 3417 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.00 OkHttp Connecti com.ooro.screenplayer
+ 3411 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.01 DefaultDispatch com.ooro.screenplayer
+ 3405 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 Binder:2809_5   com.ooro.screenplayer
+ 3404 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.66 DefaultDispatch com.ooro.screenplayer
+ 3398 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.04 arch_disk_io_2  com.ooro.screenplayer
+ 3391 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.69 DefaultDispatch com.ooro.screenplayer
+ 3390 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.40 DefaultDispatch com.ooro.screenplayer
+ 3385 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3389 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-cmar-backe com.ooro.screenplayer
+ 3388 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3387 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3386 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3384 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-mem-purge  com.ooro.screenplayer
+ 3377 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.09 arch_disk_io_0  com.ooro.screenplayer
+ 3378 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.05 arch_disk_io_1  com.ooro.screenplayer
+ 3348 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.39 WM.task-3       com.ooro.screenplayer
+ 3347 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.26 WM.task-2       com.ooro.screenplayer
+ 3344 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.09 RenderThread    com.ooro.screenplayer
+ 3343 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.01 ConnectivityThr com.ooro.screenplayer
+ 3342 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.49 WM.task-1       com.ooro.screenplayer
+ 3340 u0_a93       29   9 1.0G 144M  83M S  0.0   3.7   0:00.55 Profile Saver   com.ooro.screenplayer
+ 2851 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.10 Binder:2809_4   com.ooro.screenplayer
+ 2837 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.07 Binder:2809_3   com.ooro.screenplayer
+ 2830 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.53 Binder:2809_2   com.ooro.screenplayer
+ 2829 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.07 Binder:2809_1   com.ooro.screenplayer
+ 2824 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 ADB-JDWP Connec com.ooro.screenplayer
+ 2828 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.00 FinalizerWatchd com.ooro.screenplayer
+ 2827 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.01 FinalizerDaemon com.ooro.screenplayer
+ 2826 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.01 ReferenceQueueD com.ooro.screenplayer
+ 2825 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.60 HeapTaskDaemon  com.ooro.screenplayer
+ 2818 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.77 Jit thread pool com.ooro.screenplayer
+ 2823 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 Signal Catcher  com.ooro.screenplayer
+ 2809 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:15.93 ro.screenplayer com.ooro.screenplayer
+
+## 2026-11-05T00:05:33+05:30
+PID 2809
+Thermal sensors (milli°C):
+cpu_thermal_zone 62108
+gpu_thermal_zone 63809
+ve_thermal_zone 65753
+ddr_thermal_zone 64133
+Thread snapshot:
+Threads: 36 total,   0 running,  36 sleeping,   0 stopped,   0 zombie
+  Mem:       16E total,       16E used,      548M free,       19M buffers
+ Swap:       16E total,         0 used,       16E free,      696M cached
+400%cpu   7%user   0%nice  27%sys 367%idle   0%iow   0%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+ 3436 u0_a93       18  -2 1.0G 144M  83M S  0.0   3.7   0:00.00 queued-work-loo com.ooro.screenplayer
+ 3422 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.05 arch_disk_io_3  com.ooro.screenplayer
+ 3420 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.00 Okio Watchdog   com.ooro.screenplayer
+ 3417 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.00 OkHttp Connecti com.ooro.screenplayer
+ 3411 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.01 DefaultDispatch com.ooro.screenplayer
+ 3405 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 Binder:2809_5   com.ooro.screenplayer
+ 3404 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.66 DefaultDispatch com.ooro.screenplayer
+ 3398 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.04 arch_disk_io_2  com.ooro.screenplayer
+ 3391 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.69 DefaultDispatch com.ooro.screenplayer
+ 3390 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.40 DefaultDispatch com.ooro.screenplayer
+ 3385 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3389 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-cmar-backe com.ooro.screenplayer
+ 3388 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3387 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3386 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-utility-wo com.ooro.screenplayer
+ 3384 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 mali-mem-purge  com.ooro.screenplayer
+ 3377 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.09 arch_disk_io_0  com.ooro.screenplayer
+ 3378 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.05 arch_disk_io_1  com.ooro.screenplayer
+ 3348 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.39 WM.task-3       com.ooro.screenplayer
+ 3347 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.26 WM.task-2       com.ooro.screenplayer
+ 3344 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.09 RenderThread    com.ooro.screenplayer
+ 3343 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.01 ConnectivityThr com.ooro.screenplayer
+ 3342 u0_a93       20   0 1.0G 144M  83M S  0.0   3.7   0:00.49 WM.task-1       com.ooro.screenplayer
+ 3340 u0_a93       29   9 1.0G 144M  83M S  0.0   3.7   0:00.55 Profile Saver   com.ooro.screenplayer
+ 2851 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.10 Binder:2809_4   com.ooro.screenplayer
+ 2837 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.07 Binder:2809_3   com.ooro.screenplayer
+ 2830 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.53 Binder:2809_2   com.ooro.screenplayer
+ 2829 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.07 Binder:2809_1   com.ooro.screenplayer
+ 2824 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 ADB-JDWP Connec com.ooro.screenplayer
+ 2828 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.00 FinalizerWatchd com.ooro.screenplayer
+ 2827 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.01 FinalizerDaemon com.ooro.screenplayer
+ 2826 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.01 ReferenceQueueD com.ooro.screenplayer
+ 2825 u0_a93       24   4 1.0G 144M  83M S  0.0   3.7   0:00.60 HeapTaskDaemon  com.ooro.screenplayer
+ 2818 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.77 Jit thread pool com.ooro.screenplayer
+ 2823 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:00.00 Signal Catcher  com.ooro.screenplayer
+ 2809 u0_a93       10 -10 1.0G 144M  83M S  0.0   3.7   0:15.93 ro.screenplayer com.ooro.screenplayer
+
+## Memory
+Applications Memory Usage (in Kilobytes):
+Uptime: 1529794 Realtime: 1529794
+
+** MEMINFO in pid 2809 [com.ooro.screenplayer] **
+                   Pss  Private  Private     Swap     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap     5313     5216        0        0     7492     6727      764
+  Dalvik Heap     3997     3948        0        0     8487     4244     4243
+ Dalvik Other     2456     2456        0        0
+        Stack      120      120        0        0
+       Ashmem        2        0        0        0
+    Other dev       16        0       16        0
+     .so mmap     5659       76      440        0
+    .jar mmap     2492        0      408        0
+    .apk mmap     1580        0       64        0
+    .ttf mmap      473        0      264        0
+    .dex mmap    34511    34508        0        0
+    .oat mmap      135        0        0        0
+    .art mmap     4728     4304        8        0
+   Other mmap      313       88       32        0
+      Unknown     1070     1052        0        0
+        TOTAL    62865    51768     1232        0    15979    10971     5007
+
+ App Summary
+                       Pss(KB)
+                        ------
+           Java Heap:     8260
+         Native Heap:     5216
+                Code:    35760
+               Stack:      120
+            Graphics:        0
+       Private Other:     3644
+              System:     9865
+
+               TOTAL:    62865      TOTAL SWAP (KB):        0
+
+ Objects
+               Views:        6         ViewRootImpl:        1
+         AppContexts:        5           Activities:        1
+              Assets:        6        AssetManagers:        0
+       Local Binders:       12        Proxy Binders:       39
+       Parcel memory:       10         Parcel count:       40
+    Death Recipients:        0      OpenSSL Sockets:        1
+            WebViews:        0
+
+ SQL
+         MEMORY_USED:      365
+  PAGECACHE_OVERFLOW:      202          MALLOC_SIZE:      117
+
+ DATABASES
+      pgsz     dbsz   Lookaside(b)          cache  Dbname
+         4       40                       84/44/8  /data/user/0/com.ooro.screenplayer/databases/ooro.db
+         4        8                         0/0/0    (attached) temp
+         4      104                    237/215/25  /data/user/0/com.ooro.screenplayer/no_backup/androidx.work.workdb
+         4        8                         0/0/0    (attached) temp
+
+## Graphics
+Applications Graphics Acceleration Info:
+Uptime: 1530197 Realtime: 1530197
+
+** Graphics info for pid 2809 [com.ooro.screenplayer] **
+
+Stats since: 43689908759ns
+Total frames rendered: 6
+Janky frames: 5 (83.33%)
+50th percentile: 48ms
+90th percentile: 2900ms
+95th percentile: 2900ms
+99th percentile: 2900ms
+Number Missed Vsync: 2
+Number High input latency: 1
+Number Slow UI thread: 4
+Number Slow bitmap uploads: 0
+Number Slow issue draw commands: 3
+Number Frame deadline missed: 5
+HISTOGRAM: 5ms=0 6ms=0 7ms=0 8ms=0 9ms=0 10ms=0 11ms=0 12ms=1 13ms=0 14ms=0 15ms=0 16ms=0 17ms=0 18ms=0 19ms=0 20ms=0 21ms=0 22ms=0 23ms=0 24ms=0 25ms=0 26ms=0 27ms=0 28ms=1 29ms=0 30ms=0 31ms=1 32ms=0 34ms=0 36ms=0 38ms=0 40ms=0 42ms=0 44ms=0 46ms=0 48ms=1 53ms=0 57ms=0 61ms=0 65ms=0 69ms=0 73ms=0 77ms=0 81ms=0 85ms=0 89ms=0 93ms=0 97ms=0 101ms=0 105ms=0 109ms=0 113ms=0 117ms=0 121ms=0 125ms=0 129ms=0 133ms=0 150ms=0 200ms=0 250ms=0 300ms=0 350ms=1 400ms=0 450ms=0 500ms=0 550ms=0 600ms=0 650ms=0 700ms=0 750ms=0 800ms=0 850ms=0 900ms=0 950ms=0 1000ms=0 1050ms=0 1100ms=0 1150ms=0 1200ms=0 1250ms=0 1300ms=0 1350ms=0 1400ms=0 1450ms=0 1500ms=0 1550ms=0 1600ms=0 1650ms=0 1700ms=0 1750ms=0 1800ms=0 1850ms=0 1900ms=0 1950ms=0 2000ms=0 2050ms=0 2100ms=0 2150ms=0 2200ms=0 2250ms=0 2300ms=0 2350ms=0 2400ms=0 2450ms=0 2500ms=0 2550ms=0 2600ms=0 2650ms=0 2700ms=0 2750ms=0 2800ms=0 2850ms=0 2900ms=1 2950ms=0 3000ms=0 3050ms=0 3100ms=0 3150ms=0 3200ms=0 3250ms=0 3300ms=0 3350ms=0 3400ms=0 3450ms=0 3500ms=0 3550ms=0 3600ms=0 3650ms=0 3700ms=0 3750ms=0 3800ms=0 3850ms=0 3900ms=0 3950ms=0 4000ms=0 4050ms=0 4100ms=0 4150ms=0 4200ms=0 4250ms=0 4300ms=0 4350ms=0 4400ms=0 4450ms=0 4500ms=0 4550ms=0 4600ms=0 4650ms=0 4700ms=0 4750ms=0 4800ms=0 4850ms=0 4900ms=0 4950ms=0
+Font Cache (CPU):
+  Size: 16.20 kB
+  Glyph Count: 15
+CPU Caches:
+GPU Caches:
+  Other:
+    Other: 5.39 KB (1 entry)
+  Scratch:
+    Texture: 1.00 MB (1 entry)
+    Buffer Object: 48.00 KB (1 entry)
+Other Caches:
+                         Current / Maximum
+  VectorDrawableAtlas    0.00 kB /   0.00 KB (entries = 0)
+  Layers Total           0.00 KB (numLayers = 0)
+Total GPU memory usage:
+  1103248 bytes, 1.05 MB (0.00 bytes is purgeable)
+
+
+Pipeline=Skia (OpenGL)
+
+Layout Cache Info:
+  Usage: 15/5000 entries
+  Hit ratio: 58/73 (0.794521)
+Profile data in ms:
+
+	com.ooro.screenplayer/com.ooro.screenplayer.MainActivity/android.view.ViewRootImpl@eb6f78c (visibility=0)
+View hierarchy:
+
+  com.ooro.screenplayer/com.ooro.screenplayer.MainActivity/android.view.ViewRootImpl@eb6f78c
+  6 views, 6.41 kB of display lists
+
+
+Total ViewRootImpl: 1
+Total Views:        6
+Total DisplayList:  6.41 kB
+
+## Media codec service
+Can't find service: media.codec
+
+## Media metrics
+Dump of the media.metrics process:
+Protocol Version: 1
+Metrics gathering: enabled
+Since Boot: Submissions:       11 Accepted:       11
+Records Discarded:        0 (by Count: 0 by Expiration: 0)
+
+Finalized Metrics (oldest first):
+    0: [1:codec:2:1000:android.uid.system:0:2058:1:1755222397000000000:10:android.media.mediacodec.codec=c2.android.vorbis.decoder:android.media.mediacodec.mode=audio:android.media.mediacodec.secure=0:android.media.mediacodec.encoder=0:android.media.mediacodec.mime=audio/vorbis:android.media.mediacodec.latency.max=30254:android.media.mediacodec.latency.min=8811:android.media.mediacodec.latency.avg=17839:android.media.mediacodec.latency.n=12:android.media.mediacodec.latency.unknown=2:]
+    1: [1:extractor:3:1000:android.uid.system:0:1862:1:1755222397000000000:3:android.media.mediaextractor.fmt=OggExtractor:android.media.mediaextractor.ntrk=1:android.media.mediaextractor.mime=audio/ogg:]
+    2: [1:codec:4:1000:android.uid.system:0:2058:1:1755222397000000000:10:android.media.mediacodec.codec=c2.android.vorbis.decoder:android.media.mediacodec.mode=audio:android.media.mediacodec.secure=0:android.media.mediacodec.encoder=0:android.media.mediacodec.mime=audio/vorbis:android.media.mediacodec.latency.max=26053:android.media.mediacodec.latency.min=5781:android.media.mediacodec.latency.avg=15817:android.media.mediacodec.latency.n=12:android.media.mediacodec.latency.unknown=2:]
+    3: [1:extractor:5:1000:android.uid.system:0:1862:1:1755222397000000000:3:android.media.mediaextractor.fmt=OggExtractor:android.media.mediaextractor.ntrk=1:android.media.mediaextractor.mime=audio/ogg:]
+    4: [1:codec:6:1000:android.uid.system:0:2058:1:1755222398000000000:10:android.media.mediacodec.codec=c2.android.vorbis.decoder:android.media.mediacodec.mode=audio:android.media.mediacodec.secure=0:android.media.mediacodec.encoder=0:android.media.mediacodec.mime=audio/vorbis:android.media.mediacodec.latency.max=14611:android.media.mediacodec.latency.min=9065:android.media.mediacodec.latency.avg=11700:android.media.mediacodec.latency.n=17:android.media.mediacodec.latency.unknown=2:]
+    5: [1:extractor:7:1000:android.uid.system:0:1862:1:1755222398000000000:3:android.media.mediaextractor.fmt=OggExtractor:android.media.mediaextractor.ntrk=1:android.media.mediaextractor.mime=audio/ogg:]
+    6: [1:codec:8:1000:android.uid.system:0:2058:1:1755222398000000000:10:android.media.mediacodec.codec=c2.android.vorbis.decoder:android.media.mediacodec.mode=audio:android.media.mediacodec.secure=0:android.media.mediacodec.encoder=0:android.media.mediacodec.mime=audio/vorbis:android.media.mediacodec.latency.max=20510:android.media.mediacodec.latency.min=7001:android.media.mediacodec.latency.avg=13024:android.media.mediacodec.latency.n=19:android.media.mediacodec.latency.unknown=2:]
+    7: [1:extractor:9:1000:android.uid.system:0:1862:1:1755222398000000000:3:android.media.mediaextractor.fmt=OggExtractor:android.media.mediaextractor.ntrk=1:android.media.mediaextractor.mime=audio/ogg:]
+    8: [1:codec:10:1000:android.uid.system:0:2058:1:1755222398000000000:10:android.media.mediacodec.codec=c2.android.vorbis.decoder:android.media.mediacodec.mode=audio:android.media.mediacodec.secure=0:android.media.mediacodec.encoder=0:android.media.mediacodec.mime=audio/vorbis:android.media.mediacodec.latency.max=32926:android.media.mediacodec.latency.min=6065:android.media.mediacodec.latency.avg=12736:android.media.mediacodec.latency.n=34:android.media.mediacodec.latency.unknown=2:]
+    9: [1:extractor:11:1000:android.uid.system:0:1862:1:1755222398000000000:3:android.media.mediaextractor.fmt=OggExtractor:android.media.mediaextractor.ntrk=1:android.media.mediaextractor.mime=audio/ogg:]
+   10: [1:codec:12:1000:android.uid.system:0:2058:1:1755222398000000000:10:android.media.mediacodec.codec=c2.android.vorbis.decoder:android.media.mediacodec.mode=audio:android.media.mediacodec.secure=0:android.media.mediacodec.encoder=0:android.media.mediacodec.mime=audio/vorbis:android.media.mediacodec.latency.max=28613:android.media.mediacodec.latency.min=6706:android.media.mediacodec.latency.avg=18031:android.media.mediacodec.latency.n=30:android.media.mediacodec.latency.unknown=2:]
+
+## OORO thread list

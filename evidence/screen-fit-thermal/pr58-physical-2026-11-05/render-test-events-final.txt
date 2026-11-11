@@ -1,0 +1,150 @@
+11-04 13:36:19.404  7319  7319 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:36:24.089  7319  7319 I OoroRenderTest: case creative=landscape source=1920x1080 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:36:24.195  7319  7319 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:36:24.241  7319  7319 I OoroRenderTest: case creative=landscape source=1920x1080 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:40:14.385  8281  8281 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:19.081  8281  8281 I OoroRenderTest: case creative=landscape source=1920x1080 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:40:19.190  8281  8281 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:19.233  8281  8281 I OoroRenderTest: case creative=landscape source=1920x1080 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:40:34.072  8281  8281 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:35.523  8281  8281 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:38.163  8281  8281 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:38.215  8281  8281 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:40:40.953  8281  8281 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:42.269  8281  8281 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:43.411  8281  8281 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:44.736  8281  8281 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:47.355  8281  8281 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:47.399  8281  8281 I OoroRenderTest: case creative=square source=1200x1200 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:40:50.130  8281  8281 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:51.470  8281  8281 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:40:52.610  8281  8281 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:40:53.827  8281  8281 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:40:56.559  8281  8281 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:40:56.597  8281  8281 I OoroRenderTest: case creative=ultrawide source=2560x800 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:40:59.314  8281  8281 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:41:00.606  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:01.742  8281  8281 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:41:02.911  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:05.699  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:05.733  8281  8281 I OoroRenderTest: case creative=nonstandard source=1000x700 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:41:08.465  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:09.842  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:10.889  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:12.170  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:14.865  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:14.895  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:41:17.656  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:19.987  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:21.269  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:23.966  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:23.996  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:41:26.731  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:29.102  8281  8281 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:30.368  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:33.085  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:33.112  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:41:35.844  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:40.944  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:41:40.996  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:41:41.021  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:42:38.059  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:42:43.159  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:42:43.209  8281  8281 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:42:43.234  8281  8281 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:44:40.592  9656  9656 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:44:42.173  9656  9656 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:44:42.205  9656  9656 I OoroRenderTest: case creative=landscape source=1920x1080 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:44:44.181  9656  9656 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:44:48.255  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:44:53.075  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:44:53.156  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:44:53.185  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:44:55.689  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:44:58.322  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=361x641 viewportPx=858x641 fit=FIT
+11-04 13:45:03.152  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FOUR_ZONE map=false ticker=false qr=false fit=FIT
+11-04 13:45:03.258  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=361x641 viewportPx=858x641 fit=FIT
+11-04 13:45:03.294  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FOUR_ZONE map=false ticker=false qr=false fit=FIT
+11-04 13:45:05.691  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=361x641 viewportPx=858x641 fit=FIT
+11-04 13:45:08.266  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=960x720 fit=FIT
+11-04 13:45:13.080  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=SPLIT_50_25_25 map=false ticker=false qr=false fit=FIT
+11-04 13:45:13.173  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=960x720 fit=FIT
+11-04 13:45:13.197  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=SPLIT_50_25_25 map=false ticker=false qr=false fit=FIT
+11-04 13:45:15.601  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=960x720 fit=FIT
+11-04 13:45:18.050  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:45:22.898  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:45:22.984  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:45:23.011  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:45:25.466  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:45:28.060  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=361x641 viewportPx=858x641 fit=FIT
+11-04 13:45:32.926  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FOUR_ZONE map=false ticker=false qr=false fit=FIT
+11-04 13:45:33.004  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=361x641 viewportPx=858x641 fit=FIT
+11-04 13:45:33.029  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FOUR_ZONE map=false ticker=false qr=false fit=FIT
+11-04 13:45:35.476  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=361x641 viewportPx=858x641 fit=FIT
+11-04 13:45:37.966  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=960x720 fit=FIT
+11-04 13:45:42.827  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=SPLIT_50_25_25 map=false ticker=false qr=false fit=FIT
+11-04 13:45:42.895  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=960x720 fit=FIT
+11-04 13:45:42.914  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=SPLIT_50_25_25 map=false ticker=false qr=false fit=FIT
+11-04 13:45:45.387  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=960x720 fit=FIT
+11-04 13:45:47.809  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:45:52.671  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:45:52.722  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:45:52.742  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:45:55.388  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:00.495  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:46:00.547  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:00.563  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:46:14.099  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:19.193  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:46:19.244  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:19.260  9656  9656 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:46:43.511  9656  9656 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:46.687  9656  9656 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:49.451  9656  9656 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:49.469  9656  9656 I OoroRenderTest: case creative=square source=1200x1200 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:46:51.487  9656  9656 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:46:53.771  9656  9656 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:46:56.500  9656  9656 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:46:56.518  9656  9656 I OoroRenderTest: case creative=ultrawide source=2560x800 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:46:58.531  9656  9656 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:47:00.954  9656  9656 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:03.608  9656  9656 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:03.626  9656  9656 I OoroRenderTest: case creative=nonstandard source=1000x700 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:47:05.647  9656  9656 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:08.020  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:10.713  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:15.742  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:15.804  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:15.823  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:17.867  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:22.958  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:23.010  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:23.027  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:24.923  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:30.011  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:30.058  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:30.077  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:52.027  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:57.113  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:47:57.160  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:47:57.177  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:48:06.838  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:48:11.918  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:48:11.960  9656  9656 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:48:11.975  9656  9656 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=true fit=FIT
+11-04 13:49:29.654 11275 11275 I OoroRenderTest: case creative=landscape source=1920x1080 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:49:29.956 11275 11275 I OoroRenderTest: image creativeId=local-landscape sourcePx=1920x1080 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:49:47.943 11275 11275 I OoroRenderTest: case creative=portrait source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:49:48.186 11275 11275 I OoroRenderTest: image creativeId=local-portrait sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:49:50.855 11275 11275 I OoroRenderTest: case creative=square source=1200x1200 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:49:51.115 11275 11275 I OoroRenderTest: image creativeId=local-square sourcePx=1200x1200 mediaPx=720x720 viewportPx=1280x720 fit=FIT
+11-04 13:49:53.784 11275 11275 I OoroRenderTest: case creative=ultrawide source=2560x800 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:49:54.018 11275 11275 I OoroRenderTest: image creativeId=local-ultrawide sourcePx=1280x400 mediaPx=1280x400 viewportPx=1280x720 fit=FIT
+11-04 13:49:56.683 11275 11275 I OoroRenderTest: case creative=nonstandard source=1000x700 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:49:56.894 11275 11275 I OoroRenderTest: image creativeId=local-nonstandard sourcePx=1000x700 mediaPx=1029x720 viewportPx=1280x720 fit=FIT
+11-04 13:49:59.604 11275 11275 I OoroRenderTest: case creative=jpeg-exif-rotated source=1080x1920 type=IMAGE layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:49:59.862 11275 11275 I OoroRenderTest: image creativeId=local-jpeg-exif-rotated sourcePx=540x960 mediaPx=405x720 viewportPx=1280x720 fit=FIT
+11-04 13:50:02.562 11275 11275 I OoroRenderTest: case creative=video-landscape-720p source=1280x720 type=VIDEO layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:50:04.817 11275 11275 I OoroRenderTest: video creativeId=local-video-landscape-720p sourcePx=1280x720 rotation=0 pixelRatio=1.0 mediaPx=1280x720 viewportPx=1280x720 fit=FIT
+11-04 13:50:07.740 11275 11275 I OoroRenderTest: case creative=video-portrait source=720x1280 type=VIDEO layout=FULLSCREEN_AD map=false ticker=false qr=false fit=FIT
+11-04 13:50:08.655 11275 11275 I OoroRenderTest: video creativeId=local-video-portrait sourcePx=720x1280 rotation=0 pixelRatio=1.0 mediaPx=405x720 viewportPx=1280x720 fit=FIT

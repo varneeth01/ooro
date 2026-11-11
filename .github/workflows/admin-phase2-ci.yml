@@ -1,7 +1,11 @@
-name: OORO Phase 2 Admin Security CI
+name: OORO Full Stack CI
 on:
   pull_request:
     paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "public/**"
       - "apps/api/**"
       - "app/admin/**"
       - "app/api/admin/users/**"
@@ -65,6 +69,8 @@ jobs:
         run: pnpm --filter @ooro/api exec node --test --import tsx ../../lib/auth/request-origin.test.ts
       - name: API integration and unit tests
         run: pnpm --filter @ooro/api test
+      - name: DeviceOS deployment form validation tests
+        run: pnpm --filter @ooro/api exec node --test --import tsx ../../lib/admin/deviceos-deployment-form.test.ts
       - name: Production builds
         run: pnpm build
       - name: Separate disposable operations database

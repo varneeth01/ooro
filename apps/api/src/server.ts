@@ -19,18 +19,27 @@ import { verifyRide } from './domain/verification.js'
 import { calculateEarnings } from './domain/earnings.js'
 import { buildDisplayManifest } from './domain/campaign-eligibility.js'
 import { campaignPackages } from './domain/campaign-packages.js'
-import { findGuestOrder, listGuestOrders, isMongoError } from './domain/guest-orders.js'
+import { guestOrderInput, normalizePhone, createRazorpayOrder, verifyCheckoutSignature, verifyWebhookSignature, markOrderPaid, packageFor, createGuestOrder, attachRazorpayOrder, findGuestOrder, findGuestOrderByRazorpayOrder, listGuestOrders, markOrderFailed, updateGuestOrder, isMongoError } from './domain/guest-orders.js'
+import { RazorpayWebhookEventModel } from './models/razorpay-webhook-event.js'
+import { connectMongo } from './lib/mongodb.js'
+import { sendOrderConfirmation } from './domain/transactional-email.js'
 import { receiptPdf } from './domain/receipt.js'
 import { boundedLocationLimit, shouldRecordDisplayLocation, validDisplayLocation } from './domain/display-location.js'
 import { getDisplayConnectivity } from './domain/display-health.js'
 import { canonicalProofId, canonicalProofStatus, proofIdentityBelongsToDisplay } from './domain/proof-policy.js'
-import { adminRoles } from './domain/admin-auth.js'
+import { adminRoles, deviceOsDeploymentRoles, deviceOsReleaseRoles, deviceOsWriteRoles } from './domain/admin-auth.js'
 import { asDeviceOsJson } from './domain/deviceos-http.js'
 import { assertSigningCertificateContinuity, decodeApkBase64, inspectApk } from './domain/apk-release.js'
 import { deviceOsStorage, parseDeviceOsRange, sliceDeviceOsContent, verifyLocalDownloadSignature } from './domain/deviceos-storage.js'
 import { campaignHealthGate, createDeviceOsCampaign, deploymentTargetingModes, isWithinMaintenanceWindow, pauseDeviceOsCampaign, resumeDeviceOsCampaign } from './domain/deviceos-deployment.js'
 import { isHealthyInstallationReportValid, retryDelayMs, validateDeviceOsEventTransition } from './domain/deviceos.js'
 import { assertAdminUser, clearAdminLoginRateLimit, consumePasswordToken, enforceAdminLoginRateLimit, findAdminByEmail, issuePasswordReset, markAdminLoginFailure, normalizeAdminEmail, resetAdminLoginFailures, validateAdminPassword, verifyPassword } from './domain/admin-password-auth.js'
+import { MOBILITY_EVENT_TYPES, MOBILITY_PROVIDERS, classifyEvidence, isApprovedNotificationSource } from './domain/mobility-contract.js'
+import { getDriverActivationEligibility } from './domain/driver-activation.js'
+import { transitionDriverOnboarding } from './domain/driver-onboarding.js'
+import { privateDocumentStorage } from './domain/document-storage.js'
+import { normalizeIndianPhone } from './domain/phone.js'
+import { creativeTypeMatchesWidget, layoutDraftSchema, standardV3Draft, validateLayoutDraft, type LayoutDraft } from './domain/layout-studio.js'
 
 const app = Fastify({ logger: true })
 const deviceOsUploadBodyLimit = Math.ceil(config.deviceOsMaxApkBytes * 4 / 3) + 1024 * 1024
@@ -41,7 +50,33 @@ app.addHook('onRequest', async (request) => {
 })
 app.removeContentTypeParser('application/json')
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => { try { (request as any).rawBody = body; done(null, JSON.parse(body as string)) } catch (error) { done(error as Error, undefined) } })
-app.addHook('preHandler', async (request) => { if (request.url.split('?')[0].startsWith('/api/admin/')) await requireRoles(request, adminRoles) })
+const retiredPaymentRoutes = new Set(['/api/public/campaign-orders', '/api/public/campaign-orders/verify', '/api/webhooks/razorpay'])
+app.addHook('preHandler', async (request, reply) => {
+  const path = request.url.split('?')[0]
+  if (request.method === 'POST' && retiredPaymentRoutes.has(path)) {
+    return reply.code(410).send({ data: null, error: { code: 'PAYMENT_PROCESSING_RETIRED', message: 'Online payment processing is no longer available.' }, requestId: request.id })
+  }
+})
+const deviceReadPaths = new Set(['/api/admin/drivers', '/api/admin/vehicles', '/api/admin/displays', '/api/admin/displays/live-map'])
+app.addHook('preHandler', async (request) => {
+  const path = request.url.split('?')[0]
+  if (request.method === 'GET' && (deviceReadPaths.has(path) || /^\/api\/admin\/displays\/[^/]+\/(live-state|location-history|manifest-debug)$/.test(path))) await requirePermission(request, 'device:read')
+})
+app.addHook('preHandler', async (request) => {
+  if (request.method === 'GET' && request.url.split('?')[0] === '/api/admin/proof-of-play') await requirePermission(request, 'campaign:read')
+})
+app.addHook('preHandler', async (request) => {
+  const path = request.url.split('?')[0]
+  if (request.method === 'GET' && (path === '/api/admin/orders' || /^\/api\/admin\/orders\/[^/]+$/.test(path))) await requirePermission(request, 'finance:read')
+})
+app.addHook('preHandler', async (request) => {
+  const path = request.url.split('?')[0]
+  if (request.method !== 'GET') return
+  if (path === '/api/admin/rides') await requirePermission(request, 'ride:read')
+  else if (path === '/api/admin/verifications') await requirePermission(request, 'verification:read')
+  else if (path === '/api/admin/fraud') await requirePermission(request, 'fraud:read')
+})
+app.addHook('preHandler', async (request) => { if (request.url.split('?')[0].startsWith('/api/admin/')) await requireRoles(request, adminRoles); if (request.url.split('?')[0] === '/api/webhooks/razorpay') await connectMongo() })
 
 const ok = (request: any, data: unknown, reply: any) => reply.send(response(request, data))
 const sendDeviceOsApk = (request: any, reply: any, content: Buffer, filename?: string) => {
@@ -57,6 +92,37 @@ const bodyOf = <T>(request: any, schema: z.ZodType<T>) => {
   if (!parsed.success) throw new ApiError('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '), 422)
   return parsed.data
 }
+const validateLayoutBindings = async (draft: LayoutDraft, db: typeof prisma | Prisma.TransactionClient = prisma) => {
+  const issues: Array<{ code: string; message: string; zoneId?: string }> = []
+  for (const zone of draft.zones) {
+    const binding = zone.contentBinding
+    if (binding.kind === 'NONE') continue
+    if (!binding.referenceId) { issues.push({ code: 'BINDING_REFERENCE_REQUIRED', zoneId: zone.id, message: `${zone.label} needs a valid existing content reference.` }); continue }
+    if ((binding.kind === 'APPROVED_SPONSOR' && zone.type !== 'SPONSORED_AD') || (zone.type === 'SPONSORED_AD' && binding.kind !== 'APPROVED_SPONSOR') || (binding.kind === 'AUTHORIZED_DESTINATION' && !['QR_OFFER', 'STATIC_QR', 'EXTERNAL_DESTINATION'].includes(zone.type))) {
+      issues.push({ code: 'CONTENT_SLOT_MISMATCH', zoneId: zone.id, message: `${zone.label} must use a content binding that matches its independent delivery slot.` }); continue
+    }
+    if (!z.string().uuid().safeParse(binding.referenceId).success) { issues.push({ code: 'INVALID_CONTENT_REFERENCE', zoneId: zone.id, message: `${zone.label} must reference an existing OORO record ID.` }); continue }
+    if (binding.kind === 'AUTHORIZED_DESTINATION') {
+      const link = await db.campaignTrackingLink.findUnique({ where: { id: binding.referenceId }, select: { active: true, expiresAt: true } })
+      if (!link?.active || (link.expiresAt && link.expiresAt <= new Date())) issues.push({ code: 'DESTINATION_NOT_AUTHORIZED', zoneId: zone.id, message: `${zone.label} must reference an active, unexpired authorized destination.` })
+      continue
+    }
+    const creative = await db.creative.findUnique({ where: { id: binding.referenceId }, select: { status: true, type: true, campaign: { select: { deliverySlot: true } }, asset: { select: { active: true, url: true } } } })
+    const approvedAndAvailable = creative?.status === 'APPROVED' && creative.asset?.active && Boolean(creative.asset.url)
+    const sponsorSlot = creative?.campaign.deliverySlot === 'SPONSORED'
+    const creativeType = creative?.type ?? ''
+    const slotMatches = binding.kind === 'APPROVED_SPONSOR' ? sponsorSlot : !sponsorSlot
+    const widgetTypeMatches = creativeTypeMatchesWidget(zone.type, creativeType)
+    if (!approvedAndAvailable || !slotMatches || !widgetTypeMatches) issues.push({ code: 'CONTENT_REFERENCE_INELIGIBLE', zoneId: zone.id, message: `${zone.label} must reference an approved, available creative from the matching delivery slot and media type.` })
+  }
+  return issues
+}
+// Capability certification gates validation/publication, not saving work in
+// progress. Draft authors must be able to persist an unsupported profile while
+// the compatibility review is pending; all structural and binding checks stay
+// enforced on every save.
+const layoutDraftSaveIssues = (draft: LayoutDraft) =>
+  validateLayoutDraft(draft).issues.filter((issue) => issue.code !== 'CAPABILITY_PROFILE_UNVERIFIED')
 const asJson = (value: unknown): any => JSON.parse(JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item))
 const driverFrom = async (auth: { driverId?: string }) => {
   if (!auth.driverId) throw forbidden('Driver account required')
@@ -95,6 +161,142 @@ app.get('/api/health/db', async (request, reply) => {
     return reply.code(503).send({ data: null, error: { code: 'DATABASE_UNAVAILABLE', message: 'Database dependency unavailable' } })
   }
 })
+
+// Layout Studio V1 persists presentation contracts independently of campaign
+// eligibility. Screen delivery/assignment remains opt-in and disabled by default.
+app.get('/api/admin/layout-studio', async (request, reply) => {
+  await requirePermission(request, 'device:read')
+  const layouts = await prisma.layoutTemplate.findMany({ orderBy: { updatedAt: 'desc' }, include: { revisions: { orderBy: { revision: 'desc' }, take: 1, select: { id: true, revision: true, contractHash: true, publishedAt: true } } } })
+  return ok(request, { templates: [{ key: 'OORO_STANDARD_V3', name: 'OORO Standard V3', mode: 'STANDARD', locked: true, contract: standardV3Draft() }], layouts: asJson(layouts), liveAssignmentEnabled: false }, reply)
+})
+app.get('/api/admin/layout-studio/content', async (request, reply) => {
+  await requirePermission(request, 'campaign:read')
+  const [creatives, destinations] = await Promise.all([
+    prisma.creative.findMany({ where: { status: 'APPROVED', asset: { is: { active: true, url: { not: '' } } } }, orderBy: [{ campaign: { name: 'asc' } }, { displayOrder: 'asc' }], take: 500, select: { id: true, name: true, type: true, campaign: { select: { id: true, name: true, deliverySlot: true } } } }),
+    prisma.campaignTrackingLink.findMany({ where: { active: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { createdAt: 'desc' }, take: 200, select: { id: true, ctaType: true, campaign: { select: { name: true } } } }),
+  ])
+  return ok(request, { creatives: asJson(creatives), destinations: asJson(destinations), note: 'Approval and active assets are required for selection. Layout binding does not itself authorize scheduled delivery.' }, reply)
+})
+app.post('/api/admin/layout-studio', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const input = bodyOf(request, z.object({ name: z.string().trim().min(1).max(100), contract: layoutDraftSchema }).strict())
+  const issues = [...layoutDraftSaveIssues(input.contract), ...await validateLayoutBindings(input.contract)]
+  if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
+  const created = await prisma.$transaction(async tx => {
+    const layout = await tx.layoutTemplate.create({ data: { name: input.name, mode: input.contract.mode, preset: input.contract.preset, profileId: input.contract.profileId, draftContract: input.contract as any, createdBy: auth.userId, updatedBy: auth.userId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_CREATED', entityType: 'LayoutTemplate', entityId: layout.id, after: { mode: layout.mode, preset: layout.preset } as any, requestId: request.id } })
+    return layout
+  })
+  return reply.code(201).send(response(request, asJson(created)))
+})
+app.get('/api/admin/layout-studio/:layoutId', async (request, reply) => {
+  await requirePermission(request, 'device:read')
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const layout = await prisma.layoutTemplate.findUnique({ where: { id: layoutId }, include: { revisions: { orderBy: { revision: 'desc' } } } })
+  if (!layout) throw notFound('Layout not found')
+  return ok(request, asJson(layout), reply)
+})
+app.put('/api/admin/layout-studio/:layoutId/draft', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive(), name: z.string().trim().min(1).max(100), contract: layoutDraftSchema }).strict())
+  const issues = [...layoutDraftSaveIssues(input.contract), ...await validateLayoutBindings(input.contract)]
+  if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
+  const layout = await prisma.$transaction(async tx => {
+    const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { name: input.name, mode: input.contract.mode, preset: input.contract.preset, profileId: input.contract.profileId, draftContract: input.contract as any, state: 'DRAFT', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    if (!changed.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This draft changed elsewhere. Reload it before saving.', 409)
+    const updated = await tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_UPDATED', entityType: 'LayoutTemplate', entityId: layoutId, after: { rowVersion: updated.rowVersion } as any, requestId: request.id } })
+    return updated
+  })
+  return ok(request, asJson(layout), reply)
+})
+app.post('/api/admin/layout-studio/:layoutId/validate', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive() }).strict())
+  const layout = await prisma.layoutTemplate.findUnique({ where: { id: layoutId }, select: { draftContract: true, rowVersion: true, state: true } })
+  if (!layout) throw notFound('Layout not found')
+  if (layout.state === 'PUBLISHED' || layout.state === 'ARCHIVED') throw new ApiError('LAYOUT_REVISION_CONFLICT', 'Published layouts are immutable. Save a new draft revision before validating again.', 409)
+  const result = validateLayoutDraft(layout.draftContract)
+  const issues = [...result.issues, ...await validateLayoutBindings(layout.draftContract as LayoutDraft)]
+  if (layout.rowVersion !== input.expectedRowVersion) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This draft changed during validation. Reload it before continuing.', 409)
+  if (issues.length) return ok(request, { valid: false, issues, rowVersion: layout.rowVersion, warnings: ['Publishing a layout does not approve or authorize advertising media. Live screen assignment is disabled by default.'] }, reply)
+  if (layout.state === 'VALIDATED') return ok(request, { valid: true, issues: [], rowVersion: layout.rowVersion, state: layout.state, warnings: ['Publishing a layout does not approve or authorize advertising media. Live screen assignment is disabled by default.'] }, reply)
+  const validated = await prisma.$transaction(async tx => {
+    const updated = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { state: 'VALIDATED', rowVersion: { increment: 1 } } })
+    if (!updated.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This draft changed during validation. Reload it before continuing.', 409)
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_VALIDATED', entityType: 'LayoutTemplate', entityId: layoutId, after: { rowVersion: input.expectedRowVersion + 1 } as any, requestId: request.id } })
+    return tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId }, select: { rowVersion: true, state: true } })
+  })
+  return ok(request, { valid: true, issues: [], rowVersion: validated.rowVersion, state: validated.state, warnings: ['Publishing a layout does not approve or authorize advertising media. Live screen assignment is disabled by default.'] }, reply)
+})
+app.post('/api/admin/layout-studio/:layoutId/publish', async (request, reply) => {
+  const auth = await requireRoles(request, ['SUPER_ADMIN'])
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive() }).strict())
+  const published = await prisma.$transaction(async tx => {
+    const layout = await tx.layoutTemplate.findUnique({ where: { id: layoutId } })
+    if (!layout) throw notFound('Layout not found')
+    if (layout.rowVersion !== input.expectedRowVersion || layout.state !== 'VALIDATED') throw new ApiError('LAYOUT_REVISION_CONFLICT', 'Validate the current draft before Super Admin approval and publication.', 409)
+    const result = validateLayoutDraft(layout.draftContract)
+    const issues = [...result.issues, ...await validateLayoutBindings(layout.draftContract as LayoutDraft, tx)]
+    if (issues.length) throw new ApiError('LAYOUT_VALIDATION_FAILED', issues.map(issue => issue.message).join(' '), 422)
+    const contract = JSON.stringify(layout.draftContract)
+    const contractHash = createHash('sha256').update(contract).digest('hex')
+    const revision = await tx.layoutRevision.create({ data: { templateId: layoutId, revision: (await tx.layoutRevision.count({ where: { templateId: layoutId } })) + 1, contract: layout.draftContract as any, contractHash, validation: { valid: true, issues: [] }, publishedBy: auth.userId } })
+    await tx.layoutTemplate.update({ where: { id: layoutId }, data: { state: 'PUBLISHED', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_REVISION_PUBLISHED', entityType: 'LayoutRevision', entityId: revision.id, after: { templateId: layoutId, revision: revision.revision, contractHash } as any, requestId: request.id } })
+    return revision
+  }, { isolationLevel: 'Serializable' })
+  return reply.code(201).send(response(request, asJson(published)))
+})
+app.post('/api/admin/layout-studio/:layoutId/assign', async (request) => {
+  await requireRoles(request, ['SUPER_ADMIN'])
+  throw new ApiError('LAYOUT_ASSIGNMENT_DISABLED', 'Live layout assignments are disabled pending native renderer, compatibility validation and rollout approval.', 409)
+})
+app.post('/api/admin/layout-studio/:layoutId/rollback', async (request, reply) => {
+  const auth = await requireRoles(request, ['SUPER_ADMIN'])
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive(), revisionId: z.string().uuid() }).strict())
+  const restored = await prisma.$transaction(async tx => {
+    const [layout, revision, activeAssignments] = await Promise.all([
+      tx.layoutTemplate.findUnique({ where: { id: layoutId } }),
+      tx.layoutRevision.findFirst({ where: { id: input.revisionId, templateId: layoutId } }),
+      tx.layoutAssignment.count({ where: { templateId: layoutId, state: 'ACTIVE', revokedAt: null } }),
+    ])
+    if (!layout || !revision) throw notFound('Layout or published revision not found')
+    if (activeAssignments) throw new ApiError('LAYOUT_ROLLBACK_BLOCKED', 'Revoke or replace active assignments through the approved rollout workflow before restoring a draft.', 409)
+    const contract = layoutDraftSchema.parse(revision.contract)
+    const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { mode: contract.mode, preset: contract.preset, profileId: contract.profileId, draftContract: contract as any, state: 'DRAFT', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    if (!changed.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This layout changed elsewhere. Reload it before rollback.', 409)
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_DRAFT_RESTORED', entityType: 'LayoutTemplate', entityId: layoutId, before: { state: layout.state, rowVersion: layout.rowVersion } as any, after: { state: 'DRAFT', restoredFromRevisionId: revision.id, revision: revision.revision } as any, requestId: request.id } })
+    return tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId } })
+  }, { isolationLevel: 'Serializable' })
+  return ok(request, asJson(restored), reply)
+})
+app.post('/api/admin/layout-studio/:layoutId/archive', async (request, reply) => {
+  const auth = await requireRoles(request, ['SUPER_ADMIN'])
+  const { layoutId } = request.params as { layoutId: string }
+  if (!z.string().uuid().safeParse(layoutId).success) throw new ApiError('VALIDATION_ERROR', 'Invalid layout ID', 422)
+  const input = bodyOf(request, z.object({ expectedRowVersion: z.number().int().positive() }).strict())
+  const archived = await prisma.$transaction(async tx => {
+    const layout = await tx.layoutTemplate.findUnique({ where: { id: layoutId } })
+    if (!layout) throw notFound('Layout not found')
+    const activeAssignments = await tx.layoutAssignment.count({ where: { templateId: layoutId, state: 'ACTIVE', revokedAt: null } })
+    if (activeAssignments) throw new ApiError('LAYOUT_ARCHIVE_BLOCKED', 'Active assignments must be revoked before archiving this layout.', 409)
+    const changed = await tx.layoutTemplate.updateMany({ where: { id: layoutId, rowVersion: input.expectedRowVersion, state: { not: 'ARCHIVED' } }, data: { state: 'ARCHIVED', rowVersion: { increment: 1 }, updatedBy: auth.userId } })
+    if (!changed.count) throw new ApiError('LAYOUT_REVISION_CONFLICT', 'This layout changed elsewhere. Reload it before archiving.', 409)
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'LAYOUT_ARCHIVED', entityType: 'LayoutTemplate', entityId: layoutId, before: { state: layout.state }, after: { state: 'ARCHIVED' }, requestId: request.id } })
+    return tx.layoutTemplate.findUniqueOrThrow({ where: { id: layoutId } })
+  })
+  return ok(request, asJson(archived), reply)
+})
 app.get('/go/:token', async (request, reply) => {
   const token = String((request.params as { token?: string }).token ?? '')
   if (!/^[A-Za-z0-9_-]{32}$/.test(token)) throw notFound('Tracking link not found')
@@ -107,7 +309,7 @@ app.get('/go/:token', async (request, reply) => {
   return reply.code(302).header('Location', destination.toString()).send()
 })
 app.get('/api/admin/campaigns/:campaignId/qr-analytics', async (request, reply) => {
-  await requirePermission(request, 'campaign:read')
+  await requireRoles(request, adminRoles)
   const { campaignId } = request.params as { campaignId: string }
   const [completedPlays, qrScans] = await Promise.all([
     prisma.proofOfPlay.count({ where: { campaignId, playbackCompleted: true } }),
@@ -116,17 +318,17 @@ app.get('/api/admin/campaigns/:campaignId/qr-analytics', async (request, reply) 
   return ok(request, { completedPlays, qrScans, scanRate: completedPlays === 0 ? null : (qrScans / completedPlays) * 100 }, reply)
 })
 app.get('/api/public/campaign-packages', async (request, reply) => ok(request, campaignPackages.filter((item) => item.active), reply))
-const paymentProcessingRetired = () => { throw new ApiError('PAYMENT_PROCESSING_RETIRED', 'Online payment processing is no longer available', 410) }
-app.post('/api/public/campaign-orders', async () => paymentProcessingRetired())
-app.post('/api/public/campaign-orders/verify', async () => paymentProcessingRetired())
+app.post('/api/public/campaign-orders', async (request, reply) => { const input = bodyOf(request, guestOrderInput); const selected = packageFor(input.packageId); if (!selected) throw new ApiError('INVALID_PACKAGE', 'This campaign package is unavailable', 422); const phone = normalizePhone(input.phone); const orderNumber = `OORO-${Date.now().toString(36).toUpperCase()}-${randomSecret(3).toUpperCase()}`; request.log.info({ route: request.url, orderNumber, stage: 'MONGO_INSERT' }, 'creating guest campaign order'); let order; try { order = await createGuestOrder({ orderNumber, name: input.name, email: input.email.toLowerCase(), phone, businessName: input.businessName, gstin: input.gstin, campaignNotes: input.campaignNotes, websiteOrInstagram: input.websiteOrInstagram, packageId: selected.id, city: selected.city, autos: selected.autos, hoursPerDay: selected.hoursPerDay, campaignDurationDays: selected.durationDays, amount: selected.amount, currency: selected.currency }); } catch (error) { request.log.error({ route: request.url, orderNumber, stage: 'MONGO_INSERT', errorType: error instanceof Error ? error.name : 'unknown' }, 'guest order persistence failed'); if (isMongoError(error)) throw new ApiError('GUEST_STORE_UNAVAILABLE', 'Guest checkout storage is temporarily unavailable', 503); throw error } try { request.log.info({ route: request.url, orderNumber, stage: 'RAZORPAY_ORDER_CREATE' }, 'creating Razorpay order'); const razorpay = await createRazorpayOrder(orderNumber, selected.amount, { ooroOrder: order.id.toString(), packageId: selected.id }); await attachRazorpayOrder(orderNumber, razorpay.id); return ok(request, { orderNumber, razorpayOrderId: razorpay.id, keyId: config.razorpayKeyId, amount: razorpay.amount, currency: razorpay.currency, name: input.name, email: input.email.toLowerCase(), phone }, reply) } catch (error) { request.log.warn({ route: request.url, orderNumber, stage: 'RAZORPAY_ORDER_CREATE', errorType: error instanceof Error ? error.name : 'unknown' }, 'Razorpay order creation failed'); await updateGuestOrder(order.id.toString(), { status: error instanceof ApiError && error.code === 'PAYMENT_PROVIDER_NOT_CONFIGURED' ? 'CREATED' : 'PAYMENT_FAILED', emailLastError: error instanceof Error ? error.message : 'Razorpay order failed' }); throw error } })
+app.post('/api/public/campaign-orders/verify', async (request, reply) => { const input = bodyOf(request, z.object({ orderNumber: z.string(), razorpayOrderId: z.string(), razorpayPaymentId: z.string(), razorpaySignature: z.string() })); if (!verifyCheckoutSignature(input.razorpayOrderId, input.razorpayPaymentId, input.razorpaySignature)) throw new ApiError('INVALID_PAYMENT_SIGNATURE', 'Payment could not be verified', 400); const order = await findGuestOrderByRazorpayOrder(input.razorpayOrderId); if (!order || order.orderNumber !== input.orderNumber) throw notFound('Order not found'); const paid = await markOrderPaid(input.razorpayOrderId, input.razorpayPaymentId); if (paid?.order && paid.order.emailDeliveryStatus === 'PENDING') { try { const delivery = await sendOrderConfirmation(paid.order); await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: delivery }) } catch (error) { await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: 'FAILED', emailLastError: error instanceof Error ? error.message : 'Email failed' }) } } return ok(request, { orderNumber: paid?.order.orderNumber, status: paid?.order.status, accessToken: paid?.accessToken }, reply) })
 app.get('/api/public/campaign-orders/:orderNumber', async (request, reply) => { const { orderNumber } = request.params as { orderNumber: string }; const accessToken = String((request.query as { accessToken?: string }).accessToken ?? request.headers['x-order-access-token'] ?? ''); const order = await findGuestOrder(orderNumber); if (!order || !accessToken || hashSecret(accessToken) !== order.receiptAccessTokenHash) throw unauthorized('Secure order access required'); return ok(request, { orderNumber: order.orderNumber, name: order.name, email: order.email, businessName: order.businessName, packageId: order.packageId, city: order.city, autos: order.autos, hoursPerDay: order.hoursPerDay, campaignDurationDays: order.campaignDurationDays, amount: order.amount, currency: order.currency, status: order.status, paymentCapturedAt: order.paymentCapturedAt, receiptNumber: order.receiptNumber, emailDeliveryStatus: order.emailDeliveryStatus }, reply) })
 app.get('/api/public/campaign-orders/:orderNumber/receipt', async (request, reply) => { const { orderNumber } = request.params as { orderNumber: string }; const accessToken = String((request.query as { accessToken?: string }).accessToken ?? request.headers['x-order-access-token'] ?? ''); const order = await findGuestOrder(orderNumber); if (!order || !accessToken || hashSecret(accessToken) !== order.receiptAccessTokenHash) throw unauthorized('Secure receipt access required'); if (order.status !== 'PAID' && order.status !== 'FULFILLED') throw new ApiError('RECEIPT_NOT_READY', 'Receipt is not available', 409); return reply.type('application/pdf').header('Content-Disposition', `attachment; filename="${order.receiptNumber ?? order.orderNumber}.pdf"`).send(receiptPdf(order)) })
-app.post('/api/webhooks/razorpay', async () => paymentProcessingRetired())
+app.post('/api/webhooks/razorpay', async (request, reply) => { const signature = request.headers['x-razorpay-signature']; if (typeof signature !== 'string' || !verifyWebhookSignature(String((request as any).rawBody ?? ''), signature)) throw new ApiError('INVALID_WEBHOOK_SIGNATURE', 'Webhook signature could not be verified', 400); const payload = request.body as { event?: string; payload?: { payment?: { entity?: { id?: string; order_id?: string } }; order?: { entity?: { id?: string } } } }; const eventId = String(request.headers['x-razorpay-event-id'] ?? `${payload.event}-${payload.payload?.payment?.entity?.id ?? payload.payload?.order?.entity?.id ?? randomSecret(8)}`); const existing = await RazorpayWebhookEventModel.findOne({ eventId }); if (existing) return ok(request, { received: true, duplicate: true }, reply); const event = await RazorpayWebhookEventModel.create({ eventId, eventType: payload.event ?? 'unknown', status: 'PROCESSED', processedAt: new Date() }); const payment = payload.payload?.payment?.entity; const orderId = payment?.order_id ?? payload.payload?.order?.entity?.id; if ((payload.event === 'payment.captured' || payload.event === 'order.paid') && orderId) { const paid = await markOrderPaid(orderId, payment?.id ?? ''); if (paid?.order && paid.order.emailDeliveryStatus === 'PENDING') { try { await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: await sendOrderConfirmation(paid.order) }) } catch (error) { await updateGuestOrder(paid.order._id.toString(), { emailDeliveryStatus: 'FAILED', emailLastError: error instanceof Error ? error.message : 'Email failed' }) } } } else if (payload.event === 'payment.failed' && orderId) await markOrderFailed(orderId); return ok(request, { received: true, eventId: event.eventId }, reply) })
 
 app.post('/api/auth/request-otp', async (request, reply) => {
   const { phone } = bodyOf(request, z.object({ phone: z.string().min(7).max(20) }))
   const recent = await prisma.otpChallenge.count({where:{phone,createdAt:{gte:new Date(Date.now()-60000)}}}); if(recent>=3) throw new ApiError('OTP_RATE_LIMIT','Please wait before requesting another code',429)
-  const code = config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
+  const stagingTestPhone = config.stagingOtpTestMode && phone === config.stagingOtpTestPhone
+  const code = stagingTestPhone ? config.stagingOtpTestCode : config.nodeEnv !== 'production' && config.devMockOtpEnabled ? config.devMockOtp : String(randomInt(100000, 1000000))
   const expiresAt = new Date(Date.now() + config.otpTtlSeconds * 1000)
   await deliverOtp(phone, code)
   await prisma.otpChallenge.create({ data: { phone, codeHash: hashOtp(phone, code), expiresAt } })
@@ -139,7 +341,6 @@ app.post('/api/auth/verify-otp', async (request, reply) => {
   if(challenge) await prisma.otpChallenge.update({where:{id:challenge.id},data:{attempts:{increment:1}}})
   if (!challenge || challenge.attempts >= 5 || challenge.codeHash !== hashOtp(phone, code)) throw new ApiError('INVALID_OTP', 'Invalid or expired OTP', 401)
   const consumed = await prisma.otpChallenge.updateMany({ where: { id: challenge.id, consumedAt:null, attempts:{lte:5} }, data: { consumedAt: new Date() } }); if(consumed.count!==1) throw unauthorized('Code already used or too many attempts')
-  // Driver SMS OTP must never authenticate administrator or other non-driver accounts.
   const existingUser = await prisma.user.findUnique({ where: { phone }, select: { role: true } })
   if (existingUser && existingUser.role !== 'DRIVER') throw unauthorized('Driver authentication not permitted for this account')
   const user = await prisma.user.upsert({ where: { phone }, update: name ? { name } : {}, create: { phone, name, role: 'DRIVER', accountStatus: 'PENDING' } })
@@ -213,9 +414,78 @@ app.patch('/api/drivers/me', async (request, reply) => {
   return ok(request, asJson(updated), reply)
 })
 app.get('/api/drivers/me/status', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const docs = await prisma.kycDocument.findMany({ where: { driverId: d.id } }); return ok(request, { onboardingStatus: d.onboardingStatus, accountStatus: d.user.accountStatus, kyc: docs.map((x) => ({ id: x.id, type: x.documentType, status: x.status })) }, reply) })
+app.get('/api/driver/dashboard', async (request, reply) => {
+  const auth = await requireAuth(request); const d = await driverFrom(auth)
+  const [vehicles, duty, dutyHistory, devices, permissions, integrations, rides, earnings, payouts, beneficiaries, consents] = await Promise.all([
+    prisma.vehicle.findMany({ where: { driverId: d.id }, select: { id: true, type: true, registrationNumber: true, manufacturer: true, model: true, status: true, displays: { select: { id: true, name: true, state: true, lastHeartbeatAt: true } } }, orderBy: { createdAt: 'asc' } }),
+    prisma.dutySession.findFirst({ where: { driverId: d.id, status: 'ACTIVE' }, orderBy: { startedAt: 'desc' } }),
+    prisma.dutySession.findMany({ where: { driverId: d.id }, select: { id: true, status: true, startedAt: true, endedAt: true, endReason: true, lastLocationAt: true, lastEventAt: true }, orderBy: { startedAt: 'desc' }, take: 20 }),
+    prisma.driverDevice.findMany({ where: { driverId: d.id, revokedAt: null }, select: { installationId: true, notificationState: true, locationState: true, lastSeenAt: true }, orderBy: { lastSeenAt: 'desc' }, take: 3 }),
+    prisma.driverPermissionGrant.findMany({ where: { driverId: d.id }, select: { permission: true, granted: true, revokedAt: true, updatedAt: true } }),
+    prisma.mobilityIntegration.findMany({ where: { driverId: d.id }, select: { provider: true, enabled: true, status: true, parserVersion: true, lastEventAt: true } }),
+    prisma.ride.findMany({ where: { driverId: d.id }, select: { id: true, provider: true, state: true, source: true, createdAt: true, updatedAt: true, startedAt: true, completedAt: true, verificationStatus: true, verification: { select: { status: true, score: true, verifiedAt: true } }, events: { select: { eventType: true, occurredAt: true, confidence: true, source: true }, orderBy: { occurredAt: 'desc' }, take: 20 } }, orderBy: { updatedAt: 'desc' }, take: 30 }),
+    prisma.earningEntry.findMany({ where: { driverId: d.id }, select: { id: true, type: true, amountMinor: true, currency: true, status: true, createdAt: true, rideId: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.payout.findMany({ where: { driverId: d.id }, select: { id: true, amountMinor: true, currency: true, status: true, providerRef: true, failureReason: true, createdAt: true, updatedAt: true, payoutMethod: { select: { type: true, maskedValue: true } } }, orderBy: { createdAt: 'desc' }, take: 50 }),
+    prisma.bankBeneficiary.findMany({ where: { driverId: d.id }, select: { id: true, type: true, maskedAccount: true, verificationStatus: true, rejectionReason: true, verifiedAt: true, updatedAt: true }, orderBy: { createdAt: 'desc' } }),
+    prisma.driverConsent.findMany({ where: { driverId: d.id }, select: { agreementVersionId: true, acceptedAt: true, revokedAt: true, agreementVersion: { select: { type: true, version: true, contentHash: true, required: true } } }, orderBy: { acceptedAt: 'desc' } }),
+  ])
+  const sum = (status?: string) => earnings.filter((entry) => !status || entry.status === status).reduce((total, entry) => total + entry.amountMinor, 0n)
+  return ok(request, asJson({ profile: { id: d.id, name: d.user.name, phone: d.user.phone, email: d.user.email, city: d.city, preferredLanguage: d.preferredLanguage, profilePhotoUrl: d.profilePhotoUrl, onboardingStatus: d.onboardingStatus, accountStatus: d.user.accountStatus }, vehicles, duty, dutyHistory, devices, permissions, integrations, rides, earnings: { availableMinor: sum('AVAILABLE'), pendingMinor: sum('PENDING'), settledMinor: sum('SETTLED'), lifetimeMinor: sum(), currency: 'INR', entries: earnings }, payouts, beneficiaries, consents }), reply)
+})
+app.get('/api/drivers/me/onboarding', async (request, reply) => {
+  const auth = await requireAuth(request); const d = await driverFrom(auth)
+  const [documents, vehicles, agreements, integrations] = await Promise.all([
+    prisma.kycDocument.findMany({ where: { driverId: d.id }, select: { id: true, documentType: true, status: true, rejectionReason: true, expiresAt: true, submittedAt: true } }),
+    prisma.vehicle.findMany({ where: { driverId: d.id }, select: { id: true, registrationNumber: true, status: true, type: true, displays: { select: { id: true, state: true } } } }),
+    prisma.driverConsent.findMany({ where: { driverId: d.id }, select: { agreementVersionId: true, acceptedAt: true } }),
+    prisma.mobilityIntegration.findMany({ where: { driverId: d.id }, select: { provider: true, enabled: true, status: true, parserVersion: true, lastEventAt: true } }),
+  ])
+  return ok(request, { driver: { id: d.id, onboardingStatus: d.onboardingStatus, accountStatus: d.user.accountStatus, name: d.user.name, email: d.user.email, city: d.city, profilePhotoUrl: d.profilePhotoUrl }, documents, vehicles, agreements, integrations }, reply)
+})
+app.post('/api/driver/onboarding/submit', async (request, reply) => {
+  const auth = await requireAuth(request); const d = await driverFrom(auth)
+  if (['APPROVED', 'SUSPENDED'].includes(d.onboardingStatus)) throw new ApiError('ONBOARDING_NOT_EDITABLE', 'This driver application cannot be submitted in its current state', 409)
+  const current = await prisma.driver.findUnique({ where: { id: d.id }, include: { user: true, documents: true, vehicles: true, consents: { include: { agreementVersion: true } }, beneficiaries: true } })
+  if (!current) throw notFound('Driver not found')
+  const requiredDocuments = ['AADHAAR', 'PAN', 'DRIVING_LICENCE', 'RC']
+  const missingDocuments = requiredDocuments.filter((type) => !current.documents.some((doc) => doc.documentType === type && doc.status !== 'REJECTED'))
+  const missingAgreements = (await prisma.agreementVersion.findMany({ where: { required: true }, select: { id: true } })).filter((version) => !current.consents.some((consent) => consent.agreementVersionId === version.id && !consent.revokedAt)).map((version) => version.id)
+  const reasons = [...(current.user.name?.trim() ? [] : ['PROFILE_NAME_REQUIRED']), ...(current.city ? [] : ['PROFILE_CITY_REQUIRED']), ...(missingDocuments.length ? ['DOCUMENTS_INCOMPLETE'] : []), ...(!current.vehicles.length ? ['VEHICLE_REQUIRED'] : []), ...(missingAgreements.length ? ['AGREEMENTS_INCOMPLETE'] : []), ...(!current.beneficiaries.length ? ['BANK_BENEFICIARY_REQUIRED'] : [])]
+  if (reasons.length) throw new ApiError('ONBOARDING_INCOMPLETE', `Application is incomplete: ${reasons.join(', ')}`, 409)
+  const next = transitionDriverOnboarding(current.onboardingStatus, 'SUBMITTED')
+  const updated = await prisma.$transaction(async (tx) => { const saved = await tx.driver.update({ where: { id: current.id }, data: { onboardingStatus: next } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_APPLICATION_SUBMITTED', entityType: 'Driver', entityId: current.id, before: { onboardingStatus: current.onboardingStatus }, after: { onboardingStatus: next }, requestId: request.id } }); return saved })
+  return ok(request, { driverId: updated.id, onboardingStatus: updated.onboardingStatus, submittedAt: updated.updatedAt }, reply)
+})
+app.get('/api/driver/onboarding/status', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const [driver, documents, reviews] = await Promise.all([prisma.driver.findUnique({ where: { id: d.id }, select: { onboardingStatus: true, user: { select: { accountStatus: true } } } }), prisma.kycDocument.findMany({ where: { driverId: d.id }, select: { id: true, documentType: true, status: true, rejectionReason: true, submittedAt: true, verifiedAt: true }, orderBy: { submittedAt: 'desc' } }), prisma.driverActivationReview.findMany({ where: { driverId: d.id }, select: { decision: true, reason: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 20 })]); return ok(request, { onboardingStatus: driver?.onboardingStatus, accountStatus: driver?.user.accountStatus, documents, reviews }, reply) })
+app.get('/api/driver/activation-eligibility', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await getDriverActivationEligibility(prisma, driver.id), reply) })
+app.post('/api/driver/devices', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ installationId: z.string().trim().min(8).max(160), appVersion: z.string().max(80).optional(), androidVersion: z.string().max(80).optional(), manufacturer: z.string().max(120).optional(), model: z.string().max(120).optional() })); const device = await prisma.driverDevice.upsert({ where: { installationId: input.installationId }, update: { driverId: driver.id, appVersion: input.appVersion, androidVersion: input.androidVersion, manufacturer: input.manufacturer, model: input.model, lastSeenAt: new Date(), revokedAt: null }, create: { driverId: driver.id, ...input, lastSeenAt: new Date() } }); return ok(request, { id: device.id, installationId: device.installationId, notificationState: device.notificationState, locationState: device.locationState }, reply) })
+app.patch('/api/driver/permissions', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ permission: z.enum(['LOCATION', 'NOTIFICATION', 'KYC_PROCESSING', 'DATA_PROCESSING', 'ACTIVITY_RECOGNITION']), granted: z.boolean(), source: z.string().max(40).default('ANDROID') })); const row = await prisma.driverPermissionGrant.upsert({ where: { driverId_permission: { driverId: driver.id, permission: input.permission } }, update: { granted: input.granted, source: input.source, grantedAt: input.granted ? new Date() : undefined, revokedAt: input.granted ? null : new Date() }, create: { driverId: driver.id, permission: input.permission, granted: input.granted, source: input.source, grantedAt: input.granted ? new Date() : undefined } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: input.granted ? 'DRIVER_PERMISSION_GRANTED' : 'DRIVER_PERMISSION_REVOKED', entityType: 'DriverPermissionGrant', entityId: row.id, after: { permission: input.permission, granted: input.granted, source: input.source }, requestId: request.id } }); return ok(request, row, reply) })
+app.get('/api/driver/permissions', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await prisma.driverPermissionGrant.findMany({ where: { driverId: driver.id }, select: { permission: true, granted: true, source: true, grantedAt: true, revokedAt: true } }), reply) })
+app.post('/api/driver/beneficiaries', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ type: z.enum(['BANK', 'UPI']), value: z.string().trim().min(6).max(256) })); const value = input.value; const beneficiary = await prisma.bankBeneficiary.create({ data: { driverId: driver.id, type: input.type, maskedAccount: `${value.slice(0, 2)}***${value.slice(-4)}`, secretRef: hashSecret(value) } }); return ok(request, { id: beneficiary.id, type: beneficiary.type, maskedAccount: beneficiary.maskedAccount, verificationStatus: beneficiary.verificationStatus }, reply) })
+app.get('/api/driver/beneficiaries', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await prisma.bankBeneficiary.findMany({ where: { driverId: driver.id }, select: { id: true, type: true, maskedAccount: true, verificationStatus: true, rejectionReason: true, verifiedAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } }), reply) })
+app.post('/api/driver/documents/upload-session', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ documentType: z.enum(['AADHAAR', 'PAN', 'DRIVING_LICENCE', 'RC', 'INSURANCE', 'PERMIT', 'PROFILE_PHOTO']), contentType: z.enum(['image/jpeg', 'image/png', 'application/pdf']), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024), sha256: z.string().regex(/^[a-f0-9]{64}$/i) })); const session = await prisma.documentUploadSession.create({ data: { driverId: driver.id, ...input, objectKey: `drivers/${driver.id}/${randomUUID()}`, expiresAt: new Date(Date.now() + 15 * 60_000) } }); const uploadUrl = config.documentStorageMode === 's3' && privateDocumentStorage.signedUploadUrl ? await privateDocumentStorage.signedUploadUrl(session.objectKey, session.contentType, session.expiresAt, session.sha256) : undefined; return ok(request, { uploadSessionId: session.id, objectKey: session.objectKey, expiresAt: session.expiresAt, uploadMode: config.documentStorageMode === 'local' ? 'LOCAL_DEV_BASE64' : 'PRIVATE_SIGNED_URL', uploadUrl, requiredHeaders: uploadUrl ? { 'Content-Type': session.contentType, 'x-amz-meta-sha256': session.sha256 } : undefined }, reply) })
+app.post('/api/driver/documents/:sessionId/complete', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const { sessionId } = request.params as { sessionId: string }; const session = await prisma.documentUploadSession.findFirst({ where: { id: sessionId, driverId: driver.id, status: 'ISSUED', expiresAt: { gt: new Date() } } }); if (!session) throw notFound('Upload session not found or expired'); const input = bodyOf(request, z.object({ contentBase64: z.string().max(14 * 1024 * 1024).optional(), maskedDocumentNumber: z.string().max(40).optional(), expiresAt: z.coerce.date().optional() })); if (config.nodeEnv === 'production' && config.documentScanMode !== 'remote') throw new ApiError('DOCUMENT_SCAN_NOT_CONFIGURED', 'Document malware scanning is not configured', 503); if (config.documentStorageMode === 'local') { if (!input.contentBase64) throw new ApiError('DOCUMENT_CONTENT_REQUIRED', 'Document content is required in local development', 422); const content = Buffer.from(input.contentBase64, 'base64'); if (content.length !== session.sizeBytes || createHash('sha256').update(content).digest('hex') !== session.sha256.toLowerCase()) throw new ApiError('DOCUMENT_CHECKSUM_MISMATCH', 'Document checksum did not match the upload session', 422); await privateDocumentStorage.put(session.objectKey, content, session.contentType) } else { if (input.contentBase64 || !privateDocumentStorage.verifyUploadedObject) throw new ApiError('DOCUMENT_UPLOAD_MODE_INVALID', 'Production documents must be uploaded using the signed storage URL', 422); await privateDocumentStorage.verifyUploadedObject(session.objectKey, session.sizeBytes, session.sha256) }; const document = await prisma.$transaction(async (tx) => { await tx.documentUploadSession.update({ where: { id: session.id }, data: { status: 'COMPLETED', completedAt: new Date() } }); return tx.kycDocument.create({ data: { driverId: driver.id, documentType: session.documentType, storageKey: session.objectKey, maskedDocumentNumber: input.maskedDocumentNumber, expiresAt: input.expiresAt } }) }); return ok(request, { id: document.id, documentType: document.documentType, status: document.status, uploadedAt: document.submittedAt }, reply) })
+app.post('/api/driver/duty-sessions', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ installationId: z.string().min(8).max(160).optional(), idempotencyKey: z.string().min(8).max(160) })); const eligibility = await getDriverActivationEligibility(prisma, driver.id); if (!eligibility.eligible) throw new ApiError('DRIVER_NOT_ELIGIBLE', 'Driver activation requirements are incomplete', 409); const existingKey = await prisma.idempotencyKey.findUnique({ where: { key: `duty-start:${driver.id}:${input.idempotencyKey}` } }); if (existingKey) return ok(request, existingKey.response, reply); const result = await prisma.$transaction(async (tx) => { const active = await tx.dutySession.findFirst({ where: { driverId: driver.id, status: 'ACTIVE' } }); if (active) return { id: active.id, status: active.status, startedAt: active.startedAt, vehicleId: active.vehicleId, displayId: active.displayId, duplicate: true }; const device = input.installationId ? await tx.driverDevice.findFirst({ where: { driverId: driver.id, installationId: input.installationId, revokedAt: null } }) : null; const session = await tx.dutySession.create({ data: { driverId: driver.id, driverDeviceId: device?.id, vehicleId: eligibility.vehicleId, displayId: eligibility.displayId } }); return { id: session.id, status: session.status, startedAt: session.startedAt, vehicleId: session.vehicleId, displayId: session.displayId, duplicate: false }; }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }); await prisma.idempotencyKey.create({ data: { key: `duty-start:${driver.id}:${input.idempotencyKey}`, scope: 'DRIVER_DUTY_START', response: result, expiresAt: new Date(Date.now() + 24 * 60 * 60_000) } }); return ok(request, result, reply) })
+app.post('/api/driver/duty-sessions/:sessionId/stop', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const { sessionId } = request.params as { sessionId: string }; const input = bodyOf(request, z.object({ reason: z.string().max(120).default('DRIVER_ENDED'), idempotencyKey: z.string().min(8).max(160) })); const session = await prisma.dutySession.findFirst({ where: { id: sessionId, driverId: driver.id } }); if (!session) throw notFound('Duty session not found'); if (session.status === 'ENDED') return ok(request, { id: session.id, status: session.status, endedAt: session.endedAt }, reply); const ended = await prisma.dutySession.update({ where: { id: session.id }, data: { status: 'ENDED', endedAt: new Date(), endReason: input.reason } }); return ok(request, { id: ended.id, status: ended.status, endedAt: ended.endedAt }, reply) })
+app.get('/api/driver/duty-sessions/current', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await prisma.dutySession.findFirst({ where: { driverId: driver.id, status: 'ACTIVE' }, orderBy: { startedAt: 'desc' } }), reply) })
+app.get('/api/driver/duty-sessions', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await prisma.dutySession.findMany({ where: { driverId: driver.id }, orderBy: { startedAt: 'desc' }, take: 100 }), reply) })
+app.get('/api/driver/mobility/providers', async (request, reply) => {
+  const auth = await requireAuth(request); const d = await driverFrom(auth)
+  const rows = await prisma.mobilityIntegration.findMany({ where: { driverId: d.id } })
+  return ok(request, MOBILITY_PROVIDERS.map((provider) => ({ provider, enabled: rows.find((row) => row.provider === provider)?.enabled ?? false, status: rows.find((row) => row.provider === provider)?.status ?? 'DISCONNECTED', approved: provider !== 'OORO_NATIVE' })), reply)
+})
+app.patch('/api/driver/mobility/providers/:provider', async (request, reply) => {
+  const auth = await requireAuth(request); const d = await driverFrom(auth)
+  const provider = String((request.params as { provider: string }).provider).toUpperCase()
+  if (!MOBILITY_PROVIDERS.includes(provider as typeof MOBILITY_PROVIDERS[number]) || provider === 'OORO_NATIVE') throw new ApiError('UNSUPPORTED_MOBILITY_PROVIDER', 'This provider cannot be enabled from the Driver App', 422)
+  const input = bodyOf(request, z.object({ enabled: z.boolean(), parserVersion: z.number().int().positive().optional() }))
+  const row = await prisma.mobilityIntegration.upsert({ where: { driverId_provider: { driverId: d.id, provider } }, update: { enabled: input.enabled, status: input.enabled ? 'ENABLED' : 'DISCONNECTED', parserVersion: input.parserVersion }, create: { driverId: d.id, provider, enabled: input.enabled, status: input.enabled ? 'ENABLED' : 'DISCONNECTED', parserVersion: input.parserVersion } })
+  await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: input.enabled ? 'MOBILITY_PROVIDER_ENABLED' : 'MOBILITY_PROVIDER_DISABLED', entityType: 'MobilityIntegration', entityId: row.id, after: { provider, enabled: input.enabled, parserVersion: input.parserVersion }, requestId: request.id } })
+  return ok(request, { provider: row.provider, enabled: row.enabled, status: row.status, parserVersion: row.parserVersion }, reply)
+})
 app.post('/api/fleet/inquiries', async (request, reply) => { const input = bodyOf(request, z.object({ name: z.string(), phone: z.string(), email: z.string().email().optional(), companyName: z.string().optional(), city: z.string().optional(), fleetSize: z.number().int().positive().optional(), vehicleTypes: z.array(z.string()).default([]), message: z.string().optional() })); return ok(request, await prisma.fleetInquiry.create({ data: input }), reply) })
 
-app.post('/api/kyc/documents', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ documentType: z.string(), storageKey: z.string().min(1), maskedDocumentNumber: z.string().optional(), expiresAt: z.coerce.date().optional() })); return ok(request, await prisma.kycDocument.create({ data: { driverId: driver.id, ...input } }), reply) })
+app.post('/api/kyc/documents', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ documentType: z.string(), storageKey: z.string().min(1), maskedDocumentNumber: z.string().optional(), expiresAt: z.coerce.date().optional() })); const upload = await prisma.documentUploadSession.findFirst({ where: { driverId: driver.id, objectKey: input.storageKey, status: 'COMPLETED' } }); if (!upload) throw new ApiError('DOCUMENT_UPLOAD_REQUIRED', 'Documents must be uploaded through an issued private upload session', 422); return ok(request, await prisma.kycDocument.create({ data: { driverId: driver.id, ...input } }), reply) })
 app.get('/api/kyc/documents', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await prisma.kycDocument.findMany({ where: { driverId: driver.id }, orderBy: { submittedAt: 'desc' } }), reply) })
 app.get('/api/kyc/status', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); return ok(request, await prisma.kycDocument.groupBy({ by: ['status'], where: { driverId: driver.id }, _count: true }), reply) })
 
@@ -226,7 +496,7 @@ app.get('/api/vehicles/:vehicleId', async (request, reply) => { const auth = awa
 app.patch('/api/vehicles/:vehicleId', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const { vehicleId } = request.params as { vehicleId: string }; const v = await prisma.vehicle.findFirst({ where: { id: vehicleId, driverId: d.id } }); if (!v) throw notFound('Vehicle not found'); return ok(request, await prisma.vehicle.update({ where: { id: vehicleId }, data: bodyOf(request, vehicleSchema.partial()) }), reply) })
 
 app.post('/api/displays/pairing-code', async (request, reply) => {
-  await requirePermission(request, 'device:write'); const input = bodyOf(request, z.object({ displayId: z.string().uuid().optional(), deviceId: z.string().min(1).optional(), name: z.string().default('OORO Display'), ownershipType: z.string().optional() }))
+  await requireAuth(request); const input = bodyOf(request, z.object({ displayId: z.string().uuid().optional(), deviceId: z.string().min(1).optional(), name: z.string().default('OORO Display'), ownershipType: z.string().optional() }))
   const display = input.displayId ? await prisma.display.findFirst({ where: { id: input.displayId } }) : await prisma.display.create({ data: { deviceId: input.deviceId ?? `pending-${randomSecret(8)}`, name: input.name, ownershipType: input.ownershipType } })
   if (!display) throw notFound('Display not found')
   const code = generatePairingCode(); const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
@@ -288,6 +558,29 @@ app.get('/api/deviceos/state', async (request, reply) => {
     },
   }))
   return ok(request, asDeviceOsJson({ managedDeviceId: device.id, displayId: device.displayId, enrollmentStatus: device.enrollmentStatus, desiredStateVersion: device.desiredStateVersion, targets: deviceTargets }), reply)
+})
+
+app.get('/api/deviceos/commands', async (request, reply) => {
+  const device = await authenticateDeviceOs(request)
+  const now = new Date()
+  await prisma.deviceOsCommand.updateMany({ where: { managedDeviceId: device.id, status: 'QUEUED', expiresAt: { lt: now } }, data: { status: 'FAILED', failedAt: now, errorCode: 'EXPIRED', errorMessage: 'Command expired before delivery' } })
+  const commands = await prisma.deviceOsCommand.findMany({ where: { managedDeviceId: device.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { createdAt: 'asc' }, take: 20 })
+  if (commands.length) await prisma.deviceOsCommand.updateMany({ where: { id: { in: commands.map((command) => command.id) } }, data: { status: 'DELIVERED', deliveredAt: now } })
+  return ok(request, asDeviceOsJson(commands.map((command) => ({ id: command.id, commandType: command.commandType, packageName: command.packageName, payload: command.payload, expiresAt: command.expiresAt }))), reply)
+})
+
+app.post('/api/deviceos/commands/:commandId/ack', async (request, reply) => {
+  const device = await authenticateDeviceOs(request)
+  const { commandId } = request.params as { commandId: string }
+  const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'PENDING_USER_ACTION', 'UNSUPPORTED']), errorCode: z.string().max(120).optional(), errorMessage: z.string().max(1000).optional(), metadata: z.record(z.string(), z.unknown()).optional() }))
+  const command = await prisma.deviceOsCommand.findFirst({ where: { id: commandId, managedDeviceId: device.id } })
+  if (!command) throw notFound('DeviceOS command not found')
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.deviceOsCommand.update({ where: { id: command.id }, data: { status: input.status, acknowledgedAt: new Date(), failedAt: input.status === 'FAILED' ? new Date() : undefined, errorCode: input.errorCode, errorMessage: input.errorMessage, payload: input.metadata ? { ...(command.payload as Record<string, unknown> | null ?? {}), result: input.metadata } as any : undefined } })
+    await tx.deviceOsAuditEvent.create({ data: { managedDeviceId: device.id, action: 'DEVICE_COMMAND_ACKNOWLEDGED', entityType: 'DeviceOsCommand', entityId: command.id, after: { commandType: command.commandType, packageName: command.packageName, status: input.status } as any, requestId: request.id } })
+    return row
+  })
+  return ok(request, asDeviceOsJson(updated), reply)
 })
 
 app.post('/api/deviceos/heartbeat', async (request, reply) => {
@@ -361,13 +654,13 @@ app.get('/api/deviceos/storage', async (request, reply) => {
 })
 
 app.get('/api/admin/deviceos/devices', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const devices = await prisma.managedDevice.findMany({ include: { display: { select: { id: true, name: true, deviceId: true, state: true, vehicle: { select: { registrationNumber: true, city: true } } } }, _count: { select: { inventory: true, deploymentTargets: true } } }, orderBy: { updatedAt: 'desc' } })
   return ok(request, asDeviceOsJson(devices), reply)
 })
 
 app.get('/api/admin/deviceos/devices/:managedDeviceId/inventory', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const { managedDeviceId } = request.params as { managedDeviceId: string }
   const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId }, select: { id: true } })
   if (!device) throw notFound('Managed DeviceOS device not found')
@@ -376,13 +669,13 @@ app.get('/api/admin/deviceos/devices/:managedDeviceId/inventory', async (request
 })
 
 app.get('/api/admin/deviceos/telemetry', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const devices = await prisma.managedDevice.findMany({ select: { id: true, displayId: true, enrollmentStatus: true, lastSeenAt: true, capabilities: true, display: { select: { name: true, deviceId: true } } }, orderBy: { lastSeenAt: 'desc' } })
   return ok(request, asDeviceOsJson(devices.map((device) => ({ ...device, telemetry: (device.capabilities as Record<string, unknown> | null)?.telemetry ?? {} }))), reply)
 })
 
 app.get('/api/admin/deviceos/audit-logs', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const query = request.query as { limit?: string }
   const limit = Math.min(Math.max(Number(query.limit ?? 200) || 200, 1), 500)
   const events = await prisma.deviceOsAuditEvent.findMany({ take: limit, orderBy: { createdAt: 'desc' }, include: { managedDevice: { select: { display: { select: { name: true, deviceId: true } } } }, campaign: { select: { name: true } } } })
@@ -390,7 +683,7 @@ app.get('/api/admin/deviceos/audit-logs', async (request, reply) => {
 })
 
 app.post('/api/admin/deviceos/devices/:managedDeviceId/revoke', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsWriteRoles)
   const { managedDeviceId } = request.params as { managedDeviceId: string }
   const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId } })
   if (!device) throw notFound('Managed DeviceOS device not found')
@@ -405,7 +698,7 @@ app.post('/api/admin/deviceos/devices/:managedDeviceId/revoke', async (request, 
 })
 
 app.post('/api/admin/deviceos/devices/:managedDeviceId/rotate-credential', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsWriteRoles)
   const { managedDeviceId } = request.params as { managedDeviceId: string }
   const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId } })
   if (!device) throw notFound('Managed DeviceOS device not found')
@@ -421,14 +714,38 @@ app.post('/api/admin/deviceos/devices/:managedDeviceId/rotate-credential', async
   return ok(request, { managedDeviceId: device.id, credentialId, deviceToken: token, rotatedAt: now }, reply)
 })
 
+app.post('/api/admin/deviceos/devices/:managedDeviceId/commands', async (request, reply) => {
+  const auth = await requireRoles(request, deviceOsWriteRoles)
+  const { managedDeviceId } = request.params as { managedDeviceId: string }
+  const input = bodyOf(request, z.object({ commandType: z.enum(['RESTART_APP', 'UNINSTALL_APP']), packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), payload: z.record(z.string(), z.unknown()).optional() }))
+  const device = await prisma.managedDevice.findUnique({ where: { id: managedDeviceId }, select: { id: true, enrollmentStatus: true, agentPackageName: true } })
+  if (!device) throw notFound('Managed DeviceOS device not found')
+  if (device.enrollmentStatus !== 'ENROLLED') throw new ApiError('DEVICE_NOT_ENROLLED', 'Commands require an enrolled device', 409)
+  const application = await prisma.managedApplication.findUnique({ where: { packageName: input.packageName }, select: { packageName: true, critical: true, remoteUninstallAllowed: true } })
+  if (!application) throw new ApiError('APPLICATION_NOT_REGISTERED', 'The package is not a registered managed application', 422)
+  if (input.commandType === 'UNINSTALL_APP' && (application.critical || !application.remoteUninstallAllowed || input.packageName === device.agentPackageName || input.packageName === 'com.ooro.screenplayer')) throw new ApiError('UNINSTALL_NOT_ALLOWED', 'Only explicitly allowlisted noncritical applications may be remotely uninstalled', 422)
+  const command = await prisma.$transaction(async (tx) => {
+    const created = await tx.deviceOsCommand.create({ data: { managedDeviceId, commandType: input.commandType, packageName: input.packageName, payload: input.payload as any, expiresAt: new Date(Date.now() + 10 * 60 * 1000) } })
+    await tx.deviceOsAuditEvent.create({ data: { managedDeviceId, actorId: auth.userId, actorRole: auth.role, action: 'DEVICE_COMMAND_QUEUED', entityType: 'DeviceOsCommand', entityId: created.id, after: { commandType: input.commandType, packageName: input.packageName } as any, requestId: request.id } })
+    return created
+  })
+  return ok(request, asDeviceOsJson(command), reply)
+})
+
+app.get('/api/admin/deviceos/devices/:managedDeviceId/commands', async (request, reply) => {
+  await requireRoles(request, adminRoles)
+  const { managedDeviceId } = request.params as { managedDeviceId: string }
+  return ok(request, asDeviceOsJson(await prisma.deviceOsCommand.findMany({ where: { managedDeviceId }, orderBy: { createdAt: 'desc' }, take: 100 })), reply)
+})
+
 app.get('/api/admin/deviceos/applications', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   return ok(request, asDeviceOsJson(await prisma.managedApplication.findMany({ include: { _count: { select: { releases: true, inventory: true } } }, orderBy: { updatedAt: 'desc' } })), reply)
 })
 
 app.post('/api/admin/deviceos/applications', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
-  const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160) }))
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
+  const input = bodyOf(request, z.object({ packageName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/), displayName: z.string().trim().min(1).max(160), critical: z.boolean().optional(), remoteUninstallAllowed: z.boolean().optional() }))
   let application
   try {
     application = await prisma.managedApplication.create({ data: input })
@@ -441,7 +758,7 @@ app.post('/api/admin/deviceos/applications', async (request, reply) => {
 })
 
 app.post('/api/admin/deviceos/applications/:applicationId/allowlist', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const { applicationId } = request.params as { applicationId: string }
   const input = bodyOf(request, z.object({ allowed: z.boolean() }))
   const application = await prisma.managedApplication.findUnique({ where: { id: applicationId } })
@@ -456,14 +773,14 @@ app.post('/api/admin/deviceos/applications/:applicationId/allowlist', async (req
 })
 
 app.get('/api/admin/deviceos/applications/:applicationId/releases', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const { applicationId } = request.params as { applicationId: string }
   const releases = await prisma.applicationRelease.findMany({ where: { applicationId }, orderBy: { createdAt: 'desc' } })
   return ok(request, asDeviceOsJson(releases), reply)
 })
 
 app.post('/api/admin/deviceos/applications/:applicationId/releases', { bodyLimit: deviceOsUploadBodyLimit }, async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const { applicationId } = request.params as { applicationId: string }
   const application = await prisma.managedApplication.findUnique({ where: { id: applicationId } })
   if (!application) throw notFound('Managed application not found')
@@ -495,7 +812,7 @@ app.post('/api/admin/deviceos/applications/:applicationId/releases', { bodyLimit
 })
 
 app.post('/api/admin/deviceos/releases/:releaseId/approve', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsReleaseRoles)
   const { releaseId } = request.params as { releaseId: string }
   const release = await prisma.applicationRelease.findUnique({ where: { id: releaseId } })
   if (!release) throw notFound('Application release not found')
@@ -582,14 +899,14 @@ app.post('/api/deviceos/targets/:targetId/events', async (request, reply) => {
 })
 
 app.post('/api/admin/deviceos/deployments', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const input = bodyOf(request, z.object({
     name: z.string().trim().min(1).max(160),
-    applicationId: z.string().uuid(),
-    releaseId: z.string().uuid(),
+    applicationId: z.string({ error: 'Application ID is required' }).uuid({ error: 'Application ID must be a valid UUID' }),
+    releaseId: z.string({ error: 'Release ID is required' }).uuid({ error: 'Release ID must be a valid UUID' }),
     targetingMode: z.enum(deploymentTargetingModes),
-    deviceIds: z.array(z.string().uuid()).max(5000).optional(),
-    groupId: z.string().uuid().optional(),
+    deviceIds: z.array(z.string().uuid({ error: 'Device ID must be a valid UUID' })).max(5000).optional(),
+    groupId: z.string().uuid({ error: 'Group ID must be a valid UUID' }).optional(),
     city: z.string().trim().max(120).optional(),
     targetPercentage: z.number().int().min(1).max(100).optional(),
     maintenanceWindowStart: z.coerce.date().optional(),
@@ -605,14 +922,14 @@ app.post('/api/admin/deviceos/deployments', async (request, reply) => {
 })
 
 app.get('/api/admin/deviceos/deployments', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const campaigns = await prisma.deploymentCampaign.findMany({ include: { application: true, release: true, _count: { select: { targets: true } }, targets: { select: { state: true } } }, orderBy: { createdAt: 'desc' } })
   const summarized = campaigns.map(({ targets, ...campaign }) => ({ ...campaign, targetSummary: targets.reduce<Record<string, number>>((summary, target) => { summary[target.state] = (summary[target.state] ?? 0) + 1; return summary }, {}) }))
   return ok(request, asDeviceOsJson(summarized), reply)
 })
 
 app.get('/api/admin/deviceos/deployments/:campaignId', async (request, reply) => {
-  await requirePermission(request, 'device:read')
+  await requireRoles(request, adminRoles)
   const { campaignId } = request.params as { campaignId: string }
   const campaign = await prisma.deploymentCampaign.findUnique({
     where: { id: campaignId },
@@ -633,14 +950,14 @@ app.get('/api/admin/deviceos/deployments/:campaignId', async (request, reply) =>
 })
 
 app.post('/api/admin/deviceos/deployments/:campaignId/pause', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const { campaignId } = request.params as { campaignId: string }
   const input = bodyOf(request, z.object({ reason: z.string().trim().min(1).max(500) }))
   return ok(request, asDeviceOsJson(await pauseDeviceOsCampaign(prisma, campaignId, input.reason, auth.userId, auth.role)), reply)
 })
 
 app.post('/api/admin/deviceos/deployments/:campaignId/resume', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, deviceOsDeploymentRoles)
   const { campaignId } = request.params as { campaignId: string }
   return ok(request, asDeviceOsJson(await resumeDeviceOsCampaign(prisma, campaignId, auth.userId, auth.role)), reply)
 })
@@ -669,17 +986,75 @@ app.post('/api/device/heartbeat', async (request, reply) => {
   const commands = await prisma.displayCommand.findMany({ where: { displayId: display.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { createdAt: 'asc' }, take: 20, select: { id: true, commandType: true, payload: true, expiresAt: true } })
   return ok(request, { accepted: true, heartbeatId: hb.id, serverTime: new Date(), currentManifestVersion: latest.manifest.version, manifestUpdateAvailable: latest.manifest.version !== (input.manifestVersion ?? -1), commands: asJson(commands) }, reply)
 })
-app.get('/api/device/manifest', async (request, reply) => { const display = await authenticateDisplay(request); const { manifest, reasons } = await buildDisplayManifest(display.id); request.log.info({ displayId: display.id, reasons, itemCount: manifest.items.length }, 'display manifest evaluated'); return ok(request, { version: manifest.version, manifestId: manifest.manifestId, screenId: display.id, generatedAt: manifest.generatedAt, validUntil: manifest.expiresAt, timezone: 'Asia/Kolkata', layout: manifest.layout, news: manifest.news, items: manifest.items }, reply) })
-app.get('/api/admin/displays/:displayId/manifest-debug', async (request, reply) => { await requirePermission(request, 'device:read'); const { displayId } = request.params as { displayId: string }; const { manifest, reasons } = await buildDisplayManifest(displayId); return ok(request, { displayId, reasons, selected: manifest.items, manifestVersion: manifest.version }, reply) })
-app.get('/api/device/commands', async (request, reply) => { const display = await authenticateDisplay(request); const now = new Date(); await prisma.displayCommand.updateMany({ where: { displayId: display.id, status: 'QUEUED', expiresAt: { lt: now } }, data: { status: 'FAILED', failedAt: now, error: 'EXPIRED' } }); const commands = await prisma.displayCommand.findMany({ where: { displayId: display.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { createdAt: 'asc' }, take: 20 }); if (commands.length) { const deliveredAt = new Date(); await prisma.displayCommand.updateMany({ where: { id: { in: commands.map((c) => c.id) } }, data: { status: 'DELIVERED', deliveredAt } }); commands.forEach((command) => { command.status = 'DELIVERED'; command.deliveredAt = deliveredAt }); } return ok(request, asJson(commands), reply) })
-app.post('/api/device/commands/:commandId/ack', async (request, reply) => { const display = await authenticateDisplay(request); const { commandId } = request.params as { commandId: string }; const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED','PROCESSING','SUCCEEDED','FAILED','UNSUPPORTED']), receivedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), completedAt: z.coerce.date().optional(), errorCode: z.string().optional(), errorMessage: z.string().optional() })); const command = await prisma.displayCommand.findFirst({ where: { id: commandId, displayId: display.id } }); if (!command) throw notFound('Command not found'); const terminal = ['SUCCEEDED', 'FAILED', 'UNSUPPORTED'].includes(input.status); return ok(request, await prisma.displayCommand.update({ where: { id: commandId }, data: { status: input.status, acknowledgedAt: terminal || input.status === 'RECEIVED' || input.status === 'PROCESSING' ? new Date() : command.acknowledgedAt, failedAt: input.status === 'FAILED' ? new Date() : undefined, error: input.errorMessage } }), reply) })
+app.get('/api/device/manifest', async (request, reply) => { const display = await authenticateDisplay(request); const { manifest, reasons } = await buildDisplayManifest(display.id); request.log.info({ displayId: display.id, reasons, itemCount: manifest.items.length, hasSponsoredItem: Boolean(manifest.sponsoredItem) }, 'display manifest evaluated'); return ok(request, { version: manifest.version, manifestId: manifest.manifestId, screenId: display.id, generatedAt: manifest.generatedAt, validUntil: manifest.expiresAt, timezone: 'Asia/Kolkata', layout: manifest.layout, news: manifest.news, items: manifest.items, ...(manifest.sponsoredItem ? { sponsoredItem: manifest.sponsoredItem } : {}) }, reply) })
+app.get('/api/admin/displays/:displayId/manifest-debug', async (request, reply) => { await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']); const { displayId } = request.params as { displayId: string }; const { manifest, reasons } = await buildDisplayManifest(displayId); return ok(request, { displayId, reasons, selected: manifest.items, manifestVersion: manifest.version }, reply) })
+app.get('/api/device/commands', async (request, reply) => {
+  const display = await authenticateDisplay(request)
+  const now = new Date()
+  // Refresh commands are safe to retry. Recover one if the app received it but
+  // exited before applying the new manifest or acknowledging completion.
+  const refreshLeaseExpiredAt = new Date(now.getTime() - 5 * 60_000)
+  await prisma.displayCommand.updateMany({
+    where: {
+      displayId: display.id,
+      commandType: { in: ['REFRESH_MANIFEST', 'SYNC_MANIFEST'] },
+      status: 'DELIVERED',
+      deliveredAt: { lt: refreshLeaseExpiredAt },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    data: { status: 'QUEUED', deliveredAt: null },
+  })
+  await prisma.displayCommand.updateMany({
+    where: { displayId: display.id, status: 'QUEUED', expiresAt: { lt: now } },
+    data: { status: 'FAILED', failedAt: now, error: 'EXPIRED' },
+  })
+  const commands = await prisma.displayCommand.findMany({
+    where: { displayId: display.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+    orderBy: { createdAt: 'asc' },
+    take: 20,
+  })
+  if (commands.length) {
+    const deliveredAt = new Date()
+    await prisma.displayCommand.updateMany({
+      where: { id: { in: commands.map((command) => command.id) } },
+      data: { status: 'DELIVERED', deliveredAt },
+    })
+    commands.forEach((command) => {
+      command.status = 'DELIVERED'
+      command.deliveredAt = deliveredAt
+    })
+  }
+  return ok(request, asJson(commands), reply)
+})
+app.post('/api/device/commands/:commandId/ack', async (request, reply) => {
+  const display = await authenticateDisplay(request)
+  const { commandId } = request.params as { commandId: string }
+  const input = bodyOf(request, z.object({ status: z.enum(['RECEIVED','PROCESSING','SUCCEEDED','FAILED','UNSUPPORTED']), receivedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), completedAt: z.coerce.date().optional(), errorCode: z.string().optional(), errorMessage: z.string().optional() }))
+  const command = await prisma.displayCommand.findFirst({ where: { id: commandId, displayId: display.id } })
+  if (!command) throw notFound('Command not found')
+  const terminal = ['SUCCEEDED', 'FAILED', 'UNSUPPORTED'].includes(input.status)
+  const updated = await prisma.$transaction(async (tx) => {
+    const acknowledged = await tx.displayCommand.update({ where: { id: commandId }, data: { status: input.status, acknowledgedAt: terminal || input.status === 'RECEIVED' || input.status === 'PROCESSING' ? new Date() : command.acknowledgedAt, failedAt: input.status === 'FAILED' ? new Date() : undefined, error: input.errorMessage } })
+    if (command.commandType === 'UNPAIR' && input.status === 'SUCCEEDED') {
+      const deleteAfterUnpair = Boolean(command.payload && typeof command.payload === 'object' && 'deleteAfterUnpair' in command.payload && command.payload.deleteAfterUnpair === true)
+      await tx.display.update({ where: { id: display.id }, data: { deviceTokenHash: null, state: deleteAfterUnpair ? 'DELETED' : 'UNPAIRED' } })
+      await tx.auditLog.create({ data: { actorId: null, actorRole: 'DEVICE', action: deleteAfterUnpair ? 'DISPLAY_DELETED_AFTER_UNPAIR' : 'DISPLAY_UNPAIRED', entityType: 'Display', entityId: display.id, after: { commandId }, requestId: request.id } })
+    }
+    return acknowledged
+  })
+  return ok(request, updated, reply)
+})
 app.post('/api/device/unpair', async (request, reply) => { const display = await authenticateDisplay(request); await prisma.display.update({ where: { id: display.id }, data: { deviceTokenHash: null, state: 'UNPAIRED' } }); return ok(request, { unpaired: true }, reply) })
 
-const eventSchema = z.object({ eventId: z.string().min(4), provider: z.string(), eventType: z.string(), timestamp: z.coerce.date().optional(), occurredAt: z.coerce.date().optional(), confidence: z.number().min(0).max(1).default(1), source: z.string().optional(), parserVersion: z.number().int().optional() })
+const eventSchema = z.object({ eventId: z.string().min(4).max(160), provider: z.enum(MOBILITY_PROVIDERS), eventType: z.enum(MOBILITY_EVENT_TYPES), timestamp: z.coerce.date().optional(), occurredAt: z.coerce.date().optional(), confidence: z.number().min(0).max(1).default(1), source: z.string().max(80).optional(), sourcePackage: z.string().max(200).optional(), parserVersion: z.number().int().positive().optional() })
 async function processMobilityEvent(driver: any, event: z.infer<typeof eventSchema>, requestId: string) {
+  if (event.provider !== 'OORO_NATIVE' && !isApprovedNotificationSource(event.provider, event.sourcePackage)) throw new ApiError('UNAPPROVED_MOBILITY_SOURCE', 'This notification source is not approved', 422)
+  const evidenceClass = classifyEvidence(event.eventType, event.confidence)
   const vehicle = await prisma.vehicle.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: 'asc' } }); const display = vehicle ? await prisma.display.findFirst({ where: { vehicleId: vehicle.id } }) : null
   const occurredAt = event.occurredAt ?? event.timestamp ?? new Date()
-  const recorded = await prisma.mobilityEvent.create({ data: { eventId: event.eventId, driverId: driver.id, vehicleId: vehicle?.id, provider: event.provider, eventType: event.eventType, occurredAt, confidence: event.confidence, source: event.source, parserVersion: event.parserVersion } }).catch((error: any) => error?.code === 'P2002' ? null : Promise.reject(error))
+  const integration = await prisma.mobilityIntegration.findUnique({ where: { driverId_provider: { driverId: driver.id, provider: event.provider } } })
+  if (event.provider !== 'OORO_NATIVE' && !integration?.enabled) throw new ApiError('MOBILITY_PROVIDER_DISABLED', 'Enable this mobility provider before sending events', 409)
+  const recorded = await prisma.mobilityEvent.create({ data: { eventId: event.eventId, driverId: driver.id, vehicleId: vehicle?.id, provider: event.provider, eventType: event.eventType, occurredAt, confidence: event.confidence, source: event.source, sourcePackage: event.sourcePackage, evidenceClass, diagnosticCode: evidenceClass === 'UNKNOWN' ? 'UNRECOGNIZED_EVENT' : undefined, parserVersion: event.parserVersion } }).catch((error: any) => error?.code === 'P2002' ? null : Promise.reject(error))
   if (!recorded) return { duplicate: true }
   let candidate: any = await prisma.rideCandidate.findFirst({ where: { driverId: driver.id, provider: event.provider, state: { in: ['TO_PICKUP','DETECTED','CONVERTED'] } }, orderBy: { lastEventAt: 'desc' }, include: { ride: true } })
   let ride: any = candidate?.ride
@@ -718,15 +1093,16 @@ async function finishRide(rideId: string, requestId: string) {
   const amount = calculateEarnings(validSeconds, { baseMinor: 800n, perVerifiedAdMinuteMinor: 100n, peakBonusMinor: 0n })
   await prisma.earningEntry.create({ data: { driverId: ride.driverId, rideId, campaignSessionId: ride.campaignSessions[0]?.id, type: 'AD_EARNING', amountMinor: amount, status: 'PENDING', metadata: { validSeconds } as any } })
 }
-app.post('/api/mobility/events', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ events: z.array(eventSchema).min(1).max(50).optional(), event: eventSchema.optional() })); const events = input.events ?? (input.event ? [input.event] : []); if (!events.length) throw new ApiError('VALIDATION_ERROR', 'At least one event is required', 422); const results = []; for (const event of events) results.push(await processMobilityEvent(driver, event, request.id)); return ok(request, results, reply) })
+app.post('/api/mobility/events', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const input = bodyOf(request, z.object({ events: z.array(eventSchema).min(1).max(50).optional(), event: eventSchema.optional() })); const events = input.events ?? (input.event ? [input.event] : []); if (!events.length) throw new ApiError('VALIDATION_ERROR', 'At least one event is required', 422); const activeDuty = await prisma.dutySession.findFirst({ where: { driverId: driver.id, status: 'ACTIVE' } }); if (events.some((event) => event.source === 'NOTIFICATION') && !activeDuty) throw new ApiError('DUTY_SESSION_REQUIRED', 'Notification ride events require an active duty session', 409); const results = []; for (const event of events) results.push(await processMobilityEvent(driver, event, request.id)); if (activeDuty) await prisma.dutySession.update({ where: { id: activeDuty.id }, data: { lastEventAt: new Date() } }); return ok(request, results, reply) })
 app.post('/api/rides/:rideId/locations', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const { rideId } = request.params as { rideId: string }; const ride = await prisma.ride.findFirst({ where: { id: rideId, driverId: driver.id } }); if (!ride) throw notFound('Ride not found'); const { points } = bodyOf(request, z.object({ points: z.array(z.object({ timestamp: z.coerce.date(), latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), accuracy: z.number().nonnegative(), speed: z.number().nonnegative().optional(), bearing: z.number().optional() })).max(500) })); await prisma.rideLocation.createMany({ data: points.map((p) => ({ rideId, occurredAt: p.timestamp, latitude: p.latitude, longitude: p.longitude, accuracy: p.accuracy, speed: p.speed, bearing: p.bearing })) }); return ok(request, { accepted: points.length }, reply) })
+app.post('/api/driver/duty-sessions/:sessionId/locations', async (request, reply) => { const auth = await requireAuth(request); const driver = await driverFrom(auth); const { sessionId } = request.params as { sessionId: string }; const session = await prisma.dutySession.findFirst({ where: { id: sessionId, driverId: driver.id, status: 'ACTIVE' } }); if (!session) throw notFound('Active duty session not found'); const input = bodyOf(request, z.object({ points: z.array(z.object({ id: z.string().uuid().optional(), timestamp: z.coerce.date(), latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180), accuracy: z.number().finite().nonnegative().max(10000), speed: z.number().finite().nonnegative().optional(), bearing: z.number().finite().optional() })).min(1).max(200) })); const rows = await prisma.dutyLocationEvent.createMany({ data: input.points.map((point) => ({ id: point.id ?? randomUUID(), driverId: driver.id, dutySessionId: session.id, occurredAt: point.timestamp, latitude: point.latitude, longitude: point.longitude, accuracy: point.accuracy, speed: point.speed, bearing: point.bearing })), skipDuplicates: true }); await prisma.dutySession.update({ where: { id: session.id }, data: { lastLocationAt: new Date() } }); return ok(request, { accepted: rows.count }, reply) })
 app.get('/api/rides', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); return ok(request, await prisma.ride.findMany({ where: { driverId: d.id }, orderBy: { createdAt: 'desc' }, include: { verification: true, campaignSessions: true } }), reply) })
 app.get('/api/rides/:rideId', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const { rideId } = request.params as { rideId: string }; const ride = await prisma.ride.findFirst({ where: { id: rideId, driverId: d.id }, include: { events: true, locations: true, verification: true, proofs: true, campaignSessions: true } }); if (!ride) throw notFound('Ride not found'); return ok(request, asJson(ride), reply) })
 
 app.post('/api/playback/events', async (request, reply) => { const display = await authenticateDisplay(request); const input = bodyOf(request, z.object({ events: z.array(z.object({ eventId: z.string(), rideId: z.string().uuid().optional(), campaignSessionId: z.string().uuid().optional(), campaignId: z.string().optional(), creativeId: z.string().optional(), assetId: z.string().optional(), eventType: z.string(), timestamp: z.coerce.date().optional(), position: z.number().int().optional(), duration: z.number().int().optional(), manifestVersion: z.number().int().optional(), playerVersion: z.string().optional(), errorCode: z.string().optional() })).min(1).max(100) })); const inserted: unknown[] = []; for (const e of input.events) { const row = await prisma.playbackEvent.create({ data: { eventId: e.eventId, displayId: display.id, rideId: e.rideId, campaignSessionId: e.campaignSessionId, campaignId: e.campaignId, creativeId: e.creativeId, assetId: e.assetId, eventType: e.eventType, occurredAt: e.timestamp ?? new Date(), position: e.position, duration: e.duration, manifestVersion: e.manifestVersion, playerVersion: e.playerVersion, errorCode: e.errorCode } }).catch((error: any) => error?.code === 'P2002' ? null : Promise.reject(error)); if (row) inserted.push(row) } return ok(request, { accepted: inserted.length }, reply) })
 app.post('/api/device/proof-of-play', async (request, reply) => {
   const display = await authenticateDisplay(request)
-  const input = bodyOf(request, z.object({ events: z.array(z.object({ eventId: z.string().optional(), proofId: z.string().optional(), rideId: z.string().uuid().optional(), campaignSessionId: z.string().uuid().optional(), campaignId: z.string().optional(), creativeId: z.string().optional(), assetId: z.string().optional(), scheduleItemId: z.string().optional(), playbackStartedAt: z.coerce.date().optional(), playbackEndedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), endedAt: z.coerce.date().optional(), expectedDuration: z.number().int().positive().optional(), actualDuration: z.number().int().nonnegative().optional(), manifestVersion: z.number().int().optional(), playerVersion: z.string().optional(), appVersion: z.string().optional(), playbackCompleted: z.boolean().optional(), success: z.boolean().optional(), failureReason: z.string().optional() })).min(1).max(100) }))
+  const input = bodyOf(request, z.object({ events: z.array(z.object({ eventId: z.string().optional(), proofId: z.string().optional(), slot: z.enum(['MAIN','SPONSORED']).optional(), rideId: z.string().uuid().optional(), campaignSessionId: z.string().uuid().optional(), campaignId: z.string().optional(), creativeId: z.string().optional(), assetId: z.string().optional(), scheduleItemId: z.string().optional(), playbackStartedAt: z.coerce.date().optional(), playbackEndedAt: z.coerce.date().optional(), startedAt: z.coerce.date().optional(), endedAt: z.coerce.date().optional(), expectedDuration: z.number().int().positive().optional(), actualDuration: z.number().int().nonnegative().optional(), manifestVersion: z.number().int().optional(), playerVersion: z.string().optional(), appVersion: z.string().optional(), playbackCompleted: z.boolean().optional(), success: z.boolean().optional(), failureReason: z.string().optional() })).min(1).max(100) }))
   const auditFault = process.env.OORO_INTEGRATION_TESTS === 'true' && /127\.0\.0\.1:55432\/ooro_audit/.test(process.env.DATABASE_URL ?? '') ? process.env.OORO_TEST_PROOF_FAULT : undefined
   if (auditFault === 'HTTP_500') throw new ApiError('TEST_INJECTED_PROOF_FAILURE', 'Test-only proof failure', 500)
   const partialLimit = auditFault?.match(/^PARTIAL:(\d+)$/)?.[1]
@@ -741,6 +1117,7 @@ app.post('/api/device/proof-of-play', async (request, reply) => {
     const expected = e.expectedDuration ?? actual ?? 1
     const succeeded = e.playbackCompleted ?? e.success ?? false
     const assetId = e.assetId
+    const slot = e.slot ?? 'MAIN'
     const proofId = canonicalProofId(e.proofId, e.eventId)
     if (!proofId) throw new ApiError('PROOF_ID_REQUIRED', 'Proof identity is required', 422)
     const existingProof = await prisma.proofOfPlay.findUnique({ where: { proofId }, select: { displayId: true } })
@@ -748,19 +1125,20 @@ app.post('/api/device/proof-of-play', async (request, reply) => {
     if (e.rideId && !(await prisma.ride.findUnique({ where: { id: e.rideId }, select: { id: true } }))) throw notFound('Ride not found')
     if (e.campaignId && !(await prisma.displayCampaignAssignment.findUnique({ where: { displayId_campaignId: { displayId: display.id, campaignId: e.campaignId } }, select: { id: true } }))) throw forbidden('Campaign was not assigned to this display')
     if (e.creativeId) {
-      const creative = await prisma.creative.findUnique({ where: { id: e.creativeId }, select: { id: true, campaignId: true } })
+      const creative = await prisma.creative.findUnique({ where: { id: e.creativeId }, select: { id: true, campaignId: true, campaign: { select: { deliverySlot: true } } } })
       if (!creative) throw notFound('Creative not found')
       if (e.campaignId && creative.campaignId !== e.campaignId) throw new ApiError('PROOF_CREATIVE_CAMPAIGN_MISMATCH', 'Creative does not belong to campaign', 422)
+      if ((creative.campaign.deliverySlot ?? 'MAIN') !== slot) throw new ApiError('PROOF_SLOT_MISMATCH', 'Proof slot does not match the approved campaign placement', 422)
       if (assetId && !(await prisma.asset.findFirst({ where: { id: assetId, creativeId: e.creativeId }, select: { id: true } }))) throw new ApiError('PROOF_ASSET_CREATIVE_MISMATCH', 'Asset does not belong to creative', 422)
     }
     const location = await prisma.displayLocationEvent.findFirst({ where: { displayId: display.id, occurredAt: { gte: new Date(started.getTime() - 10 * 60_000), lte: new Date(started.getTime() + 2 * 60_000) } }, orderBy: { occurredAt: 'desc' } })
-    const proofData = { proofId, rideId: e.rideId, displayId: display.id, campaignSessionId: e.campaignSessionId, campaignId: e.campaignId, creativeId: e.creativeId, scheduleItemId: e.scheduleItemId, assetId, playbackStartedAt: started, playbackEndedAt: ended, expectedDuration: expected, actualDuration: actual, manifestVersion: e.manifestVersion, playerVersion: e.playerVersion ?? e.appVersion, playbackCompleted: succeeded, status: canonicalProofStatus(succeeded, actual, expected), invalidReason: e.failureReason, latitude: location?.latitude, longitude: location?.longitude, locationAccuracy: location?.accuracyMeters, locationOccurredAt: location?.occurredAt } as any
+    const proofData = { proofId, rideId: e.rideId, displayId: display.id, campaignSessionId: e.campaignSessionId, campaignId: e.campaignId, creativeId: e.creativeId, scheduleItemId: e.scheduleItemId, assetId, playbackStartedAt: started, playbackEndedAt: ended, expectedDuration: expected, actualDuration: actual, manifestVersion: e.manifestVersion, playerVersion: e.playerVersion ?? e.appVersion, playbackCompleted: succeeded, status: canonicalProofStatus(succeeded, actual, expected), invalidReason: e.failureReason, slot, latitude: location?.latitude, longitude: location?.longitude, locationAccuracy: location?.accuracyMeters, locationOccurredAt: location?.occurredAt } as any
     try {
       await prisma.proofOfPlay.upsert({ where: { proofId }, update: {}, create: proofData })
     } catch (error: any) {
       if (error?.code !== 'P2002') throw error
       const existing = await prisma.proofOfPlay.findUnique({ where: { proofId } })
-      const sameIdentity = existing && existing.displayId === display.id && existing.campaignId === proofData.campaignId && existing.creativeId === proofData.creativeId && existing.scheduleItemId === proofData.scheduleItemId && existing.assetId === proofData.assetId && existing.playbackCompleted === proofData.playbackCompleted && existing.expectedDuration === proofData.expectedDuration && existing.actualDuration === proofData.actualDuration
+      const sameIdentity = existing && existing.displayId === display.id && existing.campaignId === proofData.campaignId && existing.creativeId === proofData.creativeId && existing.scheduleItemId === proofData.scheduleItemId && existing.assetId === proofData.assetId && existing.slot === slot && existing.playbackCompleted === proofData.playbackCompleted && existing.expectedDuration === proofData.expectedDuration && existing.actualDuration === proofData.actualDuration
       if (!sameIdentity) throw new ApiError('PROOF_IDEMPOTENCY_CONFLICT', 'Proof identity already exists with different playback data', 409)
       request.log.info({ proofId }, 'proof duplicate acknowledged idempotently')
     }
@@ -782,12 +1160,14 @@ app.get('/api/payouts', async (request, reply) => { const auth = await requireAu
 
 app.post('/api/safety/incidents', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const input = bodyOf(request, z.object({ type: z.string(), vehicleId: z.string().uuid().optional(), rideId: z.string().uuid().optional(), latitude: z.number().optional(), longitude: z.number().optional(), notes: z.string().optional() })); return ok(request, await prisma.safetyIncident.create({ data: { driverId: d.id, occurredAt: new Date(), ...input } }), reply) })
 app.post('/api/roadside/requests', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const input = bodyOf(request, z.object({ issueType: z.string(), vehicleId: z.string().uuid().optional(), latitude: z.number().optional(), longitude: z.number().optional() })); return ok(request, await prisma.roadsideRequest.create({ data: { driverId: d.id, ...input, provider: 'MOCK_PROVIDER' } }), reply) })
-app.post('/api/support/tickets', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const input = bodyOf(request, z.object({ category: z.string(), description: z.string().min(1), rideId: z.string().optional(), displayId: z.string().optional(), vehicleId: z.string().optional() })); return ok(request, await prisma.supportTicket.create({ data: { driverId: d.id, ...input } }), reply) })
-app.get('/api/agreements/required', async (request, reply) => ok(request, await prisma.agreementVersion.findMany({ where: { required: true }, orderBy: { createdAt: 'desc' } }), reply))
-app.post('/api/agreements/:versionId/accept', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const { versionId } = request.params as { versionId: string }; return ok(request, await prisma.driverConsent.upsert({ where: { driverId_agreementVersionId: { driverId: d.id, agreementVersionId: versionId } }, update: { acceptedAt: new Date() }, create: { driverId: d.id, agreementVersionId: versionId } }), reply) })
+app.post('/api/support/tickets', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const input = bodyOf(request, z.object({ category: z.enum(['GENERAL', 'DISPLAY', 'PAYMENT', 'RIDE', 'SAFETY']), description: z.string().trim().min(10).max(2000), rideId: z.string().uuid().optional(), displayId: z.string().uuid().optional(), vehicleId: z.string().uuid().optional() })); const ticket = await prisma.$transaction(async (tx) => { const created = await tx.supportTicket.create({ data: { driverId: d.id, ...input } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'SUPPORT_TICKET_CREATED', entityType: 'SupportTicket', entityId: created.id, after: { category: created.category, rideId: created.rideId, displayId: created.displayId, vehicleId: created.vehicleId }, requestId: request.id } }); return created }); return ok(request, { id: ticket.id, category: ticket.category, status: ticket.status, createdAt: ticket.createdAt }, reply) })
+app.get('/api/agreements/required', async (request, reply) => ok(request, await prisma.agreementVersion.findMany({ where: { required: true }, orderBy: { createdAt: 'desc' }, select: { id: true, type: true, version: true, contentUrl: true, contentHash: true, required: true, createdAt: true } }), reply))
+app.get('/api/driver/consents', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); return ok(request, await prisma.driverConsent.findMany({ where: { driverId: d.id }, include: { agreementVersion: { select: { id: true, type: true, version: true, contentUrl: true, contentHash: true, required: true } } }, orderBy: { acceptedAt: 'desc' } }), reply) })
+app.post('/api/agreements/:versionId/accept', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const { versionId } = request.params as { versionId: string }; const agreement = await prisma.agreementVersion.findUnique({ where: { id: versionId } }); if (!agreement) throw notFound('Agreement version not found'); const consent = await prisma.driverConsent.upsert({ where: { driverId_agreementVersionId: { driverId: d.id, agreementVersionId: versionId } }, update: { acceptedAt: new Date(), revokedAt: null }, create: { driverId: d.id, agreementVersionId: versionId } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_AGREEMENT_ACCEPTED', entityType: 'DriverConsent', entityId: consent.id, after: { agreementType: agreement.type, agreementVersion: agreement.version, contentHash: agreement.contentHash, acceptedAt: consent.acceptedAt }, requestId: request.id } }); return ok(request, { id: consent.id, agreementVersionId: consent.agreementVersionId, acceptedAt: consent.acceptedAt, agreementVersion: agreement.version, contentHash: agreement.contentHash }, reply) })
+app.post('/api/agreements/:versionId/revoke', async (request, reply) => { const auth = await requireAuth(request); const d = await driverFrom(auth); const { versionId } = request.params as { versionId: string }; const consent = await prisma.driverConsent.findUnique({ where: { driverId_agreementVersionId: { driverId: d.id, agreementVersionId: versionId } } }); if (!consent) throw notFound('Consent record not found'); const updated = await prisma.driverConsent.update({ where: { id: consent.id }, data: { revokedAt: new Date() } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_AGREEMENT_REVOKED', entityType: 'DriverConsent', entityId: consent.id, after: { agreementVersionId: versionId, revokedAt: updated.revokedAt }, requestId: request.id } }); return ok(request, { id: updated.id, revokedAt: updated.revokedAt }, reply) })
 
 app.post('/api/admin/displays', async (request, reply) => {
-  const auth = await requirePermission(request, 'device:write')
+  const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'])
   const input = bodyOf(request, z.object({
     screenName: z.string().trim().min(1).max(120),
     screenType: z.string().trim().min(1).max(40),
@@ -803,11 +1183,142 @@ app.post('/api/admin/displays', async (request, reply) => {
   await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_CREATED', entityType: 'Display', entityId: display.id, after: { city: input.city, area: input.area, notes: input.notes } as any, requestId: request.id } })
   return ok(request, { displayId: display.id, pairingCode: code, expiresAt, display }, reply)
 })
-app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ select: { id: true, userId: true, driverType: true, onboardingStatus: true, preferredLanguage: true, city: true, profilePhotoUrl: true, user: { select: { id: true, name: true, email: true, phone: true, role: true, accountStatus: true } }, vehicles: { select: { id: true, registrationNumber: true, type: true, city: true, area: true, status: true } } } })), reply) })
-app.get('/api/admin/vehicles', async (request, reply) => { await requirePermission(request, 'device:read'); return ok(request, await prisma.vehicle.findMany({ select: { id: true, driverId: true, type: true, cabType: true, registrationNumber: true, city: true, area: true, routeId: true, depotId: true, manufacturer: true, model: true, year: true, fuelType: true, status: true, driver: { select: { id: true, user: { select: { id: true, name: true, email: true, phone: true, accountStatus: true } } } }, displays: { select: { id: true, deviceId: true, name: true, state: true, appVersion: true, manifestVersion: true } } } }), reply) })
-app.get('/api/admin/displays', async (request, reply) => { await requirePermission(request, 'device:read'); const rows = await prisma.display.findMany({ select: { id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: {city:true} }, vehicleId: true, state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true, lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true, currentPlaybackState: true, vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } }, createdAt: true, updatedAt: true, heartbeats: { select: { occurredAt: true, receivedAt: true, networkType: true }, orderBy: { receivedAt: 'desc' }, take: 1 } } }); return ok(request, asJson(rows.map((display) => ({ ...display, connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? display.heartbeats[0]?.receivedAt, new Date(), config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds) }))), reply) })
-app.get('/api/admin/displays/:displayId/live-state', async (request, reply) => {
+app.delete('/api/admin/displays/:displayId', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { displayId } = request.params as { displayId: string }
+  const display = await prisma.display.findUnique({ where: { id: displayId }, select: { id: true, state: true, deviceTokenHash: true } })
+  if (!display) throw notFound('Screen not found')
+  if (display.state === 'DELETED') return ok(request, { displayId, state: 'DELETED', pendingUnpair: false }, reply)
+  const result = await prisma.$transaction(async (tx) => {
+    const assignments = await tx.displayCampaignAssignment.findMany({ where: { displayId, active: true }, select: { campaignId: true } })
+    await tx.displayCampaignAssignment.updateMany({ where: { displayId }, data: { active: false } })
+    await tx.inventoryAllocation.updateMany({ where: { screenId: displayId, status: { in: ['RESERVED', 'ACTIVE'] } }, data: { status: 'CANCELLED' } })
+    await tx.displayPairingCode.updateMany({ where: { displayId, consumedAt: null, revokedAt: null }, data: { revokedAt: new Date() } })
+    let commandId: string | null = null
+    const paired = Boolean(display.deviceTokenHash)
+    if (paired) {
+      const existing = await tx.displayCommand.findFirst({ where: { displayId, commandType: 'UNPAIR', status: { in: ['QUEUED', 'DELIVERED'] } }, orderBy: { createdAt: 'desc' } })
+      const command = existing
+        ? await tx.displayCommand.update({ where: { id: existing.id }, data: { payload: { deleteAfterUnpair: true }, expiresAt: null } })
+        : await tx.displayCommand.create({ data: { displayId, commandType: 'UNPAIR', payload: { deleteAfterUnpair: true }, expiresAt: null } })
+      commandId = command.id
+      await tx.display.update({ where: { id: displayId }, data: { state: 'DISABLED' } })
+    } else {
+      await tx.display.update({ where: { id: displayId }, data: { state: 'DELETED', deviceTokenHash: null } })
+    }
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_DELETE_REQUESTED', entityType: 'Display', entityId: displayId, before: { state: display.state }, after: { state: paired ? 'DISABLED_PENDING_UNPAIR' : 'DELETED', commandId, activeCampaignsRemoved: assignments.length }, requestId: request.id } })
+    return { state: paired ? 'DISABLED_PENDING_UNPAIR' : 'DELETED', commandId, pendingUnpair: paired }
+  })
+  return ok(request, { displayId, ...result }, reply)
+})
+app.get('/api/admin/drivers', async (request, reply) => { await requirePermission(request, 'driver:read'); return ok(request, asJson(await prisma.driver.findMany({ include: { user: true, vehicles: true, documents: { select: { id: true, documentType: true, status: true, rejectionReason: true } } }, orderBy: { createdAt: 'desc' } })), reply) })
+app.post('/api/admin/drivers', async (request, reply) => {
+  const actor = await requireRoles(request, ['SUPER_ADMIN'])
+  const input = bodyOf(request, z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(7).max(20), city: z.string().trim().max(120).optional() }))
+  const phone = normalizeIndianPhone(input.phone)
+  if (!phone) throw new ApiError('INVALID_PHONE', 'Enter a valid 10-digit Indian mobile number', 422)
+  const existing = await prisma.user.findUnique({ where: { phone }, include: { driver: true } })
+  if (existing && existing.role !== 'DRIVER') throw new ApiError('PHONE_IN_USE', 'This phone number belongs to a non-driver account', 409)
+  if (existing?.driver) throw new ApiError('DRIVER_ALREADY_EXISTS', 'A driver profile already exists for this phone number', 409)
+  const created = await prisma.$transaction(async tx => {
+    const user = existing
+      ? await tx.user.update({ where: { id: existing.id }, data: { name: existing.name || input.name } })
+      : await tx.user.create({ data: { phone, name: input.name, role: 'DRIVER', accountStatus: 'PENDING' } })
+    const driver = await tx.driver.create({ data: { userId: user.id, city: input.city || null, onboardingStatus: 'PROFILE' } })
+    await tx.auditLog.create({ data: { actorId: actor.userId, actorRole: actor.role, action: 'DRIVER_PROFILE_CREATED', entityType: 'Driver', entityId: driver.id, after: { onboardingStatus: driver.onboardingStatus, city: driver.city }, requestId: request.id } })
+    return { id: driver.id, name: user.name, phone: user.phone, city: driver.city, onboardingStatus: driver.onboardingStatus, accountStatus: user.accountStatus }
+  })
+  return reply.code(201).send(response(request, created))
+})
+app.get('/api/admin/drivers/:driverId/review', async (request, reply) => {
+  await requireRoles(request, adminRoles); const { driverId } = request.params as { driverId: string }
+  const driver = await prisma.driver.findUnique({ where: { id: driverId }, include: { user: true, documents: { select: { id: true, documentType: true, status: true, maskedDocumentNumber: true, rejectionReason: true, expiresAt: true, submittedAt: true, verifiedAt: true, verifiedBy: true } }, vehicles: { include: { displays: true } }, consents: { include: { agreementVersion: true } }, integrations: true } })
+  if (!driver) throw notFound('Driver not found')
+  return ok(request, asJson(driver), reply)
+})
+app.get('/api/admin/drivers/:driverId/documents/:documentId/access', async (request, reply) => {
+  const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']); const { driverId, documentId } = request.params as { driverId: string; documentId: string }
+  const document = await prisma.kycDocument.findFirst({ where: { id: documentId, driverId }, select: { id: true, storageKey: true, status: true, documentType: true } })
+  if (!document) throw notFound('KYC document not found')
+  const expiresAt = new Date(Date.now() + config.documentStorageReadTtlSeconds * 1000)
+  const url = await privateDocumentStorage.signedReadUrl(document.storageKey, expiresAt)
+  await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'KYC_DOCUMENT_ACCESSED', entityType: 'KycDocument', entityId: document.id, after: { documentType: document.documentType, status: document.status, expiresAt }, requestId: request.id } })
+  return ok(request, { documentId: document.id, url, expiresAt }, reply)
+})
+app.post('/api/admin/drivers/:driverId/kyc/:documentId/decision', async (request, reply) => {
+  const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']); const { driverId, documentId } = request.params as { driverId: string; documentId: string }
+  const input = bodyOf(request, z.object({ status: z.enum(['VERIFIED', 'REJECTED']), rejectionReason: z.string().trim().max(500).optional() }))
+  const document = await prisma.kycDocument.findFirst({ where: { id: documentId, driverId } }); if (!document) throw notFound('KYC document not found')
+  if (input.status === 'REJECTED' && !input.rejectionReason) throw new ApiError('REJECTION_REASON_REQUIRED', 'A rejection reason is required', 422)
+  const updated = await prisma.kycDocument.update({ where: { id: documentId }, data: { status: input.status, verifiedAt: input.status === 'VERIFIED' ? new Date() : null, verifiedBy: auth.userId, rejectionReason: input.status === 'REJECTED' ? input.rejectionReason : null } })
+  await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: `KYC_DOCUMENT_${input.status}`, entityType: 'KycDocument', entityId: documentId, before: { status: document.status }, after: { status: updated.status, rejectionReason: updated.rejectionReason }, requestId: request.id } })
+  return ok(request, { id: updated.id, status: updated.status, rejectionReason: updated.rejectionReason }, reply)
+})
+app.post('/api/admin/drivers/:driverId/approval', async (request, reply) => {
+  const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }
+  const input = bodyOf(request, z.object({ decision: z.enum(['APPROVE', 'REJECT', 'CHANGES_REQUESTED', 'UNDER_REVIEW']), reason: z.string().trim().max(500).optional() }))
+  if (['REJECT', 'CHANGES_REQUESTED'].includes(input.decision) && !input.reason) throw new ApiError('REJECTION_REASON_REQUIRED', 'A reason is required', 422)
+  const driver = await prisma.driver.findUnique({ where: { id: driverId }, include: { user: true, documents: true } }); if (!driver) throw notFound('Driver not found')
+  if (input.decision === 'APPROVE') {
+    const requiredTypes = ['AADHAAR', 'PAN', 'DRIVING_LICENCE', 'RC']
+    const verified = new Set(driver.documents.filter((doc) => doc.status === 'VERIFIED').map((doc) => doc.documentType))
+    const missing = requiredTypes.filter((type) => !verified.has(type))
+    if (missing.length) throw new ApiError('ONBOARDING_INCOMPLETE', `Required verified documents missing: ${missing.join(', ')}`, 409)
+  }
+  const updated = await prisma.$transaction(async (tx) => {
+    const nextStatus = input.decision === 'APPROVE' ? 'APPROVED' : input.decision === 'REJECT' ? 'REJECTED' : input.decision
+    transitionDriverOnboarding(driver.onboardingStatus, nextStatus as any)
+    const accountStatus = input.decision === 'APPROVE' ? 'ACTIVE' : 'PENDING'
+    const saved = await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: nextStatus } })
+    await tx.user.update({ where: { id: driver.userId }, data: { accountStatus } })
+    await tx.driverActivationReview.create({ data: { driverId, decision: nextStatus, reason: input.reason, actorId: auth.userId } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: `DRIVER_${nextStatus}`, entityType: 'Driver', entityId: driverId, before: { onboardingStatus: driver.onboardingStatus, accountStatus: driver.user.accountStatus }, after: { onboardingStatus: nextStatus, accountStatus, reason: input.reason }, requestId: request.id } })
+    return saved
+  })
+  return ok(request, { driverId: updated.id, onboardingStatus: updated.onboardingStatus, accountStatus: input.decision === 'APPROVE' ? 'ACTIVE' : 'PENDING', reason: input.reason }, reply)
+})
+app.get('/api/admin/drivers/:driverId/activation-history', async (request, reply) => { await requireRoles(request, adminRoles); const { driverId } = request.params as { driverId: string }; return ok(request, await prisma.driverActivationReview.findMany({ where: { driverId }, orderBy: { createdAt: 'desc' } }), reply) })
+app.post('/api/admin/drivers/:driverId/beneficiaries/:beneficiaryId/decision', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'FINANCE']); const { driverId, beneficiaryId } = request.params as { driverId: string; beneficiaryId: string }; const input = bodyOf(request, z.object({ status: z.enum(['VERIFIED', 'REJECTED']), reason: z.string().trim().max(500).optional() })); if (input.status === 'REJECTED' && !input.reason) throw new ApiError('REJECTION_REASON_REQUIRED', 'A rejection reason is required', 422); const beneficiary = await prisma.bankBeneficiary.findFirst({ where: { id: beneficiaryId, driverId } }); if (!beneficiary) throw notFound('Beneficiary not found'); const updated = await prisma.bankBeneficiary.update({ where: { id: beneficiaryId }, data: { verificationStatus: input.status, rejectionReason: input.status === 'REJECTED' ? input.reason : null, verifiedAt: input.status === 'VERIFIED' ? new Date() : null } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: `BANK_BENEFICIARY_${input.status}`, entityType: 'BankBeneficiary', entityId: beneficiaryId, before: { verificationStatus: beneficiary.verificationStatus }, after: { verificationStatus: updated.verificationStatus, reason: input.reason }, requestId: request.id } }); return ok(request, { id: updated.id, verificationStatus: updated.verificationStatus, rejectionReason: updated.rejectionReason }, reply) })
+app.get('/api/admin/drivers/:driverId/duty-sessions', async (request, reply) => { await requireRoles(request, adminRoles); const { driverId } = request.params as { driverId: string }; return ok(request, await prisma.dutySession.findMany({ where: { driverId }, orderBy: { startedAt: 'desc' }, take: 200 }), reply) })
+app.post('/api/admin/documents/cleanup', async (request, reply) => {
+  const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'])
+  const expired = await prisma.documentUploadSession.findMany({ where: { status: 'ISSUED', expiresAt: { lt: new Date() } }, select: { id: true, objectKey: true }, take: 500 })
+  let deleted = 0
+  for (const session of expired) { if (privateDocumentStorage.delete) await privateDocumentStorage.delete(session.objectKey); deleted += 1 }
+  if (expired.length) await prisma.documentUploadSession.updateMany({ where: { id: { in: expired.map((session) => session.id) } }, data: { status: 'EXPIRED' } })
+  await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DOCUMENT_UPLOAD_CLEANUP', entityType: 'DocumentUploadSession', entityId: 'batch', after: { expired: expired.length, deleted }, requestId: request.id } })
+  return ok(request, { expired: expired.length, deleted }, reply)
+})
+app.get('/api/admin/vehicles', async (request, reply) => { await requirePermission(request, 'device:read'); return ok(request, await prisma.vehicle.findMany({ include: { driver: { include: { user: true } }, displays: true } }), reply) })
+app.get('/api/admin/displays', async (request, reply) => {
   await requirePermission(request, 'device:read')
+  const rows = await prisma.display.findMany({
+    where: { state: { not: 'DELETED' } },
+    select: {
+      id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: { city: true } }, vehicleId: true,
+      state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true,
+      lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true,
+      currentPlaybackState: true, currentPlaybackStartedAt: true, currentPlaybackPositionMs: true, currentExpectedDurationMs: true,
+      vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } },
+      createdAt: true, updatedAt: true,
+      heartbeats: { select: { occurredAt: true, receivedAt: true, networkType: true }, orderBy: { receivedAt: 'desc' }, take: 1 },
+    },
+  })
+  const uuid = (value?: string | null) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
+  const creativeIds = [...new Set(rows.map((display) => display.currentCreativeId).filter((id): id is string => uuid(id)))]
+  const creatives = creativeIds.length ? await prisma.creative.findMany({
+    where: { id: { in: creativeIds } },
+    select: { id: true, name: true, campaign: { select: { id: true, name: true } }, asset: { select: { url: true, mimeType: true, fileName: true } } },
+  }) : []
+  const creativeById = new Map(creatives.map((creative) => [creative.id, creative]))
+  return ok(request, asJson(rows.map((display) => ({
+    ...display,
+    connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? display.heartbeats[0]?.receivedAt, new Date(), config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds),
+    currentCreative: display.currentCreativeId ? creativeById.get(display.currentCreativeId) ?? null : null,
+  }))), reply)
+})
+app.get('/api/admin/displays/:displayId/live-state', async (request, reply) => {
+  await requireRoles(request, adminRoles)
   const { displayId } = request.params as { displayId: string }
   const display = await prisma.display.findUnique({ where: { id: displayId }, include: { vehicle: true, heartbeats: { orderBy: { receivedAt: 'desc' }, take: 1 } } })
   if (!display) throw notFound('Display not found')
@@ -823,16 +1334,16 @@ app.get('/api/admin/displays/:displayId/live-state', async (request, reply) => {
   const { deviceTokenHash: _tokenHash, ...safeDisplay } = display
   return ok(request, asJson({ ...safeDisplay, connectivity: connection, lastHeartbeat: heartbeat ?? null, currentCampaign: creative?.campaign ?? campaign, currentCreative: creative, lastProof: recentEvent && (!recentProof || recentEvent.occurredAt > recentProof.playbackStartedAt) ? recentEvent : recentProof }), reply)
 })
-app.get('/api/admin/displays/live-map', async (request, reply) => { await requirePermission(request, 'device:read'); const now = new Date(); const rows = await prisma.display.findMany({ where: { lastLatitude: { not: null }, lastLongitude: { not: null }, lastLocationAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }, select: { id: true, name: true, deviceId: true, vehicleId: true, vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } }, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true, lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true, currentPlaybackState: true, currentPlaybackStartedAt: true, currentPlaybackPositionMs: true, currentExpectedDurationMs: true, manifestVersion: true } }); return ok(request, asJson(rows.map((display) => ({ ...display, connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? undefined, now, config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds) }))), reply) })
-app.get('/api/admin/displays/:displayId/location-history', async (request, reply) => { await requirePermission(request, 'device:read'); const { displayId } = request.params as { displayId: string }; const query = request.query as { from?: string; to?: string; limit?: string }; const limit = boundedLocationLimit(query.limit); const from = query.from ? new Date(query.from) : new Date(Date.now() - 24 * 60 * 60 * 1000); const to = query.to ? new Date(query.to) : new Date(); if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) throw new ApiError('VALIDATION_ERROR', 'Invalid history range', 422); const points = await prisma.displayLocationEvent.findMany({ where: { displayId, occurredAt: { gte: from, lte: to } }, orderBy: { occurredAt: 'desc' }, take: limit }); return ok(request, asJson(points.reverse()), reply) })
-app.get('/api/admin/orders', async (request, reply) => { await requirePermission(request, 'finance:read'); const query = request.query as { status?: string; search?: string; skip?: string; take?: string }; const orders = await listGuestOrders({ status: query.status, search: query.search?.trim(), skip: Math.min(Number(query.skip ?? 0) || 0, 100000), take: Math.min(Number(query.take ?? 50) || 50, 100) }); return ok(request, orders, reply) })
-app.get('/api/admin/orders/:orderNumber', async (request, reply) => { await requirePermission(request, 'finance:read'); const { orderNumber } = request.params as { orderNumber: string }; const order = await findGuestOrder(orderNumber); if (!order) throw notFound('Order not found'); return ok(request, order, reply) })
-app.post('/api/admin/orders/:orderNumber/create-campaign', async () => paymentProcessingRetired())
-app.get('/api/admin/rides', async (request, reply) => { await requirePermission(request, 'ride:read'); return ok(request, asJson(await prisma.ride.findMany({ orderBy: { createdAt: 'desc' }, take: 500, select: { id: true, candidateId: true, driverId: true, vehicleId: true, displayId: true, provider: true, state: true, source: true, createdAt: true, updatedAt: true, startedAt: true, completedAt: true, distanceMeters: true, verificationStatus: true } })), reply) })
-app.get('/api/admin/verifications', async (request, reply) => { await requirePermission(request, 'verification:read'); return ok(request, await prisma.rideVerification.findMany({ orderBy: { rideId: 'desc' }, select: { id: true, rideId: true, score: true, status: true, reasons: true, verifiedAt: true, reviewedBy: true, reviewReason: true } }), reply) })
-app.get('/api/admin/fraud', async (request, reply) => { await requirePermission(request, 'fraud:read'); return ok(request, asJson(await prisma.fraudSignal.findMany({ orderBy: { createdAt: 'desc' }, take: 500, select: { id: true, rideId: true, code: true, weight: true, metadata: true, createdAt: true } })), reply) })
+app.get('/api/admin/displays/live-map', async (request, reply) => { await requireRoles(request, adminRoles); const now = new Date(); const rows = await prisma.display.findMany({ where: { lastLatitude: { not: null }, lastLongitude: { not: null }, lastLocationAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }, select: { id: true, name: true, deviceId: true, vehicleId: true, vehicle: { select: { registrationNumber: true, city: true, area: true, type: true, routeId: true, depotId: true } }, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true, lastLocationAt: true, lastHeartbeatAt: true, currentCampaignId: true, currentCreativeId: true, currentAssetId: true, currentPlaybackState: true, currentPlaybackStartedAt: true, currentPlaybackPositionMs: true, currentExpectedDurationMs: true, manifestVersion: true } }); return ok(request, asJson(rows.map((display) => ({ ...display, connectivity: getDisplayConnectivity(display.lastHeartbeatAt ?? undefined, now, config.heartbeatOnlineSeconds, config.heartbeatDegradedSeconds) }))), reply) })
+app.get('/api/admin/displays/:displayId/location-history', async (request, reply) => { await requireRoles(request, adminRoles); const { displayId } = request.params as { displayId: string }; const query = request.query as { from?: string; to?: string; limit?: string }; const limit = boundedLocationLimit(query.limit); const from = query.from ? new Date(query.from) : new Date(Date.now() - 24 * 60 * 60 * 1000); const to = query.to ? new Date(query.to) : new Date(); if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) throw new ApiError('VALIDATION_ERROR', 'Invalid history range', 422); const points = await prisma.displayLocationEvent.findMany({ where: { displayId, occurredAt: { gte: from, lte: to } }, orderBy: { occurredAt: 'desc' }, take: limit }); return ok(request, asJson(points.reverse()), reply) })
+app.get('/api/admin/orders', async (request, reply) => { await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'FINANCE']); const query = request.query as { status?: string; search?: string; skip?: string; take?: string }; const orders = await listGuestOrders({ status: query.status, search: query.search?.trim(), skip: Math.min(Number(query.skip ?? 0) || 0, 100000), take: Math.min(Number(query.take ?? 50) || 50, 100) }); return ok(request, orders, reply) })
+app.get('/api/admin/orders/:orderNumber', async (request, reply) => { await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'FINANCE']); const { orderNumber } = request.params as { orderNumber: string }; const order = await findGuestOrder(orderNumber); if (!order) throw notFound('Order not found'); return ok(request, order, reply) })
+app.post('/api/admin/orders/:orderNumber/create-campaign', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']); const { orderNumber } = request.params as { orderNumber: string }; const order = await findGuestOrder(orderNumber); if (!order) throw notFound('Order not found'); if (order.status !== 'PAID' && order.status !== 'FULFILLED') throw new ApiError('ORDER_NOT_PAID', 'Only paid orders can create campaigns', 409); if (order.campaignId) return ok(request, await prisma.campaign.findUnique({ where: { id: order.campaignId } }), reply); const campaign = await prisma.$transaction(async (tx) => { const created = await tx.campaign.create({ data: { name: `${order.businessName} — Tirupati`, status: 'CREATIVE_REQUIRED', timezone: 'Asia/Kolkata', priority: 0 } }); await updateGuestOrder(order._id.toString(), { campaignId: created.id }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'CAMPAIGN_CREATED_FROM_ORDER', entityType: 'Campaign', entityId: created.id, after: { orderNumber } as any, requestId: request.id } }); return created }); return ok(request, campaign, reply) })
+app.get('/api/admin/rides', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, asJson(await prisma.ride.findMany({ orderBy: { createdAt: 'desc' }, take: 500, include: { verification: true, driver: { include: { user: true } } } })), reply) })
+app.get('/api/admin/verifications', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, await prisma.rideVerification.findMany({ orderBy: { rideId: 'desc' }, include: { ride: true } }), reply) })
+app.get('/api/admin/fraud', async (request, reply) => { await requireRoles(request, adminRoles); return ok(request, await prisma.fraudSignal.findMany({ orderBy: { createdAt: 'desc' }, take: 500 }), reply) })
 app.get('/api/admin/proof-of-play', async (request, reply) => {
- await requirePermission(request, 'campaign:read')
+ await requireRoles(request, adminRoles)
  const q = z.object({ campaignId:z.string().optional(),creativeId:z.string().optional(),displayId:z.string().uuid().optional(),vehicleId:z.string().uuid().optional(),routeId:z.string().uuid().optional(),from:z.coerce.date().optional(),to:z.coerce.date().optional(),success:z.enum(['true','false']).optional(),skip:z.coerce.number().int().min(0).max(100000).default(0) }).parse(request.query)
  const where = { campaignId:q.campaignId,creativeId:q.creativeId,displayId:q.displayId,playbackStartedAt:{gte:q.from,lte:q.to},playbackCompleted:q.success===undefined?undefined:q.success==='true',display:{vehicleId:q.vehicleId,...(q.routeId?{vehicle:{routeId:q.routeId}}:{})} }
  const [items,total] = await Promise.all([prisma.proofOfPlay.findMany({where,orderBy:{playbackStartedAt:'desc'},take:50,skip:q.skip,include:{display:{select:{name:true,vehicleId:true}}}}),prisma.proofOfPlay.count({where})])
@@ -840,14 +1351,39 @@ app.get('/api/admin/proof-of-play', async (request, reply) => {
 })
 app.get('/api/admin/earnings', async (request, reply) => { await requirePermission(request, 'finance:read'); return ok(request, asJson(await prisma.earningEntry.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
 app.get('/api/admin/payouts', async (request, reply) => { await requirePermission(request, 'finance:read'); return ok(request, asJson(await prisma.payout.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
-app.post('/api/admin/drivers/:driverId/restrict', async (request, reply) => { const auth = await requirePermission(request, 'admin:write'); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); await prisma.user.update({ where: { id: driver.userId }, data: { accountStatus: 'RESTRICTED' } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_RESTRICTED', entityType: 'Driver', entityId: driverId, requestId: request.id } }); return ok(request, { restricted: true }, reply) })
-app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requirePermission(request, 'device:write'); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display) throw notFound('Display not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
+app.post('/api/admin/drivers/:driverId/restrict', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'SUSPENDED' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'SUSPENDED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_SUSPENDED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { suspended: true }, reply) })
+app.post('/api/admin/drivers/:driverId/reactivate', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); transitionDriverOnboarding(driver.onboardingStatus, 'APPROVED'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'ACTIVE' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'APPROVED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_REACTIVATED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { reactivated: true }, reply) })
+app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display || display.state === 'DELETED') throw notFound('Screen not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: input.commandType === 'UNPAIR' ? null : new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
 
 registerOperations(app)
 registerAdminManagement(app)
 registerAssetRoutes(app)
 registerNetworkOperations(app)
 
-app.setErrorHandler((error, request, reply) => { request.log.error({ err: error }, 'request failed'); const mongoFailure = isMongoError(error); const status = error instanceof ApiError ? error.statusCode : error instanceof z.ZodError ? 422 : error instanceof Prisma.PrismaClientKnownRequestError && ['P2034','P2002'].includes(error.code) ? 409 : mongoFailure ? 503 : 500; const message = error instanceof Error ? error.message : 'Internal server error'; reply.status(status).send({ data: null, error: { code: error instanceof ApiError ? error.code : mongoFailure ? 'GUEST_STORE_UNAVAILABLE' : 'INTERNAL_ERROR', message: status === 500 ? 'Internal server error' : message }, requestId: request.id }) })
+app.setErrorHandler((error, request, reply) => {
+  const mongoFailure = isMongoError(error)
+  const prismaCode = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined
+  const databaseUnavailable = error instanceof Prisma.PrismaClientInitializationError || ['P1001', 'P1002'].includes(prismaCode ?? '')
+  const databaseSchemaDrift = ['P2021', 'P2022'].includes(prismaCode ?? '')
+  // Keep full request correlation inside server logs; do not expose raw SQL,
+  // connection strings or Prisma's internal error text to browser clients.
+  request.log.error({ err: error, prismaCode, requestId: request.id }, 'request failed')
+  const status = error instanceof ApiError ? error.statusCode
+    : error instanceof z.ZodError ? 422
+    : ['P2034', 'P2002'].includes(prismaCode ?? '') ? 409
+    : mongoFailure || databaseUnavailable || databaseSchemaDrift ? 503 : 500
+  const code = error instanceof ApiError ? error.code
+    : mongoFailure ? 'GUEST_STORE_UNAVAILABLE'
+    : databaseUnavailable ? 'DATABASE_UNAVAILABLE'
+    : databaseSchemaDrift ? 'DATABASE_SCHEMA_MISMATCH'
+    : 'INTERNAL_ERROR'
+  const message = error instanceof ApiError ? error.message
+    : mongoFailure ? 'Order database unavailable'
+    : databaseUnavailable ? 'Database temporarily unavailable. Contact support with the request ID.'
+    : databaseSchemaDrift ? 'Database schema requires operator attention. Contact support with the request ID.'
+    : status === 500 ? 'Internal server error'
+    : error instanceof Error ? error.message : 'Request failed'
+  reply.status(status).send({ data: null, error: { code, message }, requestId: request.id })
+})
 
 export { app }

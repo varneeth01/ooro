@@ -22,6 +22,7 @@ object LocationCadence { fun heartbeatIntervalMs(speedMps: Double?): Long = if (
 
 class LocationReporter(private val context: Context) {
     @Volatile private var cached: LocationSnapshot? = null
+    @Volatile private var started = false
     private val listener = LocationListener { value ->
         Log.d("OoroScreen", "LOCATION_CALLBACK_RECEIVED accuracyBucket=${accuracyBucket(value.accuracy)}")
         LocationSnapshots.fromLocation(value)?.let { snapshot ->
@@ -31,12 +32,14 @@ class LocationReporter(private val context: Context) {
     }
     fun start() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        if (started) return
+        started = true
         val manager = context.getSystemService(LocationManager::class.java)
         manager.getProviders(true).filter { it == LocationManager.GPS_PROVIDER || it == LocationManager.NETWORK_PROVIDER }.forEach { provider -> runCatching { manager.requestLocationUpdates(provider, 10_000L, 75f, listener, Looper.getMainLooper()) } }
         cached = latest()
         Log.d("OoroScreen", "LOCATION_REPORTER_STARTED snapshotAvailable=${cached != null}")
     }
-    fun stop() { runCatching { context.getSystemService(LocationManager::class.java).removeUpdates(listener) } }
+    fun stop() { runCatching { context.getSystemService(LocationManager::class.java).removeUpdates(listener) }; started = false; cached = null }
     fun latest(): LocationSnapshot? {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
         val manager = context.getSystemService(LocationManager::class.java)

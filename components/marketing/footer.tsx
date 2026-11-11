@@ -1,3 +1,20 @@
 import Link from "next/link";
+import { MapPin } from "lucide-react";
 import { Brand } from "../brand";
-export function Footer() { return <footer className="bg-[#090909] text-white"><div className="container-ooro border-t border-neutral-800 py-8 text-xs text-neutral-500"><div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between"><div><Brand dark/><p className="mt-3 max-w-[220px] leading-5">Built to move. Starting in Tirupati.</p></div><div className="flex flex-wrap gap-x-6 gap-y-3"><Link href="/advertise">Advertise</Link><Link href="/for-brands">For Brands</Link><Link href="/for-agencies">For Agencies</Link><Link href="/methodology">Methodology</Link><Link href="/coverage">Coverage</Link><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></div></div><div className="mt-10 border-t border-neutral-800 pt-5">© 2026 OORO. Built to move.</div></div></footer> }
+const navGroups=[
+ {title:"Advertise",links:[["For brands","/for-brands"],["For agencies","/for-agencies"],["Digital advertising in Bengaluru","/digital-advertising-bengaluru"],["Bengaluru coverage","/coverage"]]},
+ {title:"Explore",links:[["How it works","/how-it-works"],["Methodology","/methodology"],["Advertising guides","/guides"],["Field journal","/field-journal"]]},
+ {title:"Information",links:[["Privacy Policy","/privacy"],["Terms of Use","/terms"],["Contact","/contact"],["Sign in","/login"]]},
+ {title:"Company",links:[["About OORO","/about"],["Careers — 2 internships","/careers"],["Campaign enquiries","/advertise"]]},
+] as const;
+export function Footer(){
+ return <footer className="relative bg-[#080a09] text-white" aria-label="Site footer">
+  <div className="container-ooro border-t border-white/10 pb-8 pt-16 sm:pt-20">
+   <div className="grid gap-12 border-b border-white/10 pb-16 lg:grid-cols-[1.1fr_1.4fr]">
+    <div><Brand dark/><p className="mt-7 max-w-xs text-sm leading-7 text-neutral-300">Digital advertising inside everyday auto journeys. Built in Bengaluru for businesses ready to show up in the real world.</p></div>
+    <nav aria-label="Footer navigation" className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">{navGroups.map(group=><div key={group.title}><h3 className="text-sm font-semibold text-white">{group.title}</h3><ul className="mt-5 space-y-2">{group.links.map(([name,href])=><li key={href}><Link href={href} className="inline-flex min-h-11 items-center rounded-sm py-1 text-sm text-neutral-300 transition hover:text-[#dfff00] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#dfff00]">{name}</Link></li>)}</ul></div>)}</nav>
+   </div>
+   <div className="flex flex-wrap items-center justify-between gap-5 pt-7 text-xs text-neutral-400"><span>© 2026 OORO. Mobility advertising designed for the real world.</span><span className="inline-flex items-center gap-2"><MapPin size={14} aria-hidden="true"/> Bengaluru, Karnataka · India</span></div>
+  </div>
+ </footer>;
+}

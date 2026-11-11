@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">OORO ಚಾಲಕ</string>
+    <string name="driver_onboarding_title">ನಿಮ್ಮ ಚಾಲಕ ಪ್ರೊಫೈಲ್</string>
+    <string name="driver_upload_securely">ದಾಖಲೆಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ</string>
+    <string name="driver_start_duty">ಡ್ಯೂಟಿ ಪ್ರಾರಂಭಿಸಿ</string>
+    <string name="driver_end_duty">ಡ್ಯೂಟಿ ಮುಗಿಸಿ</string>
+</resources>

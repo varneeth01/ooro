@@ -1,5 +1,10 @@
 export const adminRoles: string[] = ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'SUPPORT', 'FINANCE']
 export const deviceOsWriteRoles: string[] = ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS']
+// Publishing executable artifacts and changing their rollout targets are
+// higher-impact than routine device operations (for example credential
+// rotation or recovery commands).
+export const deviceOsReleaseRoles: string[] = ['SUPER_ADMIN']
+export const deviceOsDeploymentRoles: string[] = ['SUPER_ADMIN']
 
 export function isAdminRole(role: string | null | undefined) {
   return role !== undefined && role !== null && adminRoles.includes(role)
