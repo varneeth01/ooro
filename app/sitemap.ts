@@ -18,13 +18,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8,
     },
-    ...["careers", "contact", "advertise", "for-brands", "for-agencies", "how-it-works", "methodology", "bengaluru", "coverage", "digital-advertising-bengaluru", "cab-advertising-bengaluru", "auto-rickshaw-advertising-bangalore", "outdoor-advertising-bengaluru", "small-business-advertising-bangalore", "auto-advertising-cost-bengaluru", "guides", "field-journal", "tools/ad-budget-planner"].map(path => ({
+    ...["careers", "contact", "advertise", "for-brands", "for-agencies", "how-it-works", "methodology", "bengaluru", "coverage", "digital-advertising-bengaluru", "cab-advertising-bengaluru", "auto-rickshaw-advertising-bangalore", "outdoor-advertising-bengaluru", "small-business-advertising-bangalore", "auto-advertising-cost-bengaluru", "guides", "field-journal", "tools/ad-budget-planner", "tools/campaign-brief-builder"].map(path => ({
       url: `${siteUrl}/${path}`,
       lastModified: lastUpdated,
       changeFrequency: "monthly" as const,
       priority: 0.7,
       ...(path === "digital-advertising-bengaluru" ? { images: [`${siteUrl}/field/ooro-bengaluru-auto-02.webp`] } : {}),
     })),
-    ...["advertise-business-bengaluru", "outdoor-advertising-bangalore", "auto-rickshaw-advertising", "set-local-advertising-budget", "dooh-creative-specifications", "digital-vs-outdoor-advertising", "small-business-marketing-ideas-bengaluru", "auto-advertising-vs-billboards", "restaurant-local-advertising", "proof-of-play-dooh"].map(slug => ({ url: `${siteUrl}/guides/${slug}`, lastModified: lastUpdated, changeFrequency: "yearly" as const, priority: 0.6 })),
+    ...["advertise-business-bengaluru", "outdoor-advertising-bangalore", "auto-rickshaw-advertising", "set-local-advertising-budget", "dooh-creative-specifications", "digital-vs-outdoor-advertising", "small-business-marketing-ideas-bengaluru", "auto-advertising-vs-billboards", "restaurant-local-advertising", "proof-of-play-dooh", "dooh-campaign-brief-bengaluru"].map(slug => ({ url: `${siteUrl}/guides/${slug}`, lastModified: lastUpdated, changeFrequency: "yearly" as const, priority: 0.6 })),
   ];
 }

@@ -305,4 +305,61 @@ export const guides: Guide[] = [
       }
     ]
   },
+  {
+    slug: "dooh-campaign-brief-bengaluru",
+    title: "DOOH Campaign Brief Template for Bengaluru",
+    description: "A practical DOOH campaign brief template covering objectives, audience context, locations, timing, creative, budget and reporting questions for Bengaluru advertisers.",
+    intro: "A strong digital out-of-home campaign brief helps a media partner understand what the business needs, what the creative must say and how delivery should be reviewed. Use this template to prepare a focused brief for a Bengaluru campaign. It is a planning aid; it does not confirm screen availability, audience reach, pricing or bookings.",
+    sections: [
+      {
+        title: "Write the brief around one business outcome",
+        paragraphs: [
+          "Start with the action or change the campaign should support: launch awareness, visits to a location, enquiries, trial of an offer or recall of a service. Pick one primary objective and name a secondary objective only if it can be measured separately.",
+          "Describe the customer in useful context rather than as a guaranteed targeting segment. For example, explain whether the offer is relevant to people who live, work, study or travel near a service area. These are planning assumptions; the selected media format may not identify individual people or guarantee a route."
+        ]
+      },
+      {
+        title: "Specify place, timing and constraints",
+        paragraphs: [
+          "List preferred neighbourhoods, nearby landmarks or service areas, plus campaign start and end dates. Mark any required days, hours, launch dates or blackout periods. State which choices are preferences and which are essential.",
+          "For mobility or outdoor media, ask the provider how area requests relate to actual inventory and movement. A requested neighbourhood does not by itself confirm a vehicle, screen, route, audience or delivery volume."
+        ]
+      },
+      {
+        title: "Give the creative team a clear message",
+        paragraphs: [
+          "Write one main message that can be understood quickly, then add a single call to action such as visit, scan, call or remember a short brand name. Include the exact offer, landing page, QR destination and any terms that need to appear.",
+          "Describe available artwork and formats, and ask for current specifications before production. Do not assume a specific screen size, aspect ratio, duration, sound capability or QR scan distance until the media partner confirms it."
+        ]
+      },
+      {
+        title: "Agree budget, delivery and reporting questions",
+        paragraphs: [
+          "State the total working budget and whether it includes taxes, production or agency fees. Ask for a written proposal that separates media costs from other charges and explains what is estimated versus confirmed.",
+          "Before launch, request the reporting definition: which screens and dates are included, what counts as a completed play, how outages or delayed device data are handled, and whether QR interactions are reported separately. Device Proof-of-Play can evidence reported playback; it does not prove that a person noticed the ad or that the ad caused a sale."
+        ]
+      },
+      {
+        title: "Copy-and-use campaign brief",
+        paragraphs: [
+          "Business and offer: [brand, product or service]. Primary objective: [one outcome]. Audience context: [who may find this useful and why]. Preferred areas: [locations and any must-have constraints]. Dates and timing: [start, end, days or hours]. Budget: [amount and inclusions]. Main message: [one sentence]. Call to action: [visit, scan, call or other action]. Creative available: [image, video, dimensions if confirmed]. Landing page or QR destination: [URL]. Success measures: [signals to review]. Reporting questions: [proof-of-play definition, screen list, exceptions and report timing]."
+        ]
+      }
+    ],
+    faqs: [
+      {
+        question: "Does this brief template guarantee ad availability in Bengaluru?",
+        answer: "No. It organizes a request. OORO must confirm eligible screens, inventory, creative approval, dates and commercial terms before a campaign is booked."
+      },
+      {
+        question: "Should I put estimated reach in the brief?",
+        answer: "You can ask the media provider for an estimate, along with its assumptions and methodology. Treat an estimate as planning information until delivery terms are confirmed."
+      },
+      {
+        question: "What should I send with a DOOH brief?",
+        answer: "Include the objective, audience context, preferred areas, dates, budget, message, call to action, artwork status and reporting questions. Share artwork only after checking the provider's current specifications."
+      }
+    ],
+    dateModified: "2026-11-12"
+  },
 ];
