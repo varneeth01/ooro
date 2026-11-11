@@ -1,0 +1,51 @@
+name: Website production availability
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-uptime
+  cancel-in-progress: false
+
+jobs:
+  public-web-and-admin-redirect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify public website and admin auth redirect
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin="https://theooro.com"
+          for path in / /advertise /login /admin/login /contact /careers /robots.txt /sitemap.xml; do
+            http=$(curl --silent --show-error --location --max-time 25 --retry 2 --retry-delay 3 --output /dev/null --write-out '%{http_code}' "${origin}${path}")
+            echo "${path} -> ${http}"
+            if [[ "$http" != 200 ]]; then
+              echo "::error::Public website ${path} returned ${http} (expected 200)"
+              exit 1
+            fi
+          done
+          for path in /admin /admin/proof-of-play; do
+            response=$(mktemp)
+            http=$(curl --silent --show-error --max-time 25 --retry 2 --retry-delay 3 --dump-header "$response" --output /dev/null --write-out '%{http_code}' "${origin}${path}")
+            location=$(grep -i '^location:' "$response" | tail -n 1 | tr -d '\r' | cut -d ' ' -f2- || true)
+            rm -f "$response"
+            echo "${path} -> ${http}, Location: ${location:-none}"
+            if [[ ! "$http" =~ ^(302|303|307|308)$ ]]; then
+              echo "::error::Anonymous ${path} expected safe login redirect, got ${http}"
+              exit 1
+            fi
+            if [[ -z "$location" || "$location" =~ (localhost|0\.0\.0\.0|127\.0\.0\.1) ]]; then
+              echo "::error::Unsafe or absent auth redirect for ${path}"
+              exit 1
+            fi
+            if [[ "$location" != /* && "$location" != https://theooro.com/* ]]; then
+              echo "::error::Unexpected redirect origin on ${path}"
+              exit 1
+            fi
+          done
