@@ -12,10 +12,11 @@ export default function BengaluruPage() {
  <PublicSection title="From request to verified delivery">
  <ol className="list-decimal space-y-3 pl-6"><li>Submit a campaign brief with your target Bengaluru areas, dates and budget.</li><li>Share image or video artwork for review.</li><li>OORO checks available screens, confirms commercial terms and schedules approved media.</li><li>Review playback reporting and QR engagement where supported. A campaign assignment alone is not proof of play.</li></ol>
  <div className="mt-8"><PublicCta href="/advertise">Plan Bengaluru advertising</PublicCta></div>
- <p className="mt-6 text-sm">For campaign questions, visit <Link className="underline underline-offset-4" href="/about">our team page</Link>.</p>
+ <p className="mt-6 text-sm">For campaign questions, <Link className="underline underline-offset-4" href="/about">meet OORO&apos;s founders and team</Link>.</p>
  </PublicSection>
  <PublicSection title="Explore advertising formats and planning">
-  <ul className="grid gap-3 sm:grid-cols-2">{[["Digital out-of-home advertising", "/digital-advertising-bengaluru"], ["Auto-rickshaw advertising", "/auto-rickshaw-advertising-bangalore"], ["Outdoor advertising options", "/outdoor-advertising-bengaluru"], ["Advertising for small businesses", "/small-business-advertising-bangalore"], ["Auto advertising costs and planning", "/auto-advertising-cost-bengaluru"], ["Advertising guides", "/guides"]].map(([label, href]) => <li key={href}><Link href={href} className="flex min-h-14 items-center justify-between border-b border-black/15 py-3 font-medium underline-offset-4 hover:underline">{label}<span aria-hidden="true">↗</span></Link></li>)}</ul>
+  <p className="mb-6 max-w-3xl text-neutral-700">If you are comparing digital ads in Bengaluru, start with the placement and the evidence you need. OORO focuses on passenger-facing screens inside eligible autos; it does not sell search ads, social campaigns or billboard space.</p>
+  <ul className="grid gap-3 sm:grid-cols-2">{[["Digital ads in Bengaluru: OORO auto screens", "/digital-advertising-bengaluru"], ["Auto-rickshaw advertising", "/auto-rickshaw-advertising-bangalore"], ["Outdoor advertising options", "/outdoor-advertising-bengaluru"], ["Advertising for small businesses", "/small-business-advertising-bangalore"], ["Auto advertising costs and planning", "/auto-advertising-cost-bengaluru"], ["Advertising guides", "/guides"]].map(([label, href]) => <li key={href}><Link href={href} className="flex min-h-14 items-center justify-between border-b border-black/15 py-3 font-medium underline-offset-4 hover:underline">{label}<span aria-hidden="true">↗</span></Link></li>)}</ul>
  </PublicSection>
  </PublicPage>;
 }
