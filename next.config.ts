@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/cities", destination: "/#cities", permanent: false },
       { source: "/network", destination: "/#network", permanent: false },
-      ...["ooro.media", "www.ooro.media", "ooro.network", "www.ooro.network", "ooro.digital", "www.ooro.digital", "oroo.tech", "www.oroo.tech"].map(host => ({
+      ...["www.theooro.com", "ooro.media", "www.ooro.media", "ooro.network", "www.ooro.network", "ooro.digital", "www.ooro.digital", "oroo.tech", "www.oroo.tech"].map(host => ({
         source: "/:path*",
         has: [{ type: "host" as const, value: host }],
         destination: "https://theooro.com/:path*",
