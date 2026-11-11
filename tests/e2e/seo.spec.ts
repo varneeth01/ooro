@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const indexable = ["/", "/about", "/advertise", "/for-brands", "/for-agencies", "/how-it-works", "/methodology", "/bengaluru", "/coverage", "/digital-advertising-bengaluru", "/auto-rickshaw-advertising-bangalore", "/outdoor-advertising-bengaluru", "/small-business-advertising-bangalore", "/auto-advertising-cost-bengaluru", "/guides", "/guides/advertise-business-bengaluru", "/guides/outdoor-advertising-bangalore", "/guides/auto-rickshaw-advertising", "/guides/set-local-advertising-budget", "/guides/dooh-creative-specifications", "/tools/ad-budget-planner", "/field-journal"];
+const indexable = ["/", "/about", "/careers", "/contact", "/advertise", "/for-brands", "/for-agencies", "/how-it-works", "/methodology", "/bengaluru", "/coverage", "/digital-advertising-bengaluru", "/auto-rickshaw-advertising-bangalore", "/outdoor-advertising-bengaluru", "/small-business-advertising-bangalore", "/auto-advertising-cost-bengaluru", "/guides", "/guides/advertise-business-bengaluru", "/guides/outdoor-advertising-bangalore", "/guides/auto-rickshaw-advertising", "/guides/set-local-advertising-budget", "/guides/dooh-creative-specifications", "/tools/ad-budget-planner", "/field-journal"];
 
 test("indexable landing pages have unique titles, descriptions, canonicals and a single H1", async ({ page }) => {
   const titles = new Set<string>();
@@ -19,7 +19,7 @@ test("indexable landing pages have unique titles, descriptions, canonicals and a
   }
 });
 
-test("sitemap contains only reachable public content and excludes placeholder legal pages", async ({ page, request }) => {
+test("sitemap contains only reachable public content and excludes unapproved legal drafts", async ({ page, request }) => {
   const response = await request.get("/sitemap.xml");
   expect(response.status()).toBe(200);
   const xml = await response.text();
@@ -48,7 +48,7 @@ test("internal links across the public sitemap resolve", async ({ page, request,
   }
 });
 
-test("account, private, and placeholder legal pages opt out of indexing", async ({ page }) => {
+test("account, private, and unapproved legal drafts opt out of indexing", async ({ page }) => {
   for (const path of ["/login", "/signup", "/verification", "/welcome", "/privacy", "/terms", "/network/status"]) {
     await page.goto(path);
     await expect(page.locator('meta[name="robots"]'), path).toHaveAttribute("content", /noindex/);

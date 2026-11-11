@@ -51,3 +51,19 @@
 .ooro-film-inner>p{margin-top:16px;color:#c6cbc3;font-size:13px}
 @media(max-width:480px){.ooro-film-trigger{top:15px;left:15px;gap:10px;padding:8px 13px 8px 8px}.ooro-film-play{width:35px;height:35px}.ooro-film-trigger strong{font-size:12px}.ooro-film-trigger small{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.ooro-film-trigger{transition:none}}
+
+/* Deliberately distinct graphics: the two authentic photographs appear once each on the homepage. */
+.ooro-chapter-visual{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 45%,#30372e 0,#1a221b 41%,#0b100c 100%);color:#f2f2ea;isolation:isolate}
+.ooro-chapter-visual:before{content:"";position:absolute;inset:5%;border:1px solid rgba(223,255,0,.18);pointer-events:none}
+.ooro-visual-topline,.ooro-visual-bottomline{position:absolute;z-index:2;left:32px;font:600 10px ui-monospace,monospace;letter-spacing:.16em;color:#b8c0aa}
+.ooro-visual-topline{top:29px}.ooro-visual-bottomline{bottom:29px}
+.ooro-visual-arc{position:absolute;width:min(75%,410px);aspect-ratio:1;border:1px solid rgba(223,255,0,.52);border-radius:50%;transform:rotate(-26deg) scaleX(1.23)}
+.ooro-visual-arc:before,.ooro-visual-arc:after{content:"";position:absolute;width:13px;height:13px;border-radius:50%;background:#dfff00;box-shadow:0 0 32px rgba(223,255,0,.36)}
+.ooro-visual-arc:before{top:18%;left:15%}.ooro-visual-arc:after{bottom:14%;right:20%}
+.ooro-visual-center{z-index:1;font-size:clamp(2.3rem,5vw,5.1rem);letter-spacing:-.075em;font-weight:600}
+.ooro-visual-number{position:absolute;right:28px;bottom:17px;font:500 clamp(6rem,18vw,14rem)/1 ui-monospace,monospace;color:rgba(223,255,0,.075);pointer-events:none}
+.ooro-chapter-businesses{background:radial-gradient(circle at 65% 20%,#333b17,#121b14 52%,#0b100d)}
+.ooro-chapter-businesses .ooro-visual-arc{border-radius:4px;transform:rotate(20deg) scale(.87);border-color:rgba(223,255,0,.65)}
+.ooro-chapter-operations{background:repeating-linear-gradient(90deg,rgba(223,255,0,.035) 0 1px,transparent 1px 48px),radial-gradient(circle at 40% 50%,#29372c,#0a120e 70%)}
+.ooro-chapter-operations .ooro-visual-arc{border-radius:16px;transform:rotate(45deg) scale(.75);border-color:rgba(223,255,0,.65)}
+@media(max-width:520px){.ooro-visual-topline,.ooro-visual-bottomline{left:20px;font-size:9px}.ooro-visual-topline{top:20px}.ooro-visual-bottomline{bottom:20px}.ooro-visual-center{font-size:clamp(2.5rem,11vw,4.2rem)}}

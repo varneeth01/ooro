@@ -39,7 +39,7 @@ test("chapter explorer supports click, arrows, home, end and previous/next", asy
   await page.getByRole("button", { name: "Next perspective" }).click();
   await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel").getByRole("heading")).toContainText("Get noticed beyond");
-  await expect(page.getByRole("tabpanel").locator("img")).toHaveAttribute("src", /ooro-bengaluru-auto-02/);
+  await expect(page.getByRole("tabpanel").getByRole("img", { name: /editorial illustration representing businesses/i })).toBeVisible();
   await page.getByRole("button", { name: "Previous perspective" }).click();
   await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
 });

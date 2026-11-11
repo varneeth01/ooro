@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./experience-explorer.css";
@@ -13,8 +12,6 @@ const chapters = [
     title: "A moment outside the feed.",
     description: "The commute is already happening. OORO brings a new kind of brand presence into that everyday journey, through passenger-facing screens in autos.",
     detail: "An attention space shaped by real journeys.",
-    image: "/field/ooro-bengaluru-auto-01.webp",
-    alt: "Original OORO field photograph with an auto-rickshaw in Bengaluru",
   },
   {
     id: "businesses",
@@ -23,8 +20,6 @@ const chapters = [
     title: "Get noticed beyond the usual scroll.",
     description: "Start with the Bengaluru areas, creative and budget that matter to your business. Our team verifies eligible inventory before a campaign is booked.",
     detail: "A clearer way to explore advertising.",
-    image: "/field/ooro-bengaluru-auto-02.webp",
-    alt: "Original field photograph of the OORO team beside a Bengaluru auto",
   },
   {
     id: "operations",
@@ -33,8 +28,6 @@ const chapters = [
     title: "Technology meets the street.",
     description: "Behind every campaign is real field work: preparing the screens, reviewing creative and coordinating the details of a real-world rollout.",
     detail: "Built by people, not presentation slides.",
-    image: "/field/ooro-bengaluru-auto-01.webp",
-    alt: "OORO field team operating alongside auto-rickshaw partners",
   },
 ] as const;
 
@@ -85,8 +78,13 @@ export function ExperienceExplorer() {
         </div>
         <div className="ooro-explore-panel" id="ooro-explore-panel" role="tabpanel" aria-labelledby={`ooro-tab-${chapter.id}`} key={chapter.id} tabIndex={0}>
           <div className="ooro-explore-media">
-            <Image src={chapter.image} alt={chapter.alt} fill sizes="(max-width: 800px) 100vw, 60vw" className="ooro-explore-image" />
-            <div className="ooro-explore-media-label"><span>OORO / BENGALURU</span><span>REAL FIELD IMAGERY</span></div>
+            <div className={`ooro-chapter-visual ooro-chapter-${chapter.id}`} role="img" aria-label={`Editorial illustration representing ${chapter.tab.toLowerCase()} in OORO's advertising network`}>
+              <span className="ooro-visual-topline">OORO / REAL-WORLD MEDIA</span>
+              <span className="ooro-visual-arc" aria-hidden="true" />
+              <span className="ooro-visual-center" aria-hidden="true">{active === 0 ? "JOURNEY" : active === 1 ? "BRAND" : "BUILD"}</span>
+              <span className="ooro-visual-number" aria-hidden="true">0{active + 1}</span>
+              <span className="ooro-visual-bottomline">BENGALURU / INDIA</span>
+            </div>
           </div>
           <div className="ooro-explore-content">
             <p className="ooro-explore-eyebrow">{chapter.eyebrow}</p>
