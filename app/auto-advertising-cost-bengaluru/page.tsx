@@ -4,16 +4,20 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata(
   "auto-advertising-cost-bengaluru",
-  "DOOH Advertising Cost in Bengaluru: Auto Screens",
-  "Understand the factors that shape a passenger-screen advertising proposal in Bengaluru. OORO confirms eligible inventory and terms before booking; estimates are not guaranteed rates or delivery."
+  "OORO Advertising Pricing & Campaign Options in Bengaluru",
+  "Understand how OORO campaign proposals are prepared, what the ₹500 planner input means, what details affect pricing and how to request confirmed availability."
 );
 
 export default function Page() {
   return <ServiceLanding
-    eyebrow="Bengaluru / Cost and planning"
-    title="A useful price starts with a defined campaign."
-    intro="There is no responsible universal rate to quote without a format, dates, creative requirements and eligible inventory. This page explains how to request a comparable proposal for passenger-facing digital screens in autos and cabs."
+    eyebrow="Bengaluru / Pricing and campaign options"
+    title="OORO advertising pricing starts with a campaign brief."
+    intro="OORO campaign pricing depends on the requested format, dates, creative requirements and eligible inventory. There is no public rate card to treat as a confirmed quote. Businesses can request passenger-facing screen inventory inside eligible autos; OORO confirms availability and commercial terms before booking."
     sections={[
+      {
+        title: "What can vary between campaign options",
+        body: "A proposal may differ by requested campaign dates, available screen inventory, schedule, total budget, creative review or production needs, and the reporting that can be provided. Ask OORO to state each proposed placement, period, included work, exclusions, cancellation terms and evidence in writing. There are no publicly listed fixed packages on this page; the available option is scoped and confirmed for each request.",
+      },
       {
         title: "Define what the proposal includes",
         body: "Ask the provider to name the placement format, dates, number or type of units included, creative production, taxes, minimum spend, cancellation terms and reporting definitions. Ask which costs are fixed and which depend on eligible inventory. A proposal is easier to compare when every provider prices the same dates, format and deliverables.\n\nFor OORO, the relevant format is a passenger-facing digital screen inside an eligible auto or cab. OORO reviews availability and confirms the commercial terms for each request before booking.",
