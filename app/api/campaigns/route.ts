@@ -47,6 +47,10 @@ export async function POST(request: Request) {
   const email = await owner();
   if (!email) return NextResponse.json({ error: { message: "Sign in to save campaigns" } }, { status: 401 });
   const input = await request.json().catch(() => null) as CampaignInput | null;
+  // Public advertisers may submit campaign drafts, but cannot authorize
+  // scheduling through a client-supplied status. Payment, approval, inventory
+  // reservation and activation are separate server-controlled workflows.
+  if (input?.status && input.status !== "DRAFT") return NextResponse.json({ error: { code: "CAMPAIGN_APPROVAL_REQUIRED", message: "Campaigns can only be submitted as drafts. OORO must approve and schedule delivery." } }, { status: 422 });
   const error = validate(input ?? {}, input?.status === "DRAFT");
   if (error) return NextResponse.json({ error: { message: error } }, { status: 422 });
   try {
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
     const rate = requestedPlan?.customerType === "SELF_SERVE" ? requestedPlan.impressionRate : requestedPlan?.autoDayRate;
     const metadata = { goal: input!.goal, audience: input!.audience, city: input!.city, area: input!.area, media: input!.media, budget: input!.budget, currency: input!.currency, ...input!.metadata };
     const campaign = await webPrisma.campaign.create({ data: {
-      ownerEmail: email, userId: context?.account.id, name: input!.name!.trim(), description: input!.description?.trim(), status: input!.status ?? "DRAFT",
+      ownerEmail: email, userId: context?.account.id, name: input!.name!.trim(), description: input!.description?.trim(), status: "DRAFT",
       startsAt: input!.startDate ? new Date(`${input!.startDate}T00:00:00.000Z`) : undefined, endsAt: input!.endDate ? new Date(`${input!.endDate}T23:59:59.999Z`) : undefined,
       timezone: String(input!.metadata?.timezone ?? "Asia/Kolkata"), layout: String(input!.media ?? "OORO Auto Screens"),
       campaignCenterLat: input!.campaignCenterLat, campaignCenterLng: input!.campaignCenterLng, radiusKm: input!.radiusKm,
