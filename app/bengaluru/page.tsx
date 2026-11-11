@@ -12,7 +12,7 @@ export default function BengaluruPage() {
  <PublicSection title="From request to verified delivery">
  <ol className="list-decimal space-y-3 pl-6"><li>Submit a campaign brief with your target Bengaluru areas, dates and budget.</li><li>Share image or video artwork for review.</li><li>OORO checks available screens, confirms commercial terms and schedules approved media.</li><li>Review playback reporting and QR engagement where supported. A campaign assignment alone is not proof of play.</li></ol>
  <div className="mt-8"><PublicCta href="/advertise">Plan Bengaluru advertising</PublicCta></div>
- <p className="mt-6 text-sm">For campaign questions, visit <Link className="underline underline-offset-4" href="/about">our team page</Link>.</p>
+ <p className="mt-6 text-sm">For campaign questions, <Link className="underline underline-offset-4" href="/about">meet OORO&apos;s founders and team</Link>.</p>
  </PublicSection>
  <PublicSection title="Explore advertising formats and planning">
   <p className="mb-6 max-w-3xl text-neutral-700">If you are comparing digital ads in Bengaluru, start with the placement and the evidence you need. OORO focuses on passenger-facing screens inside eligible autos; it does not sell search ads, social campaigns or billboard space.</p>
