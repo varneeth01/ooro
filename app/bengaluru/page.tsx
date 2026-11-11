@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PublicPage, PublicSection, PublicCta } from "@/components/marketing/public-page";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = pageMetadata("bengaluru", "Advertising in Bengaluru for Local Businesses", "Explore OORO's passenger-facing digital advertising inside autos and cabs in Bengaluru. Campaign availability and commercial terms are confirmed before booking.");
+export const metadata: Metadata = pageMetadata("bengaluru", "Ads in Bengaluru for Local Businesses", "Plan ads in Bengaluru on OORO's passenger-facing digital screens inside autos and cabs. Explore campaign planning and availability confirmation before booking.");
 export default function BengaluruPage() {
  return <PublicPage eyebrow="Bengaluru / Mobility advertising" title="Reach customers on the move in Bengaluru." description="OORO helps businesses and brands request advertising placements on digital screens inside autos and cabs. Our Bengaluru network is the initial launch focus, and live screen availability is confirmed for every campaign.">
  <PublicSection title="Advertising that moves through the city">
