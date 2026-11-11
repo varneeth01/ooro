@@ -9,9 +9,7 @@ val normalizedStagingApiUrl = configuredStagingApiUrl?.trim().orEmpty()
 val stagingApiConfigured = normalizedStagingApiUrl.startsWith("https://") && normalizedStagingApiUrl.length > "https://".length
 val configuredProductionApiUrl = providers.gradleProperty("driverProductionApiUrl").orNull ?: System.getenv("OORO_DRIVER_PRODUCTION_API_URL")
 val normalizedProductionApiUrl = configuredProductionApiUrl?.trim().orEmpty()
-val productionApiConfigured = normalizedProductionApiUrl.startsWith("https://") &&
-    !normalizedProductionApiUrl.contains("example.invalid") &&
-    normalizedProductionApiUrl.length > "https://".length
+val productionApiConfigured = normalizedProductionApiUrl.startsWith("https://") && normalizedProductionApiUrl.length > "https://".length
 
 tasks.register("validateStagingConfiguration") {
     doLast {
@@ -20,7 +18,7 @@ tasks.register("validateStagingConfiguration") {
         }
     }
 }
-tasks.register("validateReleaseConfiguration") {
+tasks.register("validateProductionConfiguration") {
     doLast {
         if (!productionApiConfigured) {
             throw GradleException("Release build blocked: provide -PdriverProductionApiUrl=https://... or OORO_DRIVER_PRODUCTION_API_URL")
@@ -45,6 +43,9 @@ android {
             initWith(getByName("release"))
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
+            // Internal staging is isolated by application id and uses the local
+            // non-production debug identity; release remains independently signed.
+            signingConfig = signingConfigs.getByName("debug")
             manifestPlaceholders["allowCleartext"] = false
             matchingFallbacks += listOf("release")
             buildConfigField("String", "API_BASE_URL", "\"${if (stagingApiConfigured) normalizedStagingApiUrl else "https://staging-endpoint-required.invalid"}\"")
@@ -53,7 +54,7 @@ android {
             buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false")
             buildConfigField("boolean", "STAGING_CONFIGURED", stagingApiConfigured.toString())
         }
-        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"${if (productionApiConfigured) normalizedProductionApiUrl else "https://api.example.invalid"}\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEBUG_SIMULATION", "false"); buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false") }
+        release { isMinifyEnabled = false; manifestPlaceholders["allowCleartext"] = false; buildConfigField("String", "API_BASE_URL", "\"${if (productionApiConfigured) normalizedProductionApiUrl else "https://production-endpoint-required.invalid"}\""); buildConfigField("boolean", "USE_MOCK_BACKEND", "false"); buildConfigField("boolean", "ALLOW_DEBUG_SIMULATION", "false"); buildConfigField("boolean", "INTERNAL_NOTIFICATION_FIXTURE", "false") }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
@@ -61,11 +62,11 @@ android {
 tasks.matching { it.name.equals("assembleStaging", ignoreCase = true) || it.name.equals("installStaging", ignoreCase = true) }.configureEach {
     dependsOn("validateStagingConfiguration")
 }
+tasks.matching { it.name.equals("assembleRelease", ignoreCase = true) || it.name.equals("installRelease", ignoreCase = true) }.configureEach {
+    dependsOn("validateProductionConfiguration")
+}
 tasks.matching { it.name.contains("StagingUnitTest", ignoreCase = true) }.configureEach {
     enabled = false
-}
-tasks.matching { it.name.equals("assembleRelease", ignoreCase = true) || it.name.equals("bundleRelease", ignoreCase = true) }.configureEach {
-    dependsOn("validateReleaseConfiguration")
 }
 
 dependencies {
@@ -85,6 +86,9 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("com.google.android.gms:play-services-base:18.5.0")
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     testImplementation("junit:junit:4.13.2")
     kaptTest("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")

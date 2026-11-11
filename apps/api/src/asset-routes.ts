@@ -71,7 +71,7 @@ export function registerAssetRoutes(app: FastifyInstance) {
   app.patch('/api/admin/assets/:code', async (request, reply) => {
     const actor = await superAdmin(request)
     const { code } = params.parse(request.params)
-    const data = input.omit({assetCode: true}).parse(request.body)
+    const { assetCode: _ignored, ...data } = input.omit({assetCode: true}).parse(request.body)
     const asset = await prisma.companyAsset.update({where: {assetCode: code}, data})
     await event(asset.id, actor.userId, 'ASSET_UPDATED')
     return reply.send(response(request, asset))

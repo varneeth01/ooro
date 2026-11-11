@@ -8,6 +8,7 @@ import { ApiError } from '../errors.js'
 
 export type PrivateDocumentStorage = {
   put(objectKey: string, content: Buffer, contentType?: string): Promise<{ sha256: string }>
+  get(objectKey: string): Promise<Buffer>
   delete?(objectKey: string): Promise<void>
   signedReadUrl(objectKey: string, expiresAt: Date): Promise<string>
   signedUploadUrl?(objectKey: string, contentType: string, expiresAt: Date, sha256: string): Promise<string>
@@ -24,6 +25,13 @@ class LocalEncryptedDocumentStorage implements PrivateDocumentStorage {
     return { sha256: createHash('sha256').update(content).digest('hex') }
   }
   async signedReadUrl(_objectKey: string, _expiresAt: Date): Promise<string> { throw new ApiError('DOCUMENT_READ_NOT_AVAILABLE', 'Local private documents are not externally readable', 501) }
+  async get(objectKey: string) {
+    const { readFile } = await import('node:fs/promises')
+    const encrypted = await readFile(path.join(config.documentStorageDir, objectKey.replaceAll('/', path.sep)))
+    const iv = encrypted.subarray(0, 12); const tag = encrypted.subarray(12, 28); const body = encrypted.subarray(28)
+    const decipher = (await import('node:crypto')).createDecipheriv('aes-256-gcm', key(), iv); decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(body), decipher.final()])
+  }
   async delete(objectKey: string) { const { rm } = await import('node:fs/promises'); await rm(path.join(config.documentStorageDir, objectKey.replaceAll('/', path.sep)), { force: true }) }
 }
 
@@ -51,6 +59,12 @@ class S3PrivateDocumentStorage implements PrivateDocumentStorage {
     const actualSha256 = head.Metadata?.sha256?.toLowerCase()
     if (head.ContentLength !== expectedSize || (actualSha256 && actualSha256 !== expectedSha256.toLowerCase())) throw new ApiError('DOCUMENT_CHECKSUM_MISMATCH', 'Uploaded document metadata did not match the upload session', 422)
     if (!actualSha256) throw new ApiError('DOCUMENT_CHECKSUM_UNAVAILABLE', 'Storage provider did not return a document checksum', 422)
+  }
+
+  async get(objectKey: string) {
+    const result = await this.client.send(new GetObjectCommand({ Bucket: config.documentStorageBucket, Key: objectKey }))
+    if (!result.Body) throw new ApiError('DOCUMENT_OBJECT_UNAVAILABLE', 'Uploaded document could not be read', 422)
+    return Buffer.from(await result.Body.transformToByteArray())
   }
 
   async signedReadUrl(objectKey: string, expiresAt: Date) {

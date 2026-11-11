@@ -19,3 +19,12 @@ export async function sendAdminInvitationEmail(to: string, name: string, url: st
     html: `<p>Hi ${escapeHtml(name)},</p><p>You have been invited to administer OORO.</p><p><a href="${escapeHtml(url)}">Accept invitation</a></p><p>Expires in 48 hours and can only be used once.</p>`,
   })
 }
+
+export async function sendDriverEmailOtp(to: string, code: string) {
+  return emailProvider.send({
+    to,
+    subject: 'Your OORO Driver verification code',
+    text: `Your OORO Driver verification code is ${code}. It expires in 5 minutes. If you did not request this code, you can ignore this email.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto"><div style="background:#dfff00;padding:18px 22px;font-weight:700;letter-spacing:1px">OORO DRIVER</div><div style="padding:28px 22px"><p>Your verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px;margin:22px 0">${code}</p><p>This code expires in 5 minutes and can only be used once.</p><p style="color:#666;font-size:13px">If you did not request this code, you can ignore this email.</p></div></div>`,
+  })
+}

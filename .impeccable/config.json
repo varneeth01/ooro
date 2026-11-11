@@ -1,3 +1,18 @@
 {
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "apps/api/src/domain/transactional-email.ts"
+        ],
+        "createdAt": "2026-11-02T08:13:51.457Z",
+        "reason": "Sanctioned email-client compatibility fallback; system fonts are intentional for broad transactional email rendering."
+      }
+    ]
+  },
   "buildPath": "code"
 }
