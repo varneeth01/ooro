@@ -20,6 +20,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 
 COPY apps/api apps/api
 COPY packages packages
+COPY scripts/diagnose-super-admin.mjs scripts/diagnose-super-admin.mjs
 
 RUN pnpm --filter @ooro/api exec prisma generate
 RUN pnpm --filter @ooro/api build

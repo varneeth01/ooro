@@ -1358,6 +1358,30 @@ registerOperations(app)
 registerAdminManagement(app)
 registerNetworkOperations(app)
 
-app.setErrorHandler((error, request, reply) => { request.log.error({ err: error }, 'request failed'); const mongoFailure = isMongoError(error); const status = error instanceof ApiError ? error.statusCode : error instanceof z.ZodError ? 422 : error instanceof Prisma.PrismaClientKnownRequestError && ['P2034','P2002'].includes(error.code) ? 409 : mongoFailure ? 503 : 500; const message = error instanceof Error ? error.message : 'Internal server error'; reply.status(status).send({ data: null, error: { code: error instanceof ApiError ? error.code : mongoFailure ? 'GUEST_STORE_UNAVAILABLE' : 'INTERNAL_ERROR', message: mongoFailure ? 'Order database unavailable' : status === 500 ? 'Internal server error' : message }, requestId: request.id }) })
+app.setErrorHandler((error, request, reply) => {
+  const mongoFailure = isMongoError(error)
+  const prismaCode = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined
+  const databaseUnavailable = error instanceof Prisma.PrismaClientInitializationError || ['P1001', 'P1002'].includes(prismaCode ?? '')
+  const databaseSchemaDrift = ['P2021', 'P2022'].includes(prismaCode ?? '')
+  // Keep full request correlation inside server logs; do not expose raw SQL,
+  // connection strings or Prisma's internal error text to browser clients.
+  request.log.error({ err: error, prismaCode, requestId: request.id }, 'request failed')
+  const status = error instanceof ApiError ? error.statusCode
+    : error instanceof z.ZodError ? 422
+    : ['P2034', 'P2002'].includes(prismaCode ?? '') ? 409
+    : mongoFailure || databaseUnavailable || databaseSchemaDrift ? 503 : 500
+  const code = error instanceof ApiError ? error.code
+    : mongoFailure ? 'GUEST_STORE_UNAVAILABLE'
+    : databaseUnavailable ? 'DATABASE_UNAVAILABLE'
+    : databaseSchemaDrift ? 'DATABASE_SCHEMA_MISMATCH'
+    : 'INTERNAL_ERROR'
+  const message = error instanceof ApiError ? error.message
+    : mongoFailure ? 'Order database unavailable'
+    : databaseUnavailable ? 'Database temporarily unavailable. Contact support with the request ID.'
+    : databaseSchemaDrift ? 'Database schema requires operator attention. Contact support with the request ID.'
+    : status === 500 ? 'Internal server error'
+    : error instanceof Error ? error.message : 'Request failed'
+  reply.status(status).send({ data: null, error: { code, message }, requestId: request.id })
+})
 
 export { app }
