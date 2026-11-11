@@ -118,9 +118,7 @@ model DriverAuthIdentity {
   id            String    @id @default(uuid()) @db.Uuid
   driverId      String    @db.Uuid
   provider      String
-  subject       Strinµ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^µ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^g
+  subject       String
   email         String?
   verifiedAt    DateTime?
   createdAt     DateTime  @default(now())
@@ -228,7 +226,129 @@ model DriverDevice {
 model DriverPermissionGrant {
   id          String    @id @default(uuid()) @db.Uuid
   driverId    String    @db.Uuid
-  permm«ëŒ+Š×®º+º$zzb¥ëZŠW«®Šğ®+b-jwZ­Ú.¶›­º$zzb¥æ—76–öâ7G&–æp¢w&çFVB&ööÆVâFVfVÇB†fÇ6R¢6÷W&6R7G&–ærFVfVÇB‚$äE$ô”B"¢w&çFVDBFFUF–ÖSğ¢&Wfö¶VDBFFUF–ÖSğ¢WFFVDBFFUF–ÖRWFFVD@¢G&—fW"G&—fW"&VÆF–öâ†f–VÆG3¢¶G&—fW$–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR ¢Væ—VR…¶G&—fW$–BÂW&Ö—76–öåÒ¢–æFW‚…¶G&—fW$–BÂw&çFVEÒ§Ğ ¦ÖöFVÂ&æ´&VæVf–6–'’°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢G&—fW$–B7G&–ærF"åWV–@¢G—R7G&–æp¢Ö6¶VD66÷VçB7G&–æp¢6V7&WE&Vb7G&–æp¢fW&–f–6F–öå7FGW27G&–ærFVfVÇB‚%TäD”är"¢&V¦V7F–öå&V6öâ7G&–æsğ¢fW&–f–VDBFFUF–ÖSğ¢7&VFVDBFFUF–ÖRFVfVÇB†æ÷r‚’¢WFFVDBFFUF–ÖRWFFVD@¢G&—fW"G&—fW"&VÆF–öâ†f–VÆG3¢¶G&—fW$–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR ¢–æFW‚…¶G&—fW$–BÂfW&–f–6F–öå7FGW5Ò§Ğ ¦ÖöFVÂGWG•6W76–öâ°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢G&—fW$–B7G&–ærF"åWV–@¢G&—fW$FWf–6T–B7G&–æsòF"åWV–@¢fV†–6ÆT–B7G&–æsòF"åWV–@¢F—7Æ”–B7G&–æsòF"åWV–@¢7FGW27G&–ærFVfVÇB‚$5D•dR"¢7F'FVDBFFUF–ÖRFVfVÇB†æ÷r‚’¢VæFVDBFFUF–ÖSğ¢VæE&V6öâ7G&–æsğ¢Æ7DÆö6F–öäBFFUF–ÖSğ¢Æ7DWfVçDBFFUF–ÖSğ¢7&VFVDBFFUF–ÖRFVfVÇB†æ÷r‚’¢G&—fW"G&—fW"&VÆF–öâ†f–VÆG3¢¶G&—fW$–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR¢G&—fW$FWf–6RG&—fW$FWf–6Sò&VÆF–öâ†f–VÆG3¢¶G&—fW$FWf–6T–EÒÂ&VfW&Væ6W3¢¶–EÒ¢Æö6F–öç2GWG”Æö6F–öäWfVçEµĞ ¢–æFW‚…¶G&—fW$–BÂ7FGW5Ò¢–æFW‚…¶G&—fW$–BÂ7F'FVDEÒ§Ğ ¦ÖöFVÂGWG”Æö6F–öäWfVçB°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢G&—fW$–B7G&–ærF"åWV–@¢GWG•6W76–öä–B7G&–ærF"åWV–@¢ö67W'&VDBFFUF–ÖP¢ÆF—GVFRfÆö@¢Æöæv—GVFRfÆö@¢67W&7’fÆö@¢7VVBfÆöCğ¢&V&–ærfÆöCğ¢&V6V—fVDBFFUF–ÖRFVfVÇB†æ÷r‚’¢G&—fW"G&—fW"&VÆF–öâ†f–VÆG3¢¶G&—fW$–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR¢GWG•6W76–öâGWG•6W76–öâ&VÆF–öâ†f–VÆG3¢¶GWG•6W76–öä–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR ¢–æFW‚…¶GWG•6W76–öä–BÂö67W'&VDEÒ§Ğ ¦ÖöFVÂG&—fW$7F—fF–öå&Wf–Wr°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢G&—fW$–B7G&–ærF"åWV–@¢FV6—6–öâ7G&–æp¢&V6öâ7G&–æsğ¢7F÷$–B7G&–æsòF"åWV–@¢7&VFVDBFFUF–ÖRFVfVÇB†æ÷r‚’¢G&—fW"G&—fW"&VÆF–öâ†f–VÆG3¢¶G&—fW$–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR ¢–æFW‚…¶G&—fW$–BÂ7&VFVDEÒ§Ğ ¦ÖöFVÂFö7VÖVçEWÆöE6W76–öâ°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢G&—fW$–B7G&–ærF"åWV–@¢Fö7VÖVçEG—R7G&–æp¢ö&¦V7D¶W’7G&–ærVæ—VP¢6öçFVçEG—R7G&–æp¢6—¦T'—FW2–ç@¢6†#Sb7G&–æp¢7FGW27G&–ærFVfVÇB‚$•55TTB"¢66ä÷WF6öÖR7G&–æsğ¢W‡—&W4BFFUF–ÖP¢6ö×ÆWFVDBFFUF–ÖSğ¢7&VFVDBFFUF–ÖRFVfVÇB†æ÷r‚’¢G&—fW"G&—fW"&VÆF–öâ†f–VÆG3¢¶G&—fW$–EÒÂ&VfW&Væ6W3¢¶–EÒÂöäFVÆWFS¢666FR ¢–æFW‚…¶G&—fW$–BÂ7FGW5Ò§Ğ ¦ÖöFVÂFW÷B°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢æÖR7G&–æp¢6—G’7G&–æp¢fV†–6ÆW2fV†–6ÆUµĞ¢&÷WFW2&÷WFUµĞ§Ğ ¦ÖöFVÂ&÷WFR°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢æÖR7G&–æp¢6—G’7G&–æp¢FW÷D–B7G&–æsòF"åWV–@¢FW÷BFW÷Cò&VÆF–öâ†f–VÆG3¢¶FW÷D–EÒÂ&VfW&Væ6W3¢¶–EÒ¢fV†–6ÆW2fV†–6ÆUµĞ§Ğ ¦ÖöFVÂ67&VVäw&÷W°¢–B7G&–ær–BFVfVÇB‡WV–B‚’’F"åWV–@¢æÖR7G&–ærVæ—VP¢ÖVÖ&W'267&VVäw&÷WÖVÖ&W%µĞ§Ğ ¦ÖöFVÂ67&VVäw&÷WÖVÖ&W"°¢w&÷W–B7G&–ærF"åWV–@¢F—7Æ”–B7G&–ærF"åWV–@¢w&÷WÚ±î¸Â¸­yêë¢°k¢G§¦*^ ScreenGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  permission  String
+  granted     Boolean   @default(false)
+  source      String    @default("ANDROID")
+  grantedAt   DateTime?
+  revokedAt   DateTime?
+  updatedAt   DateTime  @updatedAt
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, permission])
+  @@index([driverId, granted])
+}
+
+model BankBeneficiary {
+  id              String    @id @default(uuid()) @db.Uuid
+  driverId        String    @db.Uuid
+  type            String
+  maskedAccount   String
+  secretRef       String
+  verificationStatus String  @default("PENDING")
+  rejectionReason String?
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  driver          Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, verificationStatus])
+}
+
+model DutySession {
+  id              String        @id @default(uuid()) @db.Uuid
+  driverId        String        @db.Uuid
+  driverDeviceId  String?       @db.Uuid
+  vehicleId       String?       @db.Uuid
+  displayId       String?       @db.Uuid
+  status          String        @default("ACTIVE")
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  endReason       String?
+  lastLocationAt  DateTime?
+  lastEventAt     DateTime?
+  createdAt       DateTime      @default(now())
+  driver          Driver        @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverDevice    DriverDevice? @relation(fields: [driverDeviceId], references: [id])
+  locations       DutyLocationEvent[]
+
+  @@index([driverId, status])
+  @@index([driverId, startedAt])
+}
+
+model DutyLocationEvent {
+  id            String      @id @default(uuid()) @db.Uuid
+  driverId      String      @db.Uuid
+  dutySessionId String      @db.Uuid
+  occurredAt    DateTime
+  latitude      Float
+  longitude     Float
+  accuracy      Float
+  speed         Float?
+  bearing       Float?
+  receivedAt    DateTime    @default(now())
+  driver        Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  dutySession   DutySession @relation(fields: [dutySessionId], references: [id], onDelete: Cascade)
+
+  @@index([dutySessionId, occurredAt])
+}
+
+model DriverActivationReview {
+  id          String    @id @default(uuid()) @db.Uuid
+  driverId    String    @db.Uuid
+  decision    String
+  reason      String?
+  actorId     String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, createdAt])
+}
+
+model DocumentUploadSession {
+  id            String    @id @default(uuid()) @db.Uuid
+  driverId      String    @db.Uuid
+  documentType  String
+  objectKey     String    @unique
+  contentType   String
+  sizeBytes     Int
+  sha256        String
+  status        String    @default("ISSUED")
+  scanOutcome   String?
+  expiresAt     DateTime
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  driver        Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, status])
+}
+
+model Depot {
+  id       String    @id @default(uuid()) @db.Uuid
+  name     String
+  city     String
+  vehicles Vehicle[]
+  routes   Route[]
+}
+
+model Route {
+  id       String    @id @default(uuid()) @db.Uuid
+  name     String
+  city     String
+  depotId  String?   @db.Uuid
+  depot    Depot?    @relation(fields: [depotId], references: [id])
+  vehicles Vehicle[]
+}
+
+model ScreenGroup {
+  id      String              @id @default(uuid()) @db.Uuid
+  name    String              @unique
+  members ScreenGroupMember[]
+}
+
+model ScreenGroupMember {
+  groupId   String      @db.Uuid
+  displayId String      @db.Uuid
+  group     ScreenGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   display   Display     @relation(fields: [displayId], references: [id], onDelete: Cascade)
 
   @@id([groupId, displayId])
@@ -321,7 +441,7 @@ model Display {
   playbackEvents            PlaybackEvent[]
   proofs                    ProofOfPlay[]
   trackingLinks             CampaignTrackingLink[]
-  inventoryConfig   µ¨¥Â¸­yêë¢°k¢G§¦*^        ScreenInventoryConfig?
+  inventoryConfig           ScreenInventoryConfig?
   groups                    ScreenGroupMember[]
   tags                      String[]                    @default([])
   zoneConfig                DisplayZoneConfig?
@@ -414,7 +534,7 @@ model LayoutRevision {
   contract       Json
   contractHash   String
   validation     Json
-  publishedBy    String?       @µ¨¥Â¸­yêë¢°k¢G§¦*^db.Uuid
+  publishedBy    String?       @db.Uuid
   publishedAt    DateTime      @default(now())
   template       LayoutTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
   assignments    LayoutAssignment[]
@@ -635,8 +755,7 @@ model SelfServePaymentEvent {
 model AdBalanceAccount {
   id                 String                 @id @default(uuid()) @db.Uuid
   accountId          String                 @unique
-  currency           String                 @default("INR"µ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^)
+  currency           String                 @default("INR")
   cachedBalancePaise BigInt                 @default(0)
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
@@ -760,8 +879,7 @@ model DisplayCommand {
   status         String    @default("QUEUED")
   createdAt      DateTime  @default(now())
   deliveredAt    DateTime?
-  acknowledgedAt µ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^DateTime?
+  acknowledgedAt DateTime?
   failedAt       DateTime?
   expiresAt      DateTime?
   error          String?
@@ -866,7 +984,7 @@ model RideEvent {
   receivedAt  DateTime       @default(now())
   confidence  Float
   source      String?
-  ride        Ride?          @relation(fields: [µ¨¥Â¸­yêë¢°k¢G§¦*^rideId], references: [id])
+  ride        Ride?          @relation(fields: [rideId], references: [id])
   candidate   RideCandidate? @relation(fields: [candidateId], references: [id])
 
   @@index([rideId, occurredAt])
@@ -982,7 +1100,7 @@ model ProofOfPlay {
   displayHeartbeatId String?
   latitude           Float?
   longitude          Float?
-  locaµ¨¥Â¸­yêë¢°k¢G§¦*^tionAccuracy   Float?
+  locationAccuracy   Float?
   locationOccurredAt DateTime?
   ride               Ride?            @relation(fields: [rideId], references: [id])
   display            Display          @relation(fields: [displayId], references: [id])
@@ -1096,8 +1214,7 @@ model AgreementVersion {
   createdAt  DateTime        @default(now())
   consents   DriverConsent[]
 
- µ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^ @@unique([type, version])
+  @@unique([type, version])
 }
 
 model DriverConsent {
@@ -1200,8 +1317,7 @@ model ManagedApplication {
   id                     String                       @id @default(uuid()) @db.Uuid
   packageName            String                       @unique
   displayName            String
-  allowed                Boolean                  µ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^    @default(true)
+  allowed                Boolean                      @default(true)
   critical               Boolean                      @default(true)
   remoteUninstallAllowed Boolean                      @default(false)
   createdAt              DateTime                     @default(now())
@@ -1294,7 +1410,7 @@ model DeploymentTarget {
   attemptCount     Int                 @default(0)
   nextAttemptAt    DateTime?
   lastErrorCode    String?
-  lastErrorMessage Stµ¨¥Â¸­yêë¢°k¢G§¦*^ring?
+  lastErrorMessage String?
   assignedAt       DateTime?
   completedAt      DateTime?
   rowVersion       Int                 @default(0)
@@ -1385,7 +1501,7 @@ model DeviceOsAuditEvent {
   before          Json?
   after           Json?
   createdAt       DateTime            @default(now())
-  managedDevice   ManagedDevice?     µ¨¥Â¸­yêë¢°k¢G§¦*^ @relation(fields: [managedDeviceId], references: [id], onDelete: SetNull)
+  managedDevice   ManagedDevice?      @relation(fields: [managedDeviceId], references: [id], onDelete: SetNull)
   campaign        DeploymentCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([managedDeviceId, createdAt])
@@ -1503,8 +1619,7 @@ model OrganizationMember {
 
 model VerificationRequest {
   id             String                @id @default(uuid()) @db.Uuid
-  organizationµ¨¥zºè¯
-â¶)à²Ö§uªİ¢ëiºĞk¢G§¦*^Id String                @db.Uuid
+  organizationId String                @db.Uuid
   status         String                @default("PENDING_REVIEW")
   requestedAt    DateTime              @default(now())
   reviewedAt     DateTime?
