@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { canAdmin } from "@/apps/api/src/domain/admin-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,7 +10,28 @@ export const dynamic = "force-dynamic";
 const offerSchema = z.object({ brandName: z.string().trim().max(120).optional(), offerTitle: z.string().trim().max(160).optional(), offerSubtitle: z.string().trim().max(240).optional(), offerValue: z.string().trim().max(120).optional(), ctaType: z.string().trim().max(40).optional(), ctaLabel: z.string().trim().max(80).optional(), ctaUrl: z.string().trim().max(2048).optional() }).strict();
 const createSchema = z.object({ name: z.string().trim().min(1).max(160), advertiser: z.string().trim().max(160).optional(), campaignType: z.literal("INTERNAL_TEST").default("INTERNAL_TEST"), deliverySlot: z.enum(["MAIN", "SPONSORED"]).default("MAIN"), startDate: z.string().optional(), endDate: z.string().optional(), startTime: z.string().regex(/^\d{2}:\d{2}$/).default("08:00"), endTime: z.string().regex(/^\d{2}:\d{2}$/).default("22:00"), days: z.array(z.string()).max(7).default(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]), timezone: z.string().max(64).default("Asia/Kolkata"), frequency: z.enum(["LOW", "NORMAL", "HIGH", "PRIORITY"]).default("NORMAL"), playsPerLoop: z.number().int().min(1).max(28).default(1), centerLat: z.number().finite().min(-90).max(90).optional(), centerLng: z.number().finite().min(-180).max(180).optional(), radiusKm: z.number().finite().positive().max(500).optional(), playAsSoonAsSynced: z.boolean().default(false), layout: z.string().max(64).default("AD_NAV_OFFER"), offer: offerSchema.optional() });
 const safe = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? Number(item) : item));
-function errorResponse(error: unknown, requestId = randomUUID()) { const status = error instanceof AdminAuthError ? error.status : 500; console.error("[admin/campaigns] failed", { requestId, errorType: error instanceof Error ? error.name : "unknown", detail: error instanceof Error ? error.message : "unknown" }); return NextResponse.json({ error: { code: status === 500 ? "CAMPAIGN_SERVICE_ERROR" : error instanceof AdminAuthError ? error.code : "UNKNOWN", message: status === 500 ? "Campaign service failed. Please retry later or contact support with the request ID." : status === 502 ? "Admin authentication service is unavailable. Retry when the backend is healthy." : "Admin access required" }, requestId }, { status: status === 500 ? 503 : status, headers: { "x-request-id": requestId } }); }
+function errorResponse(error: unknown, requestId = randomUUID()) {
+  const authError = error instanceof AdminAuthError;
+  const prismaCode = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
+  const databaseDown = error instanceof Prisma.PrismaClientInitializationError || prismaCode === "P1001" || prismaCode === "P1002";
+  const schemaDrift = prismaCode === "P2021" || prismaCode === "P2022";
+  const status = authError ? error.status : databaseDown || schemaDrift ? 503 : 500;
+  const code = authError ? error.code : databaseDown ? "DATABASE_UNAVAILABLE" : schemaDrift ? "DATABASE_SCHEMA_MISMATCH" : "CAMPAIGN_SERVICE_ERROR";
+  const message = authError
+    ? status === 502 ? "Admin authentication service is unavailable. Retry when the backend is healthy." : "Admin access required"
+    : databaseDown ? "Campaign database is unavailable. Contact the operator with this request ID."
+    : schemaDrift ? "Campaign database schema needs operator attention. Contact support with this request ID."
+    : "Campaign service failed. Contact support with this request ID.";
+  // Do not print Prisma messages, SQL or connection strings into shared logs.
+  console.error("[admin/campaigns] failed", {
+    requestId,
+    errorType: error instanceof Error ? error.name : "unknown",
+    ...(prismaCode ? { prismaCode } : {}),
+  });
+  return NextResponse.json({ error: { code, message }, requestId }, {
+    status, headers: { "x-request-id": requestId, "cache-control": "no-store" },
+  });
+}
 const campaignDate = (value: string | undefined, timezone: string, end = false) => { if (!value) return undefined; const suffix = timezone === "Asia/Kolkata" ? "+05:30" : "Z"; return new Date(`${value}T${end ? "23:59:59.999" : "00:00:00.000"}${suffix}`); };
 
 export async function GET() {
