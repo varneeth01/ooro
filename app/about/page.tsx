@@ -152,7 +152,7 @@ export default function AboutPage() {
             ))}
           </dl>
           <p className="mt-6 text-xs leading-6 text-neutral-500">
-            This page describes OORO's public product focus. Current inventory and campaign terms are confirmed directly before booking.
+            This page describes OORO&apos;s public product focus. Current inventory and campaign terms are confirmed directly before booking.
           </p>
         </div>
       </section>
