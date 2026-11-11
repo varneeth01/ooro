@@ -7,8 +7,8 @@ import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata(
   "about",
-  "OORO Founders and Company — Bengaluru Mobility Advertising",
-  "Learn what OORO does, where its mobility advertising network is focused, how campaigns are reviewed, and who is building the company."
+  "About OORO: Founders, Bengaluru Advertising Network & Technology",
+  "Meet OORO's founders and learn about its Bengaluru-first digital advertising network inside auto-rickshaws and software for managing offline campaigns."
 );
 
 const team = [
@@ -71,7 +71,7 @@ export default function AboutPage() {
       "@type": "AboutPage",
       "@id": `${siteUrl}/about#webpage`,
       url: `${siteUrl}/about`,
-      name: "OORO Founders and Company",
+      name: "About OORO: Founders, Company and Technology",
       about: { "@id": `${siteUrl}/#organization` },
       mainEntity: { "@id": `${siteUrl}/#organization` },
       inLanguage: "en-IN",
@@ -92,8 +92,8 @@ export default function AboutPage() {
   return (
     <PublicPage
       eyebrow="Our story"
-      title="Meet OORO's founders: building mobility advertising in Bengaluru."
-      description="OORO is a Bengaluru mobility advertising company founded by Varneeth Varma Nandimandalam, Siri Girish and Jay Chandrudu Thammadi. Meet the team building connected screen advertising for everyday journeys."
+      title="About OORO: Bengaluru advertising technology, founders and connected screens."
+      description="OORO is an advertising technology company building a digital advertising network inside auto-rickshaws, starting in Bengaluru, India. OORO helps businesses showcase their brands to passengers through connected digital displays and is developing software to manage and measure offline advertising campaigns."
       size="compact" primaryAction={{ href: "/digital-advertising-bengaluru", label: "Explore OORO advertising" }} secondaryAction={{ href: "/careers", label: "Work with OORO" }}
     >
       <section className="container-ooro py-20 sm:py-28">
@@ -104,7 +104,7 @@ export default function AboutPage() {
             </span>
             <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl">Why we are building OORO</h2>
             <p className="mt-5 text-base leading-8 text-neutral-700">
-              OORO is building a mobility advertising platform around digital screens inside autos and cabs. The founders are focused on helping businesses plan local campaigns, getting approved creative onto eligible screens, and showing what playback records can verify.
+              OORO is an advertising technology company building a digital advertising network inside auto-rickshaws, starting in Bengaluru, India. OORO helps businesses showcase their brands to passengers through connected digital displays and is developing software to manage and measure offline advertising campaigns.
             </p>
             <p className="mt-5 text-base leading-8 text-neutral-700">
               The company is starting in Bengaluru. Inventory, dates and commercial terms are reviewed for each campaign request, and playback evidence is described with its limits.
@@ -163,9 +163,11 @@ export default function AboutPage() {
         <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-700">Read the source pages for OORO&apos;s product, Bengaluru focus and campaign measurement approach.</p>
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium">
           <Link className="underline underline-offset-4" href="/how-it-works">How campaigns work</Link>
+          <Link className="underline underline-offset-4" href="/how-to-advertise-on-ooro-screens">Advertise on OORO screens</Link>
           <Link className="underline underline-offset-4" href="/bengaluru">Advertising in Bengaluru</Link>
           <Link className="underline underline-offset-4" href="/digital-advertising-bengaluru">Digital advertising in Bengaluru</Link>
           <Link className="underline underline-offset-4" href="/methodology">Measurement methodology</Link>
+          <a className="underline underline-offset-4" href="https://www.linkedin.com/company/ooro-a/" target="_blank" rel="noopener noreferrer">OORO on LinkedIn</a>
           <Link className="underline underline-offset-4" href="/contact">Contact OORO</Link>
         </div>
       </section>
