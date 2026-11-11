@@ -12,8 +12,8 @@ export const metadata: Metadata = pageMetadata(
 );
 
 export default function CampaignBriefBuilderPage() {
-  return <PublicPage eyebrow="Free campaign planning tool" title="Build a clearer DOOH campaign brief." description="Turn your campaign objective, preferred Bengaluru areas, schedule, creative and reporting needs into a brief you can copy and share.">
-    <CampaignBriefBuilder />
+  return <PublicPage eyebrow="Free campaign planning tool" title="Build a clearer Bengaluru DOOH campaign brief." description="Organize your campaign objective, preferred areas, dates, budget, creative and reporting questions in a brief you can copy and share. It helps prepare a request; it does not reserve inventory." size="compact" primaryAction={{ href: "#brief-builder", label: "Start your campaign brief" }} secondaryAction={{ href: "/advertise", label: "Explore campaign planning" }}>
+    <div id="brief-builder" className="scroll-mt-24"><CampaignBriefBuilder /></div>
     <PublicSection title="Use the brief to request a proposal">
       <p>A completed brief helps a media partner assess your request. OORO confirms eligible screens, creative approval, campaign dates and commercial terms before booking. Preferred areas do not guarantee a particular vehicle, route or delivery volume.</p>
       <p className="mt-5">Need help deciding what to include? Read the <Link className="underline decoration-[#829d00] underline-offset-4" href="/guides/dooh-campaign-brief-bengaluru">DOOH campaign brief guide</Link>, review <Link className="underline decoration-[#829d00] underline-offset-4" href="/methodology">OORO&apos;s campaign planning methodology</Link>, or <Link className="underline decoration-[#829d00] underline-offset-4" href="/advertise">request campaign planning</Link>.</p>

@@ -94,6 +94,7 @@ export default function AboutPage() {
       eyebrow="Our story"
       title="Meet OORO's founders: building mobility advertising in Bengaluru."
       description="OORO is a Bengaluru mobility advertising company founded by Varneeth Varma Nandimandalam, Siri Girish and Jay Chandrudu Thammadi. Meet the team building connected screen advertising for everyday journeys."
+      size="compact" primaryAction={{ href: "/digital-advertising-bengaluru", label: "Explore OORO advertising" }} secondaryAction={{ href: "/careers", label: "Work with OORO" }}
     >
       <section className="container-ooro py-20 sm:py-28">
         <div className="grid gap-10 lg:grid-cols-[.7fr_1.3fr] lg:gap-20">

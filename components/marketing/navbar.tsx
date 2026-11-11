@@ -6,7 +6,7 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Brand } from "../brand";
 
-const links = [["How it works", "/#campaign-process"], ["Field work", "/#reality"], ["Why OORO", "/#features"], ["Coverage", "/coverage"]] as const;
+const links = [["Bengaluru advertising", "/digital-advertising-bengaluru"], ["How it works", "/how-it-works"], ["For brands", "/for-brands"], ["Guides", "/guides"], ["Coverage", "/coverage"]] as const;
 
 export function Navbar() {
   const rootRef = useRef<HTMLElement>(null);
@@ -59,7 +59,7 @@ export function Navbar() {
     <div className={`container-ooro flex items-center justify-between transition-[padding] duration-200 motion-reduce:transition-none ${scrolled ? "py-1" : "py-2"}`}>
       <Brand dark />
       <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex">
-        {links.map(([label, href]) => <Link key={href} href={href} className="rounded-full px-4 py-2.5 text-[13px] font-medium text-neutral-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#dfff00] motion-reduce:transition-none">
+        {links.map(([label, href]) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={`rounded-full px-3 py-2.5 text-[13px] font-medium transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#dfff00] motion-reduce:transition-none ${pathname === href ? "text-white" : "text-neutral-300"}`}>
           {label}
         </Link>)}
       </nav>
@@ -70,7 +70,7 @@ export function Navbar() {
       <button ref={menuRef} type="button" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} aria-controls="ooro-mobile-nav" className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/15 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#dfff00] lg:hidden" onClick={() => open ? closeMenu(true) : setOpen(true)}>{open ? <X size={21} /> : <Menu size={21} />}</button>
     </div>
     {open && <nav ref={navRef} id="ooro-mobile-nav" aria-label="Mobile navigation" className="ooro-menu-enter border-t border-white/10 bg-[#0c0f0e] px-5 py-4 text-white shadow-2xl lg:hidden">
-      {links.map(([label, href]) => <Link key={href} href={href} onClick={() => closeMenu(true)} className="block min-h-12 border-b border-white/10 px-1 py-3 text-base font-medium hover:text-[#dfff00] focus-visible:outline-2 focus-visible:outline-[#dfff00]">{label}</Link>)}
+      {links.map(([label, href]) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} onClick={() => closeMenu(true)} className={`block min-h-12 border-b border-white/10 px-1 py-3 text-base font-medium hover:text-[#dfff00] focus-visible:outline-2 focus-visible:outline-[#dfff00] ${pathname === href ? "text-[#dfff00]" : "text-white"}`}>{label}</Link>)}
       <div className="mt-4 grid grid-cols-2 gap-3"><Link onClick={() => closeMenu(true)} href="/login" className="min-h-12 rounded-lg border border-white/20 px-4 py-3 text-center text-base focus-visible:outline-2 focus-visible:outline-[#dfff00]">Log in</Link><Link onClick={() => closeMenu(true)} href="/advertise" className="min-h-12 rounded-lg bg-[#dfff00] px-4 py-3 text-center text-base font-semibold text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#dfff00]">Plan campaign</Link></div>
     </nav>}
   </header>;

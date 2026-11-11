@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Navbar } from "@/components/marketing/navbar";
-import { Footer } from "@/components/marketing/footer";
+import { PublicPage } from "@/components/marketing/public-page";
 import { pageMetadata } from "@/lib/seo";
 import "../legal-pages.css";
 
@@ -12,12 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
- return <main className="ooro-legal">
-   <Navbar />
-   <article>
-     <Link className="ooro-policy-back" href="/">← Back to OORO</Link>
+ return <PublicPage title="Privacy Policy" description="Read OORO’s working privacy policy draft for website visitors, advertising enquiries and service users. It remains under review until the company confirms the live data practices." size="compact" primaryAction={{href:"/contact",label:"Contact OORO about privacy"}} secondaryAction={null}>
+   <div className="ooro-legal"><article>
      <p className="ooro-policy-meta">OORO / Legal · Draft for operator review · 11 November 2026</p>
-     <h1>Privacy Policy</h1>
      <p>OORO provides information about advertising on passenger-facing screens and tools for planning campaigns. This page explains the categories of information that can arise when people use our website and services. Specific processing and retention details must be confirmed against our deployed systems before this policy is approved.</p>
      <p className="ooro-policy-note"><strong>Publication review:</strong> This is a working policy draft, not a confirmed statement about every live integration. The business and legal/privacy owner must validate the data inventory, recipients, storage periods, contact channel and applicable statutory requirements before removing the noindex directive.</p>
      <h2>1. Who this policy covers</h2>
@@ -44,7 +40,6 @@ export default function PrivacyPage() {
      <p>Our advertiser-facing services are not directed to children. External websites are governed by their own privacy policies.</p>
      <h2>9. Changes and contact</h2>
      <p>We may revise this policy as products and legal requirements evolve. The version and effective date should be updated when the policy is approved. For privacy-related questions, see <Link href="/contact">Contact OORO</Link>.</p>
-   </article>
-   <Footer />
- </main>;
+   </article></div>
+ </PublicPage>;
 }

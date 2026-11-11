@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Navbar } from "@/components/marketing/navbar";
-import { Footer } from "@/components/marketing/footer";
+import { PublicPage } from "@/components/marketing/public-page";
 import { pageMetadata } from "@/lib/seo";
 import "../legal-pages.css";
 
@@ -11,12 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
- return <main className="ooro-legal">
-   <Navbar />
-   <article>
-     <Link className="ooro-policy-back" href="/">← Back to OORO</Link>
+ return <PublicPage title="Terms of Use" description="Read the working terms draft for using OORO’s website and exploring advertising services. The draft remains noindex pending company and legal review." size="compact" primaryAction={{href:"/contact",label:"Contact OORO about these terms"}} secondaryAction={null}>
+   <div className="ooro-legal"><article>
      <p className="ooro-policy-meta">OORO / Legal · Draft for operator review · 11 November 2026</p>
-     <h1>Terms of Use</h1>
      <p>These draft terms describe expected rules for browsing OORO&apos;s public website and exploring advertising services. They are not a substitute for approved campaign order terms, and they require company/legal review before publication as binding terms.</p>
      <p className="ooro-policy-note"><strong>Publication review:</strong> Confirm the contracting legal entity, applicable law and jurisdiction, payment/refund policy, cancellation terms, dispute process and authorized contact before treating this page as final. It remains noindex pending approval.</p>
      <h2>1. Using the website</h2>
@@ -37,7 +33,6 @@ export default function TermsPage() {
      <p>For information-handling questions, read the <Link href="/privacy">Privacy Policy</Link>. For enquiries and issues, use the <Link href="/contact">Contact page</Link>.</p>
      <h2>9. Amendments</h2>
      <p>The final approved terms should identify an effective date, the contracting entity, governing law, and any necessary dispute-resolution procedure. Material changes should be communicated as required by applicable law and agreements.</p>
-   </article>
-   <Footer />
- </main>;
+   </article></div>
+ </PublicPage>;
 }
