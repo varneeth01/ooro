@@ -362,4 +362,484 @@ export const guides: Guide[] = [
     ],
     dateModified: "2026-11-12"
   },
+  {
+    "slug": "what-is-dooh-advertising-bengaluru",
+    "title": "What Is DOOH Advertising? A Bengaluru Guide",
+    "description": "Learn what digital out-of-home advertising means, how it differs from static outdoor media, and what to ask before planning a Bengaluru campaign.",
+    "intro": "Digital out-of-home (DOOH) is advertising shown on digital screens in public or commercial environments. The phrase describes a delivery format, not one single network: screens, audience context, booking methods and measurement vary by provider. This guide explains the basics and where OORO’s passenger-facing mobility screens fit.",
+    "sections": [
+      {
+        "title": "DOOH in plain language",
+        "paragraphs": [
+          "DOOH uses electronic displays to show advertising in places people visit or move through. Examples can include digital billboards, retail displays, transit environments and screens inside vehicles. A DOOH campaign may use scheduled creative rotation, but the inventory, buying workflow and reporting depend on the operator.",
+          "Digital describes the screen and content workflow; it does not automatically mean online-style user targeting, a live audience count or a guaranteed number of views. Ask what the screen can actually play, how the booking works and what evidence appears in the report."
+        ]
+      },
+      {
+        "title": "How mobility screens differ from billboards",
+        "paragraphs": [
+          "A roadside digital billboard is fixed at a location. A passenger-facing screen in an auto or cab travels with a vehicle and creates a different viewing context. These formats should not be compared as though they offer the same placement, audience, viewing time or measurement.",
+          "OORO focuses on digital screens inside eligible autos and cabs in Bengaluru. Preferred areas can inform campaign planning, but they do not guarantee a route, exact vehicle, audience profile or screen availability."
+        ]
+      },
+      {
+        "title": "Questions to ask before planning",
+        "paragraphs": [
+          "Confirm the screen environment, campaign dates, creative specifications, pricing inclusions, availability checks and cancellation terms. Ask whether delivery reports list screens and playback events, and how offline devices or missed plays are treated.",
+          "For a practical starting point, use the [campaign brief builder](/tools/campaign-brief-builder) and review [OORO’s campaign methodology](/methodology). A planning estimate or media request is not a confirmed booking."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is every digital outdoor screen programmatic DOOH?",
+        "answer": "No. A digital screen is DOOH by format. Programmatic describes a buying and delivery workflow; it is not implied by the screen itself."
+      },
+      {
+        "question": "Does a DOOH playback report prove people saw an ad?",
+        "answer": "No. Device-reported playback is evidence that a creative was reported as played. It does not establish presence, attention, recall or a purchase."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-vs-social-ads-bengaluru",
+    "title": "DOOH vs Social Media Ads: How to Choose in Bengaluru",
+    "description": "Compare digital out-of-home and social advertising by context, creative, measurement and campaign objective for Bengaluru businesses.",
+    "intro": "DOOH and social ads can support different moments in a customer journey. One appears on physical screens in public or commercial settings; the other appears in social feeds and platforms. This comparison helps Bengaluru businesses choose a role for each channel without treating reach estimates or engagement metrics as interchangeable.",
+    "sections": [
+      {
+        "title": "Compare the job each channel does",
+        "paragraphs": [
+          "Social advertising can use platform-defined audiences and online actions, subject to each platform’s controls and measurement. DOOH puts a message in a physical setting. It can support visibility or recall near relevant places, but the provider may not identify individual viewers or guarantee that a specific person sees a screen.",
+          "Start with the decision you want to influence. If a customer is actively searching, search or social may help capture intent. If the goal is to make a local offer familiar in an everyday environment, an outdoor placement may be worth evaluating alongside digital channels."
+        ]
+      },
+      {
+        "title": "Use creative that fits the moment",
+        "paragraphs": [
+          "A social ad can carry detail, links and multiple frames. A screen creative often has a short viewing window and must make the brand, message and next action clear quickly. Ask for the actual screen dimensions, duration and playback rules before creating the asset.",
+          "For OORO placements, use a concise message and a memorable action. A QR code can be tested as an interaction path, but scan likelihood depends on viewing conditions and must not be presented as guaranteed."
+        ]
+      },
+      {
+        "title": "Measure each channel on its own terms",
+        "paragraphs": [
+          "Social reports may include impressions, clicks or conversions defined by a platform. DOOH reporting may include scheduled delivery and device-reported plays. Those metrics describe different events and should not be added together as though they have one denominator.",
+          "Set a baseline, label links consistently and use a time-bound offer or landing page when practical. Compare outcomes cautiously: a change during a campaign does not by itself prove the ad caused it. See the guide to [DOOH campaign measurement](/guides/dooh-campaign-roi-measurement)."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Should a local business choose DOOH or social ads?",
+        "answer": "Choose based on the objective, customer context, available budget and reporting you need. Many businesses test a focused role for each channel rather than assuming one replaces the other."
+      },
+      {
+        "question": "Can DOOH target the same individual users as social ads?",
+        "answer": "Do not assume so. Ask the media provider what audience selection is actually available and what data it uses. OORO campaign area preferences are planning inputs, not person-level targeting."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "programmatic-dooh-explained",
+    "title": "Programmatic DOOH Explained: Buying, Triggers and Limits",
+    "description": "A practical explainer on programmatic digital out-of-home buying, how it differs from ordinary digital-screen advertising and what advertisers should verify.",
+    "intro": "Programmatic DOOH uses software-based workflows to plan, buy or activate digital out-of-home inventory under defined rules. The term is often used loosely, so advertisers should distinguish an automated buying interface from the underlying inventory, eligibility rules and proof of delivery. This guide is educational and does not claim that OORO currently offers programmatic buying.",
+    "sections": [
+      {
+        "title": "What programmatic DOOH usually means",
+        "paragraphs": [
+          "A programmatic workflow can connect inventory, campaign parameters and automated transactions through technology. Depending on the platform, buyers may select screens or packages, set budgets and schedules, and activate campaigns through a marketplace or integration.",
+          "Automation does not make inventory universal or remove the need to understand who controls the screens, which placements are eligible, how creative is approved and how delivery is measured. The exact workflow varies by operator and market."
+        ]
+      },
+      {
+        "title": "Programmatic DOOH versus a digital screen campaign",
+        "paragraphs": [
+          "A campaign shown on a digital screen is DOOH even when it is booked by a salesperson or through a direct request. Programmatic refers to the purchasing or activation method. A digital display alone does not prove that an impression was auctioned, targeted in real time or bought through an exchange.",
+          "Ask the seller to demonstrate the actual workflow: inventory discovery, deal type, activation, pacing, reporting and fees. Confirm whether stated triggers use verified data and what happens when a trigger cannot be met."
+        ]
+      },
+      {
+        "title": "What Bengaluru advertisers should verify",
+        "paragraphs": [
+          "Before comparing providers, request a screen list or clear description of the inventory, campaign dates, creative rules, delivery definitions, minimum spend, tax and fee treatment, and reporting sample. Ask which parts are automated and which require manual approval.",
+          "OORO accepts campaign requests for eligible passenger-facing screens and confirms inventory, creative approval and terms before booking. For a request, prepare a [campaign brief](/tools/campaign-brief-builder); do not assume programmatic access or live availability."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is digital out-of-home automatically programmatic?",
+        "answer": "No. DOOH identifies a digital out-of-home format. Programmatic identifies a software-based buying or activation workflow."
+      },
+      {
+        "question": "Does programmatic mean real-time targeting of individuals?",
+        "answer": "No. Do not infer person-level targeting from the term. Ask what data and selection rules are used, and whether they identify places, contexts, audiences or individuals."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-campaign-roi-measurement",
+    "title": "How to Measure DOOH Campaign Performance and ROI",
+    "description": "A careful framework for evaluating DOOH delivery and business outcomes, separating playback evidence, interaction signals and sales attribution.",
+    "intro": "Measuring a DOOH campaign starts by separating what the screen system records from what the business hopes to change. A playback event, QR scan, store visit and sale are different signals. This Bengaluru-focused framework helps advertisers define evidence before a campaign and interpret results without overstating attribution.",
+    "sections": [
+      {
+        "title": "Define the outcome before launch",
+        "paragraphs": [
+          "Choose a primary business outcome such as qualified enquiries, visits to a location, offer redemptions or awareness research. Record a baseline period and decide how long the campaign and evaluation window will run.",
+          "Where possible, create a trackable destination, unique QR code, campaign-specific URL or offer code. These can connect some interactions to a campaign, but they miss people who respond later or through another path and do not capture every exposed person."
+        ]
+      },
+      {
+        "title": "Separate delivery from response",
+        "paragraphs": [
+          "Delivery reporting may list scheduled spots, device-reported plays, screen identifiers or playback exceptions. Ask which event qualifies as a completed play, how duplicate records are handled and how offline device data is reconciled. A booked schedule is not the same as verified playback.",
+          "Response indicators can include QR scans, landing-page visits, calls or redemptions. They show recorded interactions, not every viewer or the campaign’s complete effect. Do not treat estimated audience opportunities as measured views unless a valid method supports that claim."
+        ]
+      },
+      {
+        "title": "Evaluate incrementality with care",
+        "paragraphs": [
+          "Compare results with an appropriate baseline or, when feasible, a comparable area or time period that did not receive the campaign. Note seasonality, promotions, price changes, weather and other marketing that could affect demand.",
+          "A before-and-after increase is correlation, not proof of cause. State the method, period, sample size and limitations in the final report. OORO’s [methodology](/methodology) distinguishes device playback evidence from estimated passenger opportunities."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Can Proof-of-Play tell me the campaign’s ROI?",
+        "answer": "No. Proof-of-Play can support delivery verification. ROI requires business cost and outcome data plus an attribution or evaluation method."
+      },
+      {
+        "question": "Are QR scans a complete measure of campaign reach?",
+        "answer": "No. Scans record a particular interaction. They omit people who do not scan and do not prove which other people noticed the screen."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "hyperlocal-dooh-strategy-bengaluru",
+    "title": "Hyperlocal DOOH Planning in Bengaluru: A Practical Guide",
+    "description": "Plan a neighbourhood-led DOOH campaign in Bengaluru with clear location preferences, timing, creative and availability checks.",
+    "intro": "Hyperlocal advertising is useful when a business serves a defined area or wants to make a local offer more visible. In Bengaluru, neighbourhood names can help frame a campaign request, but they do not guarantee a route, screen or audience. This guide shows how to turn a local idea into a realistic media brief.",
+    "sections": [
+      {
+        "title": "Choose an area based on the customer journey",
+        "paragraphs": [
+          "Map where customers live, work, travel or complete the next step. A café may care about nearby discovery; a service business may want to be remembered before a customer needs it. Use customer interviews, enquiry data and store locations to form a hypothesis rather than assuming a neighbourhood name proves demand.",
+          "Keep the initial geography narrow enough to evaluate. Record the locations that are essential, those that are preferences and any radius or timing constraints."
+        ]
+      },
+      {
+        "title": "Treat location as a planning input",
+        "paragraphs": [
+          "Ask the media operator how area requests relate to available inventory and movement. For mobile screens, a vehicle’s route can change; an area preference does not establish that a particular vehicle will pass a particular point or that an individual audience will be reached.",
+          "OORO’s initial operating focus is Bengaluru and its campaign requests are checked against eligible screen availability. Confirm the inventory and terms for the dates you want before committing budget."
+        ]
+      },
+      {
+        "title": "Connect the location to a measurable action",
+        "paragraphs": [
+          "Use a location-relevant message and a simple next action: visit a nearby outlet, explore a service area or scan a destination. Make sure the offer is valid where the campaign runs and that the destination works on a phone.",
+          "Track a relevant signal such as tagged visits or redemptions, then compare it with a baseline while accounting for other promotions. Review the guide to [advertising a Bengaluru business](/guides/advertise-business-bengaluru) and the [campaign brief builder](/tools/campaign-brief-builder)."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Can I guarantee placement in a Bengaluru neighbourhood?",
+        "answer": "A preference is not confirmation. Ask the operator to confirm eligible screens and any location terms in writing before booking."
+      },
+      {
+        "question": "Does hyperlocal DOOH track a person's location?",
+        "answer": "Not inherently. Ask the provider what location information is used. OORO area selections are planning preferences, not person-level tracking."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-for-startups-bengaluru",
+    "title": "DOOH Advertising for Startups in Bengaluru",
+    "description": "A practical checklist for startups considering digital out-of-home advertising in Bengaluru, from objectives and budget to creative tests and measurement.",
+    "intro": "For an early-stage company, outdoor media can be a way to make a focused local launch more visible. It also requires disciplined budgeting: a campaign should have a clear audience context, offer and follow-up plan. This guide helps Bengaluru startups evaluate DOOH without relying on inflated reach claims or assumed results.",
+    "sections": [
+      {
+        "title": "Use DOOH for a clear launch job",
+        "paragraphs": [
+          "A useful test might introduce a new location, make a product easier to remember or support a time-limited launch. Avoid trying to explain the whole product on a screen. Define one message and one next action that can be evaluated.",
+          "Consider whether physical context fits the product and whether the selected environment overlaps with relevant customer routines. That is a hypothesis to test, not a guarantee of audience fit."
+        ]
+      },
+      {
+        "title": "Keep the test focused and affordable",
+        "paragraphs": [
+          "Set a total cap that includes media, production, taxes and any agency or service fees. Ask for written inclusions and a proposal with assumptions. Compare the proposed campaign with a smaller digital test or other channel you already use.",
+          "For a first campaign, limit the number of messages, use a trackable landing page or offer where practical and agree on what reporting is available before launch. Do not spend based only on a broad estimated-reach number."
+        ]
+      },
+      {
+        "title": "Make the learning useful",
+        "paragraphs": [
+          "Capture a baseline, note concurrent marketing and define the evaluation window. Review device playback separately from enquiries, scans or conversions; each metric answers a different question.",
+          "Document what you would change in a second flight: creative clarity, offer, dates, areas or destination. OORO confirms current eligible inventory and terms before booking; start with a [campaign brief](/tools/campaign-brief-builder) if you are preparing a request."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is DOOH suitable for a startup with a small budget?",
+        "answer": "It depends on the objective, available media minimums and ability to measure a focused test. Ask for confirmed pricing and inclusions before deciding."
+      },
+      {
+        "question": "Can startup DOOH guarantee customer acquisition?",
+        "answer": "No media placement guarantees customer acquisition. A campaign can create an opportunity to communicate; outcomes depend on the offer, audience, creative, availability and other factors."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-for-real-estate-bengaluru",
+    "title": "DOOH Advertising for Real Estate in Bengaluru",
+    "description": "How Bengaluru real-estate marketers can assess DOOH placements, campaign timing, local context and responsible measurement.",
+    "intro": "Real-estate campaigns often need to communicate a location, project stage and next step clearly. DOOH may be one part of a launch or consideration plan, but the right channel depends on the buyer journey, verified project information and available inventory. This guide offers a planning framework for Bengaluru developers and property marketers.",
+    "sections": [
+      {
+        "title": "Match the message to the project stage",
+        "paragraphs": [
+          "A launch message should identify the project and location without crowding the screen. A later-stage message may point to an approved enquiry path or event. Align each claim with current, approved project information and applicable advertising requirements.",
+          "Do not rely on tiny legal copy or ambiguous price claims. Ensure material conditions, availability dates and contact details are accurate and readable in the final approved creative."
+        ]
+      },
+      {
+        "title": "Plan geography without promising buyer reach",
+        "paragraphs": [
+          "Build a list of priority areas from documented customer research, sales enquiry origins or access routes. Treat these as preferences for media planning. A screen near an area cannot prove that a prospective buyer saw the ad or is in-market.",
+          "Ask the operator what locations and dates are genuinely available, what the screen environment is and how any area constraints appear in the written proposal."
+        ]
+      },
+      {
+        "title": "Measure qualified interest carefully",
+        "paragraphs": [
+          "Use a dedicated landing page, event registration or enquiry code to record responses. Track qualified enquiries separately from general traffic and compare with an agreed baseline. A rise in enquiries during a launch can also reflect sales activity, search ads, broker outreach or market changes.",
+          "Request delivery reporting and response metrics separately. A playback record is not evidence of a property visit, buyer intent or a sale."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Can DOOH show homes for sale near a selected project?",
+        "answer": "That depends on actual available screens and campaign terms. A requested area or route is not a confirmed placement; get written confirmation from the provider."
+      },
+      {
+        "question": "Does a campaign prove that DOOH caused a property sale?",
+        "answer": "No. Sales attribution needs a defined methodology and supporting data. Playback reporting alone cannot establish causation."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-for-retail-and-fmcg-bengaluru",
+    "title": "DOOH for Retail and FMCG Brands in Bengaluru",
+    "description": "Plan retail and FMCG DOOH creative around product availability, local context, timing and measurable store actions in Bengaluru.",
+    "intro": "Retail and FMCG advertisers can use DOOH to make a product, promotion or store visit easier to remember. The campaign still depends on the product being available where the message appears and on a clear, compliant offer. This guide helps teams plan local campaigns without assuming that screen proximity equals purchase intent.",
+    "sections": [
+      {
+        "title": "Coordinate media with product availability",
+        "paragraphs": [
+          "Before launch, confirm that featured products and offers are available in the stores or service areas named in the creative. Align campaign dates with stock, opening hours, promotion terms and any retailer approval process.",
+          "If availability varies across Bengaluru, make the destination or offer instructions specific enough to prevent confusion. Do not imply coverage or discount terms beyond what the business can honour."
+        ]
+      },
+      {
+        "title": "Design for quick recognition",
+        "paragraphs": [
+          "Use one product image or visual cue, a short brand message and one action. If a price or offer appears, include any necessary conditions in legible copy and verify it immediately before launch.",
+          "Ask for the real screen specifications before exporting creative. A digital screen format does not guarantee sound, a particular playback duration or a specific viewing distance."
+        ]
+      },
+      {
+        "title": "Measure more than impressions",
+        "paragraphs": [
+          "Possible response signals include redemption codes, tagged visits, retailer feedback or landing-page activity. Select the signal before launch and establish a comparison period when possible.",
+          "Report operational delivery separately from sales data. A QR scan is an interaction; a recorded store sale is an outcome; linking the two requires a stated attribution method."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Should a retail DOOH campaign use a QR code?",
+        "answer": "Use one if a person can reasonably scan it in the placement context and the destination is useful on mobile. Test the code and provide a short URL or clear alternative where practical."
+      },
+      {
+        "question": "Does DOOH guarantee product sales near a store?",
+        "answer": "No. Media exposure does not guarantee attention, availability or purchase. Measure outcomes with separate business data."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-ad-creative-best-practices",
+    "title": "DOOH Ad Creative Best Practices: A Practical Checklist",
+    "description": "A practical checklist for clear digital out-of-home creative, including message hierarchy, calls to action, QR codes and technical approvals.",
+    "intro": "A strong DOOH creative communicates one idea in the time available and fits the actual screen environment. The exact dimensions, duration and file requirements vary by operator, so confirm technical specifications before production. Use this checklist to make review and iteration easier.",
+    "sections": [
+      {
+        "title": "Make the message understandable at a glance",
+        "paragraphs": [
+          "Lead with a recognisable brand or product, one benefit and one call to action. Remove copy that does not help the viewer understand what is being offered or what to do next. Avoid several competing messages on a single frame.",
+          "Use strong contrast, readable type and a simple visual hierarchy. Preview the final artwork at realistic size and from a distance; a desktop preview can hide legibility issues."
+        ]
+      },
+      {
+        "title": "Match creative to the screen and context",
+        "paragraphs": [
+          "Request the current pixel dimensions, aspect ratio, supported file types, maximum file size, video duration and sound rules from the operator. Do not assume that specifications for another network apply.",
+          "Use high-resolution assets and keep essential text away from edges where cropping or safe areas may matter. Test any QR code on a phone under realistic viewing conditions and verify that its destination loads quickly."
+        ]
+      },
+      {
+        "title": "Approve content and check the live destination",
+        "paragraphs": [
+          "Confirm pricing, offer dates, eligibility terms, contact details and destination URLs before submission. Have the brand owner review the final file and preserve the approved version for campaign records.",
+          "Ask how revisions affect the schedule and who provides final approval. OORO reviews submitted creative and confirms eligibility before booking; see the existing [DOOH creative specifications guide](/guides/dooh-creative-specifications)."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "How many words should a DOOH ad contain?",
+        "answer": "There is no universal word count. Use only the words needed to identify the brand, communicate one message and offer a clear next step; check readability in the actual screen context."
+      },
+      {
+        "question": "What file format should I send?",
+        "answer": "Ask the media operator for current specifications. Requirements vary by screen and system, so do not produce final exports based on a generic online recommendation."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "how-outdoor-advertising-works-bengaluru",
+    "title": "How Outdoor Advertising Works in Bengaluru",
+    "description": "Understand the steps in an outdoor advertising campaign in Bengaluru, from objective and placement request to creative approval and delivery review.",
+    "intro": "Outdoor advertising places a brand message in a physical environment. Campaigns can use static billboards, digital displays, transit media or mobile screens, each with different booking, production and reporting requirements. This guide explains a practical planning sequence for Bengaluru businesses and clarifies what to verify at every step.",
+    "sections": [
+      {
+        "title": "Select the format before comparing proposals",
+        "paragraphs": [
+          "Define the objective, customer context, dates and geography. Then compare formats that plausibly support the job: a fixed structure, a digital display or a screen inside a moving vehicle are not interchangeable.",
+          "For each proposal, request the media environment, available dates, creative specifications, price inclusions, taxes, cancellation rules and any location guarantees in writing."
+        ]
+      },
+      {
+        "title": "Submit creative and confirm the booking",
+        "paragraphs": [
+          "Prepare a concise brief and ask for current artwork requirements. Submit the final file for content review and confirm the campaign schedule, screen inventory and commercial terms before assuming a booking is active.",
+          "A proposed route, indicative estimate or campaign request does not equal confirmed delivery. Keep the approved creative, agreed schedule and provider confirmation together."
+        ]
+      },
+      {
+        "title": "Review evidence after the campaign",
+        "paragraphs": [
+          "Ask what report will be provided, when it arrives and which delivery events it includes. Separate scheduled media, device-reported playback, QR interactions and business outcomes.",
+          "OORO focuses on eligible passenger-facing digital screens in Bengaluru and confirms availability before booking. For a format comparison, read [OOH vs DOOH](/guides/digital-vs-outdoor-advertising) and [mobile DOOH vs digital billboards](/guides/mobile-dooh-vs-digital-billboards)."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Does every outdoor ad need a permit?",
+        "answer": "Requirements depend on the format, location, property and responsible parties. Confirm current rules and permissions with the site owner and relevant authorities before installation or display."
+      },
+      {
+        "question": "Does OORO sell roadside billboards?",
+        "answer": "OORO's current public offering focuses on passenger-facing digital screens inside eligible autos and cabs, subject to availability confirmation."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "mobile-dooh-vs-digital-billboards",
+    "title": "Mobile DOOH vs Digital Billboards: What Advertisers Should Compare",
+    "description": "Compare fixed digital billboards with mobile passenger-facing screens by placement, movement, creative context and delivery evidence.",
+    "intro": "A digital billboard and a screen inside a moving vehicle are both digital out-of-home formats, but they differ in placement and operating context. This comparison helps Bengaluru advertisers ask better questions before evaluating a media proposal.",
+    "sections": [
+      {
+        "title": "Fixed placement and mobile context",
+        "paragraphs": [
+          "A digital billboard remains at a site; its location, viewing angle and operating permissions are central to the proposal. A mobile screen moves with its vehicle, so a preferred area or route must be understood as an inventory and movement constraint rather than a fixed address.",
+          "Neither format inherently guarantees who saw an ad, how long someone looked or what action they took. Ask for the evidence and assumptions behind any audience or delivery estimate."
+        ]
+      },
+      {
+        "title": "Compare operational details",
+        "paragraphs": [
+          "For a billboard, ask about site location, operating hours, share of voice, loop duration, display quality, maintenance and proof of play. For mobile screens, ask about eligible vehicles, dates, screen health, movement assumptions, creative review and offline reporting.",
+          "Compare total cost and written inclusions rather than headline rates. Include production, taxes, agency charges and any special location or reporting fees."
+        ]
+      },
+      {
+        "title": "Choose by business objective",
+        "paragraphs": [
+          "A fixed site may suit a brand that prioritises a known landmark or corridor, if the placement and terms are confirmed. Mobile screens may suit a brand interested in a passenger-facing environment, subject to real inventory and actual operating routes.",
+          "OORO focuses on passenger-facing screens in eligible autos and cabs, not roadside billboard inventory. For a Bengaluru request, start with [DOOH advertising in Bengaluru](/digital-advertising-bengaluru) and confirm current availability."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is a mobile screen guaranteed to pass a particular landmark?",
+        "answer": "Not unless the provider explicitly confirms that in the campaign terms. A planning preference alone does not guarantee a route or pass-by."
+      },
+      {
+        "question": "Which format has better reach?",
+        "answer": "There is no universal answer. Compare the specific site or screen list, time period, methodology and audience assumptions for each proposal."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
+  {
+    "slug": "dooh-audience-targeting-and-privacy",
+    "title": "DOOH Audience Targeting and Privacy: What to Ask",
+    "description": "Understand what audience and location targeting can mean in DOOH, what data to verify and how to avoid unsupported person-level targeting claims.",
+    "intro": "The words ‘audience targeting’ can refer to many different things in out-of-home media: selecting a site, choosing a time window, using aggregate movement data or attempting to identify individuals. Advertisers should ask exactly what is happening and what evidence supports the claim. This guide focuses on responsible questions for Bengaluru campaigns.",
+    "sections": [
+      {
+        "title": "Separate place-based planning from person-level targeting",
+        "paragraphs": [
+          "A campaign request naming neighbourhoods, venues or time windows is place-based planning. It does not prove that an operator can identify the people present, determine their interests or deliver an ad to a specific person.",
+          "Ask whether any audience description is a planning hypothesis, an aggregate estimate, a panel measurement or a verified count. Request the time period, data source, method and margin or limitations."
+        ]
+      },
+      {
+        "title": "Ask about data and safeguards",
+        "paragraphs": [
+          "Ask what data is collected, whether it is aggregated or personal, how it is sourced, what retention applies and whether consent or other legal basis is required. Get answers in writing from the provider responsible for the data and the campaign.",
+          "Avoid passing personal or sensitive information into a brief unless it is necessary and the provider has explained secure handling. Do not upload customer lists or device identifiers unless the workflow and lawful basis have been reviewed."
+        ]
+      },
+      {
+        "title": "Use transparent claims in campaign reporting",
+        "paragraphs": [
+          "Describe a location selection as a requested area, not a guaranteed audience. Distinguish estimate, scheduled delivery, device playback and response metrics in client presentations.",
+          "OORO uses area preferences to support planning and confirms eligible screen availability before booking; those preferences do not constitute person-level tracking or a promise of audience composition."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Does DOOH know who looked at a screen?",
+        "answer": "A screen placement alone does not identify viewers or prove attention. Ask what measurement technology is used and what its limits are."
+      },
+      {
+        "question": "Are Bengaluru area preferences the same as geofenced targeting?",
+        "answer": "No. A preferred area can guide a request, but it does not establish a geofence, a guaranteed vehicle route or an individual audience."
+      }
+    ],
+    "dateModified": "2026-11-12"
+  },
 ];
