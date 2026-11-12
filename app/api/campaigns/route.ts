@@ -67,7 +67,17 @@ export async function POST(request: Request) {
     if (input?.pricingPlanId && !requestedPlan) return NextResponse.json({ error: { message: "Pricing plan is unavailable" } }, { status: 422 });
     const verifiedPrivate = Boolean(context?.organization && context.organization.verificationStatus === "VERIFIED" && ["BRAND", "AGENCY"].includes(context.organization.type));
     if (requestedPlan && ((requestedPlan.customerType === "SELF_SERVE" && !requestedPlan.isPublic) || (requestedPlan.customerType !== "SELF_SERVE" && (!verifiedPrivate || requestedPlan.customerType !== context?.organization?.type)))) return NextResponse.json({ error: { message: "This pricing plan is not available for your account" } }, { status: 403 });
-    const rate = requestedPlan?.customerType === "SELF_SERVE" ? requestedPlan.impressionRate : requestedPlan?.autoDayRate;
+    if (requestedPlan && requestedPlan.customerType !== "SELF_SERVE" && requestedPlan.commitmentMonths) {
+      const start = input!.startDate ? Date.parse(`${input!.startDate}T00:00:00Z`) : NaN;
+      const end = input!.endDate ? Date.parse(`${input!.endDate}T00:00:00Z`) : NaN;
+      const campaignDays = Number.isFinite(start) && Number.isFinite(end) ? Math.floor((end - start) / 86_400_000) + 1 : 0;
+      const minimumDays = requestedPlan.commitmentMonths * 30;
+      if (campaignDays < minimumDays) return NextResponse.json({ error: { message: `This plan requires at least ${minimumDays} campaign days (${requestedPlan.commitmentMonths} month${requestedPlan.commitmentMonths === 1 ? "" : "s"}).` } }, { status: 422 });
+    }
+    const rateOverride = requestedPlan && requestedPlan.customerType !== "SELF_SERVE" && context?.organization?.id
+      ? await webPrisma.organizationPricingOverride.findFirst({ where: { organizationId: context.organization.id, pricingPlanId: requestedPlan.id, effectiveFrom: { lte: new Date() }, OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: new Date() } }] }, orderBy: { effectiveFrom: "desc" } })
+      : null;
+    const rate = requestedPlan?.customerType === "SELF_SERVE" ? requestedPlan.impressionRate : (rateOverride?.customRate ?? requestedPlan?.autoDayRate);
     const metadata = { goal: input!.goal, audience: input!.audience, city: input!.city, area: input!.area, media: input!.media, budget: input!.budget, currency: input!.currency, ...input!.metadata };
     const campaign = await webPrisma.campaign.create({ data: {
       ownerEmail: email, userId: context?.account.id, name: input!.name!.trim(), description: input!.description?.trim(), status: "DRAFT",
@@ -75,7 +85,7 @@ export async function POST(request: Request) {
       timezone: String(input!.metadata?.timezone ?? "Asia/Kolkata"), layout: String(input!.media ?? "OORO Auto Screens"),
       campaignCenterLat: input!.campaignCenterLat, campaignCenterLng: input!.campaignCenterLng, radiusKm: input!.radiusKm,
       forecastSnapshot: input!.forecastSnapshot ? JSON.parse(JSON.stringify(input!.forecastSnapshot)) : undefined, forecastGeneratedAt: input!.forecastGeneratedAt ? new Date(input!.forecastGeneratedAt) : undefined, forecastExpiresAt: input!.forecastExpiresAt ? new Date(input!.forecastExpiresAt) : undefined, forecastVersion: input!.forecastVersion,
-      deliveryTier: input!.deliveryTier ?? (String(input!.metadata?.deliveryTier ?? "STANDARD") === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : "STANDARD"), pricingPlanId: requestedPlan?.id, effectiveRate: rate, pricingSource: requestedPlan ? (requestedPlan.customerType === "SELF_SERVE" ? "PUBLIC_SELF_SERVE" : "VERIFIED_PLAN") : undefined, pricingSnapshot: requestedPlan ? { customerType: requestedPlan.customerType, plan: requestedPlan.name, impressionRate: requestedPlan.impressionRate, autoDayRate: requestedPlan.autoDayRate, effectiveRate: rate, budget: input!.budget ?? null } : undefined,
+      deliveryTier: requestedPlan ? (requestedPlan.deliveryTier === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : "STANDARD") : (input!.deliveryTier ?? (String(input!.metadata?.deliveryTier ?? "STANDARD") === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : "STANDARD")), pricingPlanId: requestedPlan?.id, effectiveRate: rate, pricingSource: requestedPlan ? (requestedPlan.customerType === "SELF_SERVE" ? "PUBLIC_SELF_SERVE" : requestedPlan.deliveryTier === "PREMIUM_PLUS" ? "PREMIUM_PLUS" : rateOverride ? "ORGANIZATION_OVERRIDE" : "VERIFIED_PLAN") : undefined, pricingSnapshot: requestedPlan ? { customerType: requestedPlan.customerType, plan: requestedPlan.name, commitmentMonths: requestedPlan.commitmentMonths, deliveryTier: requestedPlan.deliveryTier, impressionRate: requestedPlan.impressionRate, autoDayRate: requestedPlan.autoDayRate, effectiveRate: rate, customPricing: Boolean(rateOverride), budget: input!.budget ?? null } : undefined,
       metadata,
     } });
     return NextResponse.json({ data: campaign }, { status: 201 });

@@ -10,8 +10,8 @@ export default function GuidesPage() {
   const published = guides.filter(g => !g.outline);
   const groups = [
     { title: "Choose a format", slugs: ["digital-vs-outdoor-advertising", "auto-rickshaw-advertising", "auto-advertising-vs-billboards", "mobile-dooh-vs-digital-billboards", "what-is-dooh-advertising-bengaluru", "dooh-vs-social-ads-bengaluru", "how-outdoor-advertising-works-bengaluru"] },
-    { title: "Plan a campaign", slugs: ["advertise-business-bengaluru", "dooh-campaign-brief-bengaluru", "set-local-advertising-budget", "dooh-creative-specifications", "dooh-ad-creative-best-practices", "programmatic-dooh-explained"] },
-    { title: "Plan for your business", slugs: ["small-business-marketing-ideas-bengaluru", "restaurant-local-advertising", "dooh-for-startups-bengaluru", "dooh-for-real-estate-bengaluru", "dooh-for-retail-and-fmcg-bengaluru", "hyperlocal-dooh-strategy-bengaluru"] },
+    { title: "Plan a campaign", slugs: ["advertise-business-bengaluru", "digital-advertising-campaign-examples-bengaluru", "dooh-campaign-brief-bengaluru", "set-local-advertising-budget", "dooh-creative-specifications", "dooh-ad-creative-best-practices", "programmatic-dooh-explained"] },
+    { title: "Plan for your business", slugs: ["small-business-marketing-ideas-bengaluru", "advertise-cafe-bengaluru", "restaurant-local-advertising", "dooh-for-startups-bengaluru", "dooh-for-real-estate-bengaluru", "dooh-for-retail-and-fmcg-bengaluru", "hyperlocal-dooh-strategy-bengaluru"] },
     { title: "Measure responsibly", slugs: ["proof-of-play-dooh", "dooh-campaign-roi-measurement", "dooh-audience-targeting-and-privacy"] },
   ];
   const assigned = new Set<string>();

@@ -138,8 +138,8 @@ export const guides: Guide[] = [
   },
   {
     "slug": "auto-advertising-vs-billboards",
-    "title": "Auto Advertising vs Billboard Advertising: A Bengaluru Comparison",
-    "description": "Compare in-vehicle screens with fixed billboards by placement, viewing context, creative, confirmation and delivery evidence.",
+    "title": "Auto Advertising vs Traditional Billboards in Bengaluru",
+    "description": "Compare auto-rickshaw screen advertising with traditional fixed billboards by placement, viewing context, creative, availability and delivery evidence.",
     "intro": "An auto screen and a billboard are different advertising products. One is a passenger-facing display inside an eligible vehicle; the other is a fixed placement. This comparison helps Bengaluru advertisers ask for the right unit before comparing cost.",
     "dateModified": "2026-11-12",
     "sections": [
@@ -252,6 +252,69 @@ export const guides: Guide[] = [
         "question": "What should a restaurant track during a campaign?",
         "answer": "Choose an operational measure such as calls, bookings, code redemptions or online orders, and record other promotions and capacity changes that could affect demand."
       }
+    ]
+  },
+  {
+    slug: "advertise-cafe-bengaluru",
+    title: "How to Advertise a Café in Bengaluru",
+    description: "A practical café marketing plan covering local discovery, offers, channel choice, campaign briefs and careful measurement.",
+    intro: "A café campaign should fit its menu, location, opening hours and capacity. This Bengaluru guide lays out practical steps for improving local discovery and comparing paid channels—including OORO's passenger-facing auto-rickshaw screens—without assuming an ad guarantees visits or sales.",
+    dateModified: "2026-11-12",
+    sections: [
+      { title: "Make it easy to choose your café", paragraphs: [
+        "Keep your name, address, opening hours, menu, price range, accessibility details and ordering or reservation link accurate on your website and public business listings. Use current photos that help a customer understand the space and food. Make sure the phone number and map directions work on mobile.",
+        "Pick one near-term objective: introduce a new café, promote a weekday menu, fill a quieter time or encourage repeat visits. Match any offer to kitchen capacity, margins and the dates it can be honored. Train staff on the terms before promoting it."
+      ] },
+      { title: "Write a simple campaign brief", paragraphs: [
+        "Record the objective, the café's service area, campaign dates, total budget, the offer or message, and one action such as view the menu, get directions, call or reserve. Keep the message focused enough to understand at a glance.",
+        "If you use a QR code or campaign URL, test it from a phone and make sure the landing page opens quickly and repeats the offer terms. A scan records an interaction; it does not represent every person who saw an ad."
+      ] },
+      { title: "Choose channels for the customer moment", paragraphs: [
+        "Local search and accurate map listings help people who are actively looking for somewhere to eat. Social content can show a dish, atmosphere or time-limited offer. Nearby partnerships and referrals can create a direct local connection. Compare paid media by placement, price, lead time, audience context and the evidence supplied.",
+        "OORO is building a network of digital screens inside autos, starting in Bengaluru. Cafés can enquire about eligible passenger-facing screen inventory. Preferred areas and campaign dates help frame planning but do not guarantee a specific vehicle, route, café visit or audience. OORO confirms inventory and terms before booking."
+      ] },
+      { title: "Review costs and availability before committing", paragraphs: [
+        "Ask for the full cost, dates, placement, creative requirements, taxes, cancellation terms and report definitions. For OORO, creative requirements and eligible screens are confirmed for each request; a planner or enquiry is not a confirmed booking. See [how to advertise on OORO screens](/how-to-advertise-on-ooro-screens) and [campaign pricing context](/auto-advertising-cost-bengaluru)."
+      ] },
+      { title: "Measure the campaign with realistic signals", paragraphs: [
+        "Decide what you can record before launch: reservations using a campaign code, orders, calls, directions requests or offer redemptions. Keep other promotions and operating changes on the same timeline so you can interpret the result responsibly.",
+        "Compare media delivery evidence with your own business records. A device playback, QR scan, direction request and completed purchase are separate events. A rise in sales during a campaign does not by itself establish that advertising caused the increase."
+      ] }
+    ],
+    faqs: [
+      { question: "Should a new café advertise before its listing and menu are ready?", answer: "Make sure hours, location, menu and contact or ordering details are accurate first. Paid promotion is easier to evaluate when interested people can find reliable information and take the next step." },
+      { question: "Can OORO guarantee café customers from an auto screen campaign?", answer: "No. OORO does not promise a specific route, viewer, café visit or sale. Eligible inventory and campaign terms are confirmed for each request." },
+      { question: "What is a useful first campaign objective for a café?", answer: "Choose one concrete goal that matches current capacity, such as introducing the location or testing a specific offer during defined dates. Decide how you will record related enquiries or redemptions before launch." }
+    ]
+  },
+  {
+    slug: "digital-advertising-campaign-examples-bengaluru",
+    title: "Digital Advertising Campaign Examples for Bengaluru Businesses",
+    description: "Illustrative campaign planning examples for cafés, neighborhood services and retailers, with practical briefs and honest measurement limits.",
+    intro: "These are illustrative planning scenarios—not OORO client campaigns, case studies, performance results or proof of available inventory. They show how a Bengaluru business might define an objective, message, channel and measurement plan before requesting a proposal.",
+    dateModified: "2026-11-12",
+    sections: [
+      { title: "Example 1: A café introducing a weekday menu", paragraphs: [
+        "Objective: let nearby customers know that a new weekday breakfast menu is available. Message: the café name, one distinctive menu detail, service days and a simple next action such as view the menu. Make sure the kitchen can handle the offer and that hours and location details are correct online.",
+        "Channel plan: update the café's search and map listings, share photos on owned social channels, and compare any paid media by location context, dates, cost and eligibility. A café could enquire about OORO's passenger-facing screens, but a preferred neighborhood does not guarantee a route or visit. Track menu visits or redemptions with a dedicated link or offer code where practical."
+      ] },
+      { title: "Example 2: A neighborhood service opening a location", paragraphs: [
+        "Objective: help people find a new clinic, salon or repair service. Message: what the business does, where it is, when it opens and how to book. Ensure the address pin, phone number and booking page are ready before promotion begins.",
+        "Channel plan: use local search for people actively looking, direct customer communications with consent, and consider physical advertising if awareness beyond existing followers matters. Compare confirmed placement and dates with total cost. Record calls or bookings through a campaign-specific route if possible; do not attribute every enquiry during the period to one ad."
+      ] },
+      { title: "Example 3: A retailer announcing a store launch", paragraphs: [
+        "Objective: announce the opening date and tell customers how to find the store. Message: brand, opening date, one reason to visit and a clear direction or landing-page action. Check that inventory, staffing and the launch offer can support the response.",
+        "Channel plan: coordinate the website, maps, social announcements and any paid media so dates and offer terms match. If considering OORO screens, request available inventory and written terms; screens, dates and delivery are confirmed per campaign. Measure campaign-link visits or offer use as recorded interactions, not a full count of exposed people."
+      ] },
+      { title: "Turn a scenario into a real request", paragraphs: [
+        "A useful brief includes one objective, business and service area, preferred dates, total budget, draft creative, desired action and contact details. Ask the provider to state what is available, what the quote includes and exactly what delivery evidence will be reported.",
+        "For OORO, the format is passenger-facing digital screens inside eligible autos, starting in Bengaluru. Area preferences do not guarantee routes or audience composition. Inventory, creative approval, schedule and commercial terms must be confirmed before booking. See [how to advertise on OORO screens](/how-to-advertise-on-ooro-screens) or [submit a campaign enquiry](/advertise)."
+      ] }
+    ],
+    faqs: [
+      { question: "Are these real OORO campaigns or customer results?", answer: "No. They are illustrative planning scenarios created to show how a business could structure a brief; they do not describe OORO clients, confirmed inventory or campaign performance." },
+      { question: "Do these examples guarantee neighborhood coverage?", answer: "No. Location references are hypothetical planning context. OORO confirms eligible inventory and terms for each request and does not guarantee a specific route or audience." },
+      { question: "How should a business compare an advertising proposal?", answer: "Compare the same dates, placement, total cost, production and tax inclusions, cancellation terms and reporting definitions. Separate delivery records from customer outcomes." }
     ]
   },
   {
