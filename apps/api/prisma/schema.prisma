@@ -1653,6 +1653,7 @@ model PricingPlan {
   commitmentMonths Int?
   autoDayRate      Int?
   impressionRate   Int?
+  deliveryTier     String                        @default("STANDARD")
   isPublic         Boolean                       @default(false)
   active           Boolean                       @default(true)
   createdAt        DateTime                      @default(now())
