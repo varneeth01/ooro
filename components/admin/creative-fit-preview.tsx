@@ -9,11 +9,12 @@ type Props = { file: File | null; layout: PreviewLayout; slot?: "MAIN" | "SPONSO
 export function CreativeFitPreview({ file, layout, slot = "MAIN", onLayoutChange }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [videoPreviewError, setVideoPreviewError] = useState(false);
   const placement = creativePlacement(layout, slot);
   useEffect(() => {
     if (!file) { setUrl(null); setDimensions(null); return; }
     const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl); setDimensions(null);
+    setUrl(objectUrl); setDimensions(null); setVideoPreviewError(false);
     if (file.type.startsWith("image/")) {
       const image = new window.Image();
       image.onload = () => setDimensions({ width: image.naturalWidth, height: image.naturalHeight });
@@ -39,7 +40,8 @@ export function CreativeFitPreview({ file, layout, slot = "MAIN", onLayoutChange
       {layout === "SPLIT_50_25_25" && <><div className="absolute right-0 top-0 h-1/2 w-1/4 border-b border-l bg-[#121820]"/><div className="absolute bottom-0 right-0 h-1/2 w-1/4 border-l border-t bg-[#20252b]"/></>}
       <div className="absolute overflow-hidden bg-black" style={{ left: `${placement.x * 100}%`, top: `${placement.y * 100}%`, width: `${placement.width * 100}%`, height: `${placement.height * 100}%` }}>
         {file && url && file.type.startsWith("image/") && <Image src={url} alt="Creative preview with contain fit" fill unoptimized className="object-contain"/>}
-        {file && url && file.type.startsWith("video/") && <video src={url} aria-label="Video creative preview with contain fit" controls muted playsInline className="h-full w-full object-contain"/>}
+        {file && url && file.type.startsWith("video/") && <video src={url} aria-label="Video creative preview with contain fit" autoPlay loop controls muted playsInline onError={() => setVideoPreviewError(true)} className="h-full w-full object-contain"/>}
+        {videoPreviewError && <p role="status" className="absolute inset-x-2 bottom-2 rounded bg-black/80 p-2 text-center text-[11px] leading-4 text-white">This browser cannot preview the source video. OORO will optimize it for screen playback when you save.</p>}
         {!file && <p className="absolute inset-0 grid place-items-center px-2 text-center text-xs text-neutral-500">Choose an image or video to preview</p>}
       </div>
     </div>
