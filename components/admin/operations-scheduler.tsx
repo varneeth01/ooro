@@ -7,22 +7,23 @@ import { AlertTriangle, ArrowDown, ArrowUp, CalendarDays, Check, Plus, RefreshCw
 import { PageHeader, SectionCard } from "@/components/app/app-ui";
 
 type Named = { id: string; name: string };
-type Rules = { days: number[]; windows: { start: string; end: string }[]; mode: string; value: number; creativeIds: string[]; imageDurationSeconds: number };
+type Rules = { days: number[]; windows: { start: string; end: string }[]; startTime?: string; mode: string; value: number; creativeIds: string[]; imageDurationSeconds: number };
 type Target = { screenIds: string[]; groupIds: string[]; vehicleIds: string[]; tags: string[]; all: boolean; city?: string; area?: string; vehicleType?: string; routeId?: string; depotId?: string; geofence?: { latitude: number; longitude: number; radiusKm: number } };
-type Schedule = { id: string; campaignId: string; revision: number; startsAt: string; endsAt: string; priority: number; exclusive: boolean; rules: Rules; targeting: Target; campaign: { name: string; assignments: { displayId: string }[] } };
+type Schedule = { id: string; campaignId: string; revision: number; startsAt: string; endsAt: string; priority: number; exclusive: boolean; status: string; rules: Rules; targeting: Target; campaign: { name: string; assignments: { displayId: string }[] } };
 type Creative = Named & { status: string; type: string };
-type Data = { schedules: Schedule[]; campaigns: (Named & { status: string; ownerEmail?: string; startsAt?: string; endsAt?: string; creatives: Creative[] })[]; screens: Named[]; groups: Named[]; routes: Named[]; depots: Named[]; vehicles: { id: string; registrationNumber: string }[] };
-type Report = { eligibleScreens: number; offlineScreens: number; reservedSlotDays: number; canPublish: boolean; conflicts: { code: string; message: string; screenId?: string }[] };
+type Data = { schedules: Schedule[]; campaigns: (Named & { status: string; ownerEmail?: string; startsAt?: string; endsAt?: string; creativeStartTime?: string; creatives: Creative[] })[]; screens: Named[]; groups: Named[]; routes: Named[]; depots: Named[]; vehicles: { id: string; registrationNumber: string }[] };
+type Report = { eligibleScreens: number; offlineScreens: number; reservedSlotDays: number; canPublish: boolean; excludedScreens?: { id: string; name: string; reason: string }[]; conflicts: { code: string; message: string; screenId?: string; screenName?: string }[] };
 
 const priorityNames: Record<number, string> = { 0: "HOUSE", 50: "LOW", 100: "NORMAL", 200: "HIGH", 300: "PREMIUM", 1000: "EMERGENCY" };
 const local = (value: string) => new Date(new Date(value).getTime() + 330 * 60000).toISOString().slice(0, 16);
 const today = () => local(new Date().toISOString()).slice(0, 10);
+const atIstTime = (date: string, time: string) => `${date}T${time}:00+05:30`;
+const endOfIstDate = (date: string) => `${date}T23:59:59+05:30`;
 const inputClass = "mt-1.5 min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:bg-neutral-100 sm:text-sm";
 const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800 transition hover:border-neutral-500 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 const primaryClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand-yellow)] px-4 text-sm font-semibold text-black transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 const defaultRules = (): Rules => ({ days: [1, 2, 3, 4, 5, 6, 7], windows: [], mode: "WEIGHTED", value: 1, creativeIds: [], imageDurationSeconds: 10 });
 const defaultTarget = (): Target => ({ screenIds: [], groupIds: [], vehicleIds: [], tags: [], all: false });
-const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const ranges = ["Day", "Week", "Month"] as const;
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -33,15 +34,16 @@ function rulesOverlap(a: Rules, b: Rules) {
   return a.days.some((day) => b.days.includes(day)) && (!a.windows.length || !b.windows.length || a.windows.some((x) => b.windows.some((y) => x.start < y.end && y.start < x.end)));
 }
 
-export function OperationsScheduler({ canOverrideInventory = false, initialCampaignId }: { canOverrideInventory?: boolean; initialCampaignId?: string }) {
+export function OperationsScheduler({ canOverrideInventory = false, canApproveCreative = false, initialCampaignId }: { canOverrideInventory?: boolean; canApproveCreative?: boolean; initialCampaignId?: string }) {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [campaignId, setCampaign] = useState("");
   const [revision, setRevision] = useState(0);
-  const [start, setStart] = useState(`${today()}T07:00`);
-  const [end, setEnd] = useState(`${today()}T22:00`);
+  const [startDate, setStartDate] = useState(today());
+  const [endDate, setEndDate] = useState(today());
+  const [creativeStartTime, setCreativeStartTime] = useState("08:00");
   const [rules, setRules] = useState<Rules>(defaultRules);
   const [target, setTarget] = useState<Target>(defaultTarget);
   const [priority, setPriority] = useState("NORMAL");
@@ -55,6 +57,7 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
   const [screen, setScreen] = useState("");
   const [initialSelectionApplied, setInitialSelectionApplied] = useState(false);
   const [step, setStep] = useState(1);
+  const [approvingCreative, setApprovingCreative] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,9 +79,10 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
   const selected = data?.campaigns.find((campaign) => campaign.id === campaignId);
   const hasTarget = target.all || target.screenIds.length > 0 || target.groupIds.length > 0 || target.vehicleIds.length > 0 || !!(target.routeId || target.depotId || target.city?.trim() || target.area?.trim() || target.vehicleType?.trim() || target.tags.length || target.geofence);
   const hasFleetFilters = !!(target.routeId || target.depotId || target.city?.trim() || target.area?.trim() || target.vehicleType?.trim() || target.tags.length || target.geofence);
-  const checkBlocker = !campaignId ? "Choose a campaign first." : !selected?.creatives.some((creative) => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !start || !end || start >= end ? "Set a valid start and end time." : !rules.days.length ? "Choose at least one day of the week." : !rules.creativeIds.length ? "Add at least one approved creative to the playback sequence." : !hasTarget ? "Choose at least one screen or targeting filter." : null;
+  const checkBlocker = !campaignId ? "Choose a campaign first." : !selected?.creatives.some((creative) => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !startDate || !endDate || endDate < startDate ? "Set a valid campaign date range." : !creativeStartTime ? "Choose when the creative starts each day." : !rules.days.length ? "Choose at least one day of the week." : !rules.creativeIds.length ? "Add at least one approved creative to the playback sequence." : !hasTarget ? "Choose at least one screen or targeting filter." : null;
   const publishBlocker = !campaignId ? "Choose a campaign first." : !selected?.creatives.some((creative) => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !rules.creativeIds.length ? "Add an approved creative to the playback sequence." : !report ? "Check availability before publishing." : !report.canPublish ? "Resolve the availability conflicts before publishing." : null;
-  const payload = useMemo(() => ({ campaignId, revision, startsAt: `${start}:00+05:30`, endsAt: `${end}:00+05:30`, timezone: "Asia/Kolkata", priority, exclusive, rules, target, ...(overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}) }), [campaignId, revision, start, end, priority, exclusive, rules, target, overrideReason]);
+  const scheduledRules = useMemo(() => ({ ...rules, startTime: creativeStartTime, days: [1, 2, 3, 4, 5, 6, 7], windows: [] }), [rules, creativeStartTime]);
+  const payload = useMemo(() => ({ campaignId, revision, startsAt: atIstTime(startDate, creativeStartTime), endsAt: endOfIstDate(endDate), timezone: "Asia/Kolkata", priority, exclusive, rules: scheduledRules, target, ...(overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}) }), [campaignId, revision, startDate, endDate, creativeStartTime, priority, exclusive, scheduledRules, target, overrideReason]);
   useEffect(() => { setReport(null); }, [payload]);
 
   async function submit(action: "check" | "publish") {
@@ -93,7 +97,14 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
     try {
       const response = await fetch(`/api/admin/scheduler/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
-      if (!response.ok) throw new Error(`${result.error?.message ?? "Schedule request failed."}${result.requestId ? ` Reference: ${result.requestId}` : ""}`);
+      if (!response.ok) {
+        if (response.status === 409) {
+          await load();
+          setReport(null);
+          throw new Error(result.error?.code === "STALE_REVISION" ? "This schedule changed while you were editing. The latest data has been refreshed; reopen the row from Timeline before saving." : `${result.error?.message ?? "Availability changed before publishing. Check again."} Check availability again before retrying.`);
+        }
+        throw new Error(`${result.error?.message ?? "Schedule request failed."}${result.requestId ? ` Reference: ${result.requestId}` : ""}`);
+      }
       setReport(result.data);
       if (action === "publish") {
         setRevision(result.data.schedule.revision);
@@ -111,8 +122,9 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
     setStep(1);
     setCampaign(schedule.campaignId);
     setRevision(schedule.revision);
-    setStart(local(schedule.startsAt));
-    setEnd(local(schedule.endsAt));
+    setStartDate(local(schedule.startsAt).slice(0, 10));
+    setEndDate(local(schedule.endsAt).slice(0, 10));
+    setCreativeStartTime(schedule.rules.startTime ?? local(schedule.startsAt).slice(11, 16));
     setRules({ ...schedule.rules, days: [...schedule.rules.days], windows: [...schedule.rules.windows], creativeIds: [...schedule.rules.creativeIds] });
     setTarget({ ...schedule.targeting, screenIds: [...schedule.targeting.screenIds], groupIds: [...schedule.targeting.groupIds], vehicleIds: [...schedule.targeting.vehicleIds], tags: [...schedule.targeting.tags] });
     setPriority(priorityNames[schedule.priority] ?? "NORMAL");
@@ -128,8 +140,9 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
     setStep(1);
     setCampaign("");
     setRevision(0);
-    setStart(`${today()}T07:00`);
-    setEnd(`${today()}T22:00`);
+    setStartDate(today());
+    setEndDate(today());
+    setCreativeStartTime("08:00");
     setRules(defaultRules());
     setTarget(defaultTarget());
     setPriority("NORMAL");
@@ -147,7 +160,11 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
     if (schedule) {
       edit(schedule);
     } else if (data.campaigns.some((item) => item.id === initialCampaignId)) {
+      const campaign = data.campaigns.find((item) => item.id === initialCampaignId)!;
       setCampaign(initialCampaignId);
+      setStartDate(campaign.startsAt ? local(campaign.startsAt).slice(0, 10) : today());
+      setEndDate(campaign.endsAt ? local(campaign.endsAt).slice(0, 10) : today());
+      setCreativeStartTime(campaign.creativeStartTime ?? (campaign.startsAt ? local(campaign.startsAt).slice(11, 16) : "08:00"));
       setView("plan");
       setMessage("Campaign selected. Configure delivery timing, playback and screens here, then check availability before publishing.");
     } else {
@@ -162,6 +179,24 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
     if (to < 0 || to >= next.length) return;
     [next[index], next[to]] = [next[to], next[index]];
     setRules({ ...rules, creativeIds: next });
+  }
+
+  async function approveAndAddCreative(creativeId: string) {
+    if (approvingCreative) return;
+    setApprovingCreative(creativeId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/creatives", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ creativeId, status: "APPROVED" }) });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error?.message ?? "Creative approval failed. Check your creative review access and retry.");
+      setData((current) => current ? { ...current, campaigns: current.campaigns.map((campaign) => campaign.id === campaignId ? { ...campaign, creatives: campaign.creatives.map((creative) => creative.id === creativeId ? { ...creative, status: "APPROVED" } : creative) } : campaign) } : current);
+      setRules((current) => current.creativeIds.includes(creativeId) ? current : { ...current, creativeIds: [...current.creativeIds, creativeId] });
+      setMessage("Creative approved and added to the playback sequence.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Creative approval failed.");
+    } finally {
+      setApprovingCreative("");
+    }
   }
 
   function toggleTarget(key: "screenIds" | "groupIds" | "vehicleIds", id: string, checked: boolean) {
@@ -186,13 +221,13 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
 
     <nav aria-label="Scheduler views" className="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-4">
       <button type="button" aria-pressed={view === "plan"} onClick={() => setView("plan")} className={`min-h-10 rounded-lg px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${view === "plan" ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-200"}`}>{revision > 0 ? "Edit schedule" : "Plan delivery"}</button>
-      <button type="button" aria-pressed={view === "timeline"} onClick={() => setView("timeline")} className={`min-h-10 rounded-lg px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${view === "timeline" ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-200"}`}>Timeline <span className={`ml-1 tabular-nums ${view === "timeline" ? "text-neutral-300" : "text-neutral-500"}`}>{loading ? "…" : data?.schedules.length ?? 0}</span></button>
+      <button type="button" aria-pressed={view === "timeline"} onClick={() => setView("timeline")} className={`min-h-10 rounded-lg px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${view === "timeline" ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-200"}`}>Timeline <span className={`ml-1 tabular-nums ${view === "timeline" ? "text-neutral-300" : "text-neutral-500"}`}>{loading ? "…" : visible.length}</span></button>
     </nav>
 
     {error && <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"><AlertTriangle size={17} className="mt-0.5 shrink-0" /><p className="min-w-0 flex-1">{error}</p><button type="button" onClick={() => void load()} className="shrink-0 font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">Retry</button></div>}
     {message && <p role="status" className="flex items-start gap-2 rounded-xl border border-[#d9e8a4] bg-[#f7fadf] p-3 text-sm text-neutral-800"><Check size={16} className="mt-0.5 shrink-0 text-[#53651a]" />{message}</p>}
 
-    {loading && !data ? <div className="space-y-4" aria-label="Loading scheduler"><div className="h-28 animate-pulse rounded-xl bg-neutral-200" /><div className="h-72 animate-pulse rounded-xl bg-neutral-200" /></div> : !data ? <SectionCard title="Scheduler unavailable" description="The scheduler could not load campaign and screen data."><button type="button" onClick={() => void load()} className={buttonClass}><RefreshCw size={15} />Try again</button></SectionCard> : view === "timeline" ? <SectionCard title="Campaign date spans" description="Bars show campaign start and end dates. Weekdays and daily playback windows are listed for each campaign.">
+    {loading && !data ? <div className="space-y-4" aria-label="Loading scheduler"><div className="h-28 animate-pulse rounded-xl bg-neutral-200" /><div className="h-72 animate-pulse rounded-xl bg-neutral-200" /></div> : !data ? <SectionCard title="Scheduler unavailable" description="The scheduler could not load campaign and screen data."><button type="button" onClick={() => void load()} className={buttonClass}><RefreshCw size={15} />Try again</button></SectionCard> : view === "timeline" ? <SectionCard title="Campaign date spans" description={`${visible.length} scheduled ${visible.length === 1 ? "campaign" : "campaigns"} in this date and screen view. Select a row to edit its dates, creative start time, screens, or playback settings.`}>
       <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Timeline range">{ranges.map((item) => <button type="button" key={item} aria-pressed={range === item} onClick={() => setRange(item)} className={`${buttonClass} ${range === item ? "border-black bg-black text-white hover:bg-black" : ""}`}>{item}</button>)}<button type="button" onClick={() => { setDate(today()); setRange("Day"); }} className={buttonClass}>Today</button></div>
         <div className="grid grid-cols-2 gap-3 sm:flex">
@@ -206,37 +241,33 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
           const left = Math.max(0, ((new Date(schedule.startsAt).getTime() - from) / (until - from)) * 100);
           const width = Math.max(0, Math.min(100, ((new Date(schedule.endsAt).getTime() - from) / (until - from)) * 100) - left);
           const conflict = visible.some((other) => other.id !== schedule.id && (other.exclusive || schedule.exclusive || priorityNames[schedule.priority] === "EMERGENCY") && rulesOverlap(schedule.rules, other.rules) && new Date(other.startsAt) < new Date(schedule.endsAt) && new Date(other.endsAt) > new Date(schedule.startsAt) && other.campaign.assignments.some((a) => schedule.campaign.assignments.some((b) => a.displayId === b.displayId)));
-          const daysLabel = schedule.rules.days.map((day) => weekdays[day - 1]).join(", ");
-          const windowsLabel = schedule.rules.windows.map((window) => `${window.start}–${window.end}`).join(", ") || "All day";
-          return <div key={schedule.id} className="grid min-h-16 grid-cols-[180px_minmax(0,1fr)] items-center gap-3 border-b border-neutral-100 px-3 last:border-b-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-neutral-800">{schedule.campaign.name}</p><p className="truncate text-[11px] text-neutral-500">{daysLabel} · {windowsLabel}</p></div><div className="relative h-9 rounded bg-neutral-100"><button type="button" onClick={() => edit(schedule)} aria-label={`Edit ${schedule.campaign.name}, revision ${schedule.revision}${conflict ? ". Exclusive booking overlap detected" : ""}. Active ${daysLabel}, ${windowsLabel}.`} title={conflict ? "Exclusive booking overlap · select to edit" : "Select to edit schedule"} style={{ left: `${left}%`, width: `${width}%`, minWidth: "4rem" }} className={`absolute inset-y-0 truncate rounded px-2 text-left text-xs font-semibold focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${conflict ? "border border-red-700 bg-red-50 text-red-900" : "bg-black text-[#dfff00]"}`}>{conflict ? "Overlap" : priorityNames[schedule.priority] ?? "NORMAL"}</button></div></div>;
+          const startLabel = schedule.rules.startTime ? `Creative starts ${schedule.rules.startTime} IST` : "All day";
+          return <div key={schedule.id} className="grid min-h-16 grid-cols-[180px_minmax(0,1fr)] items-center gap-3 border-b border-neutral-100 px-3 last:border-b-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-neutral-800">{schedule.campaign.name}</p><p className="truncate text-[11px] text-neutral-500">Every day · {startLabel}</p></div><div className="relative h-9 rounded bg-neutral-100"><button type="button" onClick={() => edit(schedule)} aria-label={`Edit ${schedule.campaign.name}, revision ${schedule.revision}. ${startLabel}.`} title={conflict ? "Exclusive booking overlap · select to edit" : "Select to edit schedule"} style={{ left: `${left}%`, width: `${width}%`, minWidth: "4rem" }} className={`absolute inset-y-0 truncate rounded px-2 text-left text-xs font-semibold focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${conflict ? "border border-red-700 bg-red-50 text-red-900" : "bg-black text-[#dfff00]"}`}>{conflict ? "Overlap" : priorityNames[schedule.priority] ?? "NORMAL"}</button></div></div>;
         })}
       </div></div> : <div className="mt-4 flex flex-col items-start gap-4 rounded-xl bg-[#f2f4ec] p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-neutral-900">No schedules in this interval</p><p className="mt-1 text-sm text-neutral-600">Choose another date or plan a new delivery.</p></div><button type="button" onClick={startNewSchedule} className={primaryClass}><Plus size={15} />Plan delivery</button></div>}
     </SectionCard> : <>
       <ol aria-label="Scheduling steps" className="grid gap-2 sm:grid-cols-3">
-        {[["Campaign & schedule", "Choose the campaign, creative and delivery hours."], ["Target screens", "Choose screens and audience filters."], ["Review & publish", "Check availability and resolve conflicts before publishing."]].map(([title, detail], index) => <li key={title}><div aria-current={step === index + 1 ? "step" : undefined} className={`flex min-h-[76px] items-start gap-3 rounded-xl border p-4 ${step === index + 1 ? "border-[#dfff00]/50 bg-[#dfff00]/[.07]" : step > index + 1 ? "border-white/15 bg-[#191f24]" : "border-white/10 bg-[#151a1e] opacity-60"}`}><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${step === index + 1 ? "bg-[#dfff00] text-black" : "bg-white/10 text-neutral-200"}`}>{index + 1 < step ? <Check size={14} /> : index + 1}</span><span><span className="block text-sm font-semibold text-neutral-100">{title}</span><span className="mt-1 block text-xs leading-5 text-neutral-400">{detail}</span></span></div></li>)}
+        {[["Campaign & schedule", "Choose the campaign, dates and creative start time."], ["Target screens", "Choose screens and audience filters."], ["Review & publish", "Check availability and resolve conflicts before publishing."]].map(([title, detail], index) => <li key={title}><div aria-current={step === index + 1 ? "step" : undefined} className={`flex min-h-[76px] items-start gap-3 rounded-xl border p-4 ${step === index + 1 ? "border-[#dfff00]/50 bg-[#dfff00]/[.07]" : step > index + 1 ? "border-white/15 bg-[#191f24]" : "border-white/10 bg-[#151a1e] opacity-60"}`}><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${step === index + 1 ? "bg-[#dfff00] text-black" : "bg-white/10 text-neutral-200"}`}>{index + 1 < step ? <Check size={14} /> : index + 1}</span><span><span className="block text-sm font-semibold text-neutral-100">{title}</span><span className="mt-1 block text-xs leading-5 text-neutral-400">{detail}</span></span></div></li>)}
       </ol>
 
       {step === 1 && <SectionCard title={revision > 0 ? `Edit schedule · revision ${revision}` : "Campaign and playback"} description="Choose approved media, then set when and how it appears.">
         <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
-          <div><Field label="Campaign" hint={selected ? `${selected.ownerEmail ?? "Internal advertiser"} · ${selected.creatives.filter((creative) => creative.status === "APPROVED").length} approved creatives` : "Choose a campaign with approved media. Existing schedules can be edited from Timeline."}>
-            <select className={inputClass} value={campaignId} disabled={revision > 0} onChange={(event) => { setCampaign(event.target.value); setRevision(0); setStart(`${today()}T07:00`); setEnd(`${today()}T22:00`); setRules(defaultRules()); setTarget(defaultTarget()); setPriority("NORMAL"); setExclusive(false); setReason(""); setReport(null); setMessage(""); }}><option value="">Select campaign</option>{data.campaigns.map((campaign) => { const hasSchedule = data.schedules.some((schedule) => schedule.campaignId === campaign.id); return <option value={campaign.id} key={campaign.id} disabled={revision === 0 && hasSchedule}>{campaign.name} · {campaign.status.replaceAll("_", " ")}{hasSchedule && revision === 0 ? " · Already scheduled — edit in Timeline" : ""}</option>; })}</select>
+          <div><Field label="Campaign" hint={selected ? `${selected.ownerEmail ?? "Internal advertiser"} · ${selected.creatives.filter((creative) => creative.status === "APPROVED").length} approved creatives` : "Choose an approved campaign. Edit existing schedules from Timeline."}>
+            <select className={inputClass} value={campaignId} disabled={revision > 0} onChange={(event) => { const picked = data.campaigns.find((item) => item.id === event.target.value); setCampaign(event.target.value); setRevision(0); setStartDate(picked?.startsAt ? local(picked.startsAt).slice(0, 10) : today()); setEndDate(picked?.endsAt ? local(picked.endsAt).slice(0, 10) : today()); setCreativeStartTime(picked?.creativeStartTime ?? (picked?.startsAt ? local(picked.startsAt).slice(11, 16) : "08:00")); setRules(defaultRules()); setTarget(defaultTarget()); setPriority("NORMAL"); setExclusive(false); setReason(""); setReport(null); setMessage(""); }}><option value="">Select campaign</option>{data.campaigns.filter((campaign) => !["ARCHIVED", "COMPLETED", "CANCELLED"].includes(campaign.status)).map((campaign) => { const hasSchedule = data.schedules.some((schedule) => schedule.campaignId === campaign.id && ["PUBLISHED", "PAUSED"].includes(schedule.status)); return <option value={campaign.id} key={campaign.id} disabled={revision === 0 && hasSchedule}>{campaign.name} · {campaign.status.replaceAll("_", " ")}{hasSchedule && revision === 0 ? " · Edit from Timeline" : ""}</option>; })}</select>
           </Field>{selected && <Link className="mt-2 inline-flex text-xs font-medium text-neutral-700 underline underline-offset-4 hover:text-black" href={`/admin/campaigns/${campaignId}`}>Review campaign</Link>}</div>
           <Field label="Priority"><select className={inputClass} value={priority} onChange={(event) => setPriority(event.target.value)}>{Object.values(priorityNames).map((item) => <option key={item}>{item}</option>)}</select></Field>
-          <Field label="Start (IST)"><input className={inputClass} type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /></Field>
-          <Field label="End (IST)" hint="The end time is exclusive; playback stops at this time."><input className={inputClass} type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>
+          <Field label="Start date"><input className={inputClass} type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></Field>
+          <Field label="End date" hint="Delivery ends at the end of this date."><input className={inputClass} type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></Field>
+          <Field label="Creative start time (IST)" hint="Creatives can play from this time onward, every campaign day."><input className={inputClass} type="time" value={creativeStartTime} onChange={(event) => setCreativeStartTime(event.target.value)} /></Field>
         </div>
 
-        <fieldset className="mt-6 border-t border-neutral-200 pt-5"><legend className="px-1 text-sm font-semibold text-neutral-900">Days and time window</legend>
-          <div className="mt-2 flex flex-wrap gap-2">{weekdays.map((day, index) => <label key={day} className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2 ${rules.days.includes(index + 1) ? "border-black bg-black text-white" : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500"}`}><input type="checkbox" checked={rules.days.includes(index + 1)} onChange={(event) => setRules({ ...rules, days: event.target.checked ? [...rules.days, index + 1].sort((a, b) => a - b) : rules.days.filter((value) => value !== index + 1) })} className="accent-[var(--brand-yellow)]" />{day}</label>)}</div>
-          <label className="mt-4 inline-flex min-h-10 items-center gap-2 text-sm text-neutral-800"><input type="checkbox" checked={exclusive} onChange={(event) => setExclusive(event.target.checked)} className="h-4 w-4 accent-black" />Exclusive placement <span className="text-xs text-neutral-500">Blocks overlapping ads on the selected inventory.</span></label>
-          <div className="mt-4"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium text-neutral-800">Daily windows <span className="font-normal text-neutral-500">· {rules.windows.length ? "IST" : "All day"}</span></p><button type="button" onClick={() => setRules({ ...rules, windows: [...rules.windows, { start: "07:00", end: "11:00" }] })} className={buttonClass}><Plus size={14} />Add time window</button></div>
-            {rules.windows.length ? <div className="space-y-2">{rules.windows.map((window, index) => <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 sm:max-w-xl"><Field label={`From · window ${index + 1}`}><input aria-label={`Start time for window ${index + 1}`} type="time" value={window.start} onChange={(event) => setRules({ ...rules, windows: rules.windows.map((item, itemIndex) => itemIndex === index ? { ...item, start: event.target.value } : item) })} className={inputClass} /></Field><Field label="To"><input aria-label={`End time for window ${index + 1}`} type="time" value={window.end} onChange={(event) => setRules({ ...rules, windows: rules.windows.map((item, itemIndex) => itemIndex === index ? { ...item, end: event.target.value } : item) })} className={inputClass} /></Field><button type="button" aria-label={`Remove time window ${index + 1}`} onClick={() => setRules({ ...rules, windows: rules.windows.filter((_, itemIndex) => itemIndex !== index) })} className={`${buttonClass} mb-0.5 px-3 text-red-700 hover:border-red-300 hover:bg-red-50`}><X size={15} /></button></div>)}</div> : <p className="rounded-lg bg-[#f2f4ec] px-3 py-2.5 text-xs text-neutral-600">All day delivery. Add a window to limit playback hours.</p>}
-          </div>
-        </fieldset>
+        <fieldset className="mt-6 border-t border-neutral-200 pt-5"><legend className="px-1 text-sm font-semibold text-neutral-900">Delivery</legend><p className="text-sm text-neutral-600">Runs every day in the selected date range, from the creative start time through the end of the day.</p><label className="mt-4 inline-flex min-h-10 items-center gap-2 text-sm text-neutral-800"><input type="checkbox" checked={exclusive} onChange={(event) => setExclusive(event.target.checked)} className="h-4 w-4 accent-black" />Exclusive placement <span className="text-xs text-neutral-500">Blocks overlapping ads on the selected inventory.</span></label></fieldset>
 
         <fieldset className="mt-6 border-t border-neutral-200 pt-5"><legend className="px-1 text-sm font-semibold text-neutral-900">Playback rules</legend>
           <div className="mt-2 grid gap-4 md:grid-cols-3"><Field label="Playback strategy"><select className={inputClass} value={rules.mode} onChange={(event) => setRules({ ...rules, mode: event.target.value })}>{[["WEIGHTED", "Weighted rotation"], ["SEQUENCE", "Fixed sequence"], ["EVERY_MINUTES", "Every X minutes"], ["PLAYS_PER_HOUR", "Plays per hour"], ["PLAYS_PER_DAY", "Plays per day"], ["SHARE", "Share of loop %"]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="Frequency, weight, or share"><input className={inputClass} type="number" min={1} value={rules.value} onChange={(event) => setRules({ ...rules, value: Number(event.target.value) })} /></Field><Field label="Image duration (seconds)"><input className={inputClass} type="number" min={1} max={120} value={rules.imageDurationSeconds} onChange={(event) => setRules({ ...rules, imageDurationSeconds: Number(event.target.value) })} /></Field></div>
-          <Field label="Add approved creative" hint="Add creatives in the order you want them to appear in the sequence."><select className={inputClass} value="" onChange={(event) => { const id = event.target.value; if (id) setRules({ ...rules, creativeIds: [...rules.creativeIds, id] }); }}><option value="">Choose creative</option>{selected?.creatives.filter((creative) => creative.status === "APPROVED").map((creative) => <option key={creative.id} value={creative.id}>{creative.name} · {creative.type}</option>)}</select></Field>
+          <div className="mt-3"><Field label={`Approved creatives · ${selected?.creatives.filter((creative) => creative.status === "APPROVED").length ?? 0}`} hint="Choose an approved creative to add it to playback. Review pending media here to keep the flow moving."><select className={inputClass} value="" onChange={(event) => { const id = event.target.value; if (id && !rules.creativeIds.includes(id)) setRules({ ...rules, creativeIds: [...rules.creativeIds, id] }); }}><option value="">Choose approved creative</option>{selected?.creatives.filter((creative) => creative.status === "APPROVED" && !rules.creativeIds.includes(creative.id)).map((creative) => <option key={creative.id} value={creative.id}>{creative.name} · {creative.type}</option>)}</select></Field>
+            {!!selected?.creatives.some((creative) => creative.status !== "APPROVED" && creative.status !== "ARCHIVED") && <ul className="mt-3 divide-y divide-neutral-200 rounded-lg border border-neutral-200">{selected.creatives.filter((creative) => creative.status !== "APPROVED" && creative.status !== "ARCHIVED").map((creative) => <li key={creative.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5"><span className="min-w-0"><span className="block truncate text-sm font-medium text-neutral-800">{creative.name}</span><span className="text-xs text-neutral-500">{creative.status.replaceAll("_", " ")} · {creative.type}</span></span>{canApproveCreative ? <button type="button" disabled={!!approvingCreative} onClick={() => void approveAndAddCreative(creative.id)} className={buttonClass}>{approvingCreative === creative.id ? "Approving…" : "Approve & add"}</button> : <span className="text-xs text-neutral-500">Needs creative review</span>}</li>)}</ul>}</div>
+          <p className="mt-3 text-xs font-medium text-neutral-600">{rules.creativeIds.length} {rules.creativeIds.length === 1 ? "creative" : "creatives"} in playback sequence</p>
           {rules.creativeIds.length > 0 && <ol aria-label="Creative playback sequence" className="mt-3 divide-y divide-neutral-200 rounded-lg border border-neutral-200">{rules.creativeIds.map((id, index) => { const name = selected?.creatives.find((creative) => creative.id === id)?.name ?? id; return <li key={`${id}-${index}`} className="flex min-w-0 items-center gap-2 p-3"><span className="w-7 shrink-0 text-xs font-semibold tabular-nums text-neutral-500">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{name}</span><button type="button" aria-label={`Move creative ${index + 1} up`} disabled={index === 0} onClick={() => moveCreative(index, -1)} className="grid h-9 w-9 place-items-center rounded-md text-neutral-700 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-30"><ArrowUp size={15} /></button><button type="button" aria-label={`Move creative ${index + 1} down`} disabled={index === rules.creativeIds.length - 1} onClick={() => moveCreative(index, 1)} className="grid h-9 w-9 place-items-center rounded-md text-neutral-700 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-30"><ArrowDown size={15} /></button><button type="button" aria-label={`Remove ${name}`} onClick={() => setRules({ ...rules, creativeIds: rules.creativeIds.filter((_, itemIndex) => itemIndex !== index) })} className="grid h-9 w-9 place-items-center rounded-md text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"><X size={15} /></button></li>; })}</ol>}
         </fieldset>
       </SectionCard>}
@@ -267,7 +298,8 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
         {canOverrideInventory && <details className="mt-4 rounded-lg border border-neutral-200 p-4 text-sm"><summary className="cursor-pointer font-medium text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">Advanced · inventory override</summary><p className="mt-2 text-xs leading-5 text-neutral-500">Use only for an approved exception to an exclusive inventory conflict. The reason is recorded in the audit log.</p><Field label="Override reason"><input className={inputClass} value={overrideReason} onChange={(event) => setReason(event.target.value)} placeholder="Explain the exception" /></Field></details>}
 
         {report && <div className="my-4"><dl className="grid gap-3 border-y border-neutral-200 py-4 sm:grid-cols-3"><div><dt className="text-xs text-neutral-500">Eligible screens</dt><dd className="mt-1 text-lg font-semibold tabular-nums text-neutral-950">{report.eligibleScreens}</dd></div><div><dt className="text-xs text-neutral-500">Offline screens</dt><dd className="mt-1 text-lg font-semibold tabular-nums text-neutral-950">{report.offlineScreens}</dd></div><div><dt className="text-xs text-neutral-500">Reserved slot-days</dt><dd className="mt-1 text-lg font-semibold tabular-nums text-neutral-950">{report.reservedSlotDays}</dd></div></dl><p className="mt-3 text-xs text-neutral-600">Offline paired screens receive queued schedule updates when they reconnect. Playback starts after sync.</p>
-          {report.conflicts.length ? <ul className="mt-4 space-y-2">{report.conflicts.map((conflict, index) => <li key={`${conflict.code}-${index}`} className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><span>{conflict.message}{conflict.screenId ? ` · ${conflict.screenId}` : ""}</span></li>)}</ul> : <p className="mt-3 flex items-center gap-2 text-sm text-[#465719]"><Check size={15} />No blocking conflicts detected.</p>}</div>}
+          {!!report.excludedScreens?.length && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">{report.excludedScreens.length} unavailable {report.excludedScreens.length === 1 ? "screen was" : "screens were"} excluded from “All screens.”</p><ul className="mt-1 list-inside list-disc text-xs">{report.excludedScreens.map((item) => <li key={item.id}>{item.name} · {item.reason.toLowerCase()}</li>)}</ul></div>}
+          {report.conflicts.length ? <ul className="mt-4 space-y-2">{report.conflicts.map((conflict, index) => <li key={`${conflict.code}-${index}`} className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><span>{conflict.message}{conflict.screenName ? ` · ${conflict.screenName}` : conflict.screenId ? ` · Screen ${conflict.screenId}` : ""}</span></li>)}</ul> : <p className="mt-3 flex items-center gap-2 text-sm text-[#465719]"><Check size={15} />No blocking conflicts detected.</p>}</div>}
 
         {publishBlocker && <p role="status" className="mt-4 rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-700">{publishBlocker}</p>}
         {checkBlocker && <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Before checking availability: {checkBlocker}</p>}
@@ -277,7 +309,7 @@ export function OperationsScheduler({ canOverrideInventory = false, initialCampa
         <button type="button" onClick={() => { setError(""); setStep(Math.max(1, step - 1)); }} disabled={step === 1} className={buttonClass}>Back</button>
         {step < 3 ? <button type="button" className={primaryClass} onClick={() => {
           const blocker = step === 1
-            ? (!campaignId ? "Choose a campaign first." : !selected?.creatives.some(creative => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !rules.creativeIds.length ? "Add at least one approved creative to the playback sequence." : !start || !end || start >= end ? "Set a valid start and end time." : null)
+            ? (!campaignId ? "Choose a campaign first." : !selected?.creatives.some(creative => creative.status === "APPROVED") ? "This campaign has no approved creative. Upload and approve one before scheduling." : !rules.creativeIds.length ? "Add at least one approved creative to the playback sequence." : !startDate || !endDate || endDate < startDate ? "Set a valid campaign date range." : !creativeStartTime ? "Choose a creative start time." : null)
             : !hasTarget ? "Choose at least one screen or targeting filter." : null;
           if (blocker) { setError(blocker); return; }
           setError(""); setMessage(""); setStep(step + 1); window.scrollTo({ top: 0, behavior: "smooth" });

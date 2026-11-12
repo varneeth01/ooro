@@ -11,11 +11,12 @@ export function registerOperations(app: FastifyInstance) {
  app.get('/api/admin/scheduler', async (request,reply) => {
   await requirePermission(request,'operations:write')
   const [schedules,campaigns,screens,groups,routes,depots,vehicles] = await Promise.all([
-   prisma.adSchedule.findMany({include:{campaign:{select:{name:true,assignments:{where:{active:true},select:{displayId:true}}}}},orderBy:{updatedAt:'desc'},take:500}),
-   prisma.campaign.findMany({where:{status:{notIn:['COMPLETED','CANCELLED']}},select:{id:true,name:true,status:true,ownerEmail:true,startsAt:true,endsAt:true,creatives:{include:{asset:true},orderBy:{displayOrder:'asc'}}},take:500}),
+   prisma.adSchedule.findMany({where:{status:{in:['PUBLISHED','PAUSED']}},include:{campaign:{select:{name:true,assignments:{where:{active:true},select:{displayId:true}}}}},orderBy:{updatedAt:'desc'},take:500}),
+   prisma.campaign.findMany({where:{status:{notIn:['ARCHIVED','COMPLETED','CANCELLED']}},select:{id:true,name:true,status:true,ownerEmail:true,startsAt:true,endsAt:true,metadata:true,creatives:{where:{status:{not:'ARCHIVED'}},include:{asset:true},orderBy:{displayOrder:'asc'}}},take:500}),
    prisma.display.findMany({select:{id:true,name:true,state:true,vehicleId:true},take:1000}),prisma.screenGroup.findMany({include:{members:true}}),prisma.route.findMany(),prisma.depot.findMany(),prisma.vehicle.findMany({select:{id:true,registrationNumber:true,type:true,city:true,routeId:true,depotId:true}})
   ])
-  return reply.send(response(request,safe({schedules,campaigns,screens,groups,routes,depots,vehicles})))
+  const campaignsWithStartTime=campaigns.map(campaign=>{const metadata=campaign.metadata&&typeof campaign.metadata==='object'&&!Array.isArray(campaign.metadata)?campaign.metadata as Record<string,unknown>:{};const adminSchedule=metadata.adminSchedule&&typeof metadata.adminSchedule==='object'&&!Array.isArray(metadata.adminSchedule)?metadata.adminSchedule as Record<string,unknown>:{};return {...campaign,creativeStartTime:typeof adminSchedule.startTime==='string'?adminSchedule.startTime:undefined}})
+  return reply.send(response(request,safe({schedules,campaigns:campaignsWithStartTime,screens,groups,routes,depots,vehicles})))
  })
  for (const action of ['check','publish']) app.post(`/api/admin/scheduler/${action}`,async(request,reply)=>{
   const actor=await requirePermission(request,'campaign:schedule'); const parsed=scheduleInput.safeParse(request.body)

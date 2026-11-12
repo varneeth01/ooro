@@ -9,8 +9,8 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     const campaign = await tx.campaign.findUnique({ where: { id: input.campaignId }, include: { creatives: { include: { asset: true } }, schedule: true, assignments: { where: { active: true } } } })
     if (!campaign) throw new ApiError('NOT_FOUND', 'Campaign not found', 404)
     if ((campaign.schedule?.revision ?? 0) !== input.revision) throw new ApiError('STALE_REVISION','Schedule changed. Reload before publishing.',409)
-    const conflicts: Array<{ code: string; screenId?: string; message: string; overridable: boolean }> = []
-    const warn = (code: string, message: string, screenId?: string, overridable = false) => conflicts.push({ code,message,screenId,overridable })
+    const conflicts: Array<{ code: string; screenId?: string; screenName?: string; message: string; overridable: boolean }> = []
+    const warn = (code: string, message: string, screenId?: string, overridable = false, screenName?: string) => conflicts.push({ code,message,screenId,screenName,overridable })
     if (!['APPROVED','ACTIVE','SCHEDULED','PAUSED'].includes(campaign.status)) warn('CAMPAIGN_NOT_APPROVED','Approve this campaign before scheduling')
     if ((campaign.startsAt && input.startsAt < campaign.startsAt) || (campaign.endsAt && input.endsAt > campaign.endsAt)) warn('OUTSIDE_BOOKING','Schedule extends outside campaign booked dates')
     const creatives = input.rules.creativeIds.map(id => campaign.creatives.find(c => c.id === id))
@@ -27,7 +27,7 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     const city = target.city?.trim()
     const area = target.area?.trim()
     const vehicleType = target.vehicleType?.trim()
-    const displays = (await tx.display.findMany({ where: {
+    const matchedDisplays = (await tx.display.findMany({ where: {
       ...(explicit.length && !target.all ? { OR: explicit } : {}),
       ...(target.tags.length ? { tags: { hasSome: target.tags } } : {}),
       ...((target.routeId || target.depotId || city || area || vehicleType) ? { vehicle: { is: {
@@ -38,6 +38,9 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
         ...(vehicleType ? { type: { equals: vehicleType, mode: 'insensitive' as const } } : {}),
       } } } : {}),
     }, include: { inventoryConfig: true }, take: 1001 })).filter(d => !target.geofence || (d.lastLatitude !== null && d.lastLongitude !== null && distanceKm(target.geofence.latitude,target.geofence.longitude,d.lastLatitude,d.lastLongitude) <= target.geofence.radiusKm))
+    const isBlocked = (display: { state: string }) => ['DISABLED','BLOCKED','MAINTENANCE'].includes(display.state)
+    const excludedScreens = target.all ? matchedDisplays.filter(isBlocked).map(display => ({ id: display.id, name: display.name, reason: display.state })) : []
+    const displays = target.all ? matchedDisplays.filter(display => !isBlocked(display)) : matchedDisplays
     if (!displays.length || displays.length > 1000) warn('TARGET_SIZE','Choose between 1 and 1000 screens')
     for (const id of target.screenIds) if (!displays.some(d => d.id === id)) warn('TARGET_MISSING','Selected screen is excluded by the current filters or no longer exists. Clear or adjust the filters to include it.',id)
     const ids = displays.map(d => d.id)
@@ -51,8 +54,8 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     let tooLarge = false
     const duration = creatives.reduce((n,c) => n + (c?.type.toUpperCase() === 'VIDEO' ? c.asset?.durationSeconds ?? 0 : input.rules.imageDurationSeconds),0)
     for (const d of displays) {
-      if (['DISABLED','BLOCKED','MAINTENANCE'].includes(d.state)) warn('SCREEN_BLOCKED','Screen is blocked or under maintenance',d.id)
-      if (!d.inventoryConfig || !d.inventoryConfig.commercialEnabled) warn('INVENTORY_UNAVAILABLE','Configure and enable screen inventory first',d.id)
+      if (isBlocked(d)) warn('SCREEN_BLOCKED',`Screen is ${d.state.toLowerCase()} and cannot receive this schedule`,d.id,false,d.name)
+      if (!d.inventoryConfig || !d.inventoryConfig.commercialEnabled) warn('INVENTORY_UNAVAILABLE','Configure and enable screen inventory first',d.id,false,d.name)
       const capacity = Math.max(0,Math.min(d.inventoryConfig?.totalSlots ?? 0,d.inventoryConfig?.commercialSlots ?? 0)-(d.inventoryConfig?.blockedSlots ?? 0))
       const slots = input.exclusive ? capacity : requiredSlots(input.rules,duration,capacity)
       for (const date of dates) {
@@ -60,7 +63,7 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
         const owned = rows.filter(a => a.campaignId === campaign.id && ['RESERVED','ACTIVE'].includes(a.status)).length
         const occupied = new Set(rows.map(a=>a.slot))
         const free = Array.from({length:capacity},(_,i)=>i).filter(slot => !occupied.has(slot))
-        if (slots > capacity || free.length + owned < slots) { warn('INVENTORY_CONFLICT',`Insufficient inventory on ${date}`,d.id); break }
+        if (slots > capacity || free.length + owned < slots) { warn('INVENTORY_CONFLICT',`Insufficient inventory on ${date}`,d.id,false,d.name); break }
         reservations.push(...free.slice(0,Math.max(0,slots-owned)).map(slot=>({screenId:d.id,date:new Date(date),slot})))
         if (reservations.length > 20000) { tooLarge=true; break }
       }
@@ -69,7 +72,7 @@ export async function saveSchedule(input: ScheduleInput, actor: { userId: string
     const offline = displays.filter(d=>!d.lastHeartbeatAt || Date.now()-d.lastHeartbeatAt.getTime()>90000).length
     const canOverride = actor.role === 'SUPER_ADMIN' && !!input.overrideReason
     const blocking = conflicts.filter(c=>!c.overridable || !canOverride)
-    const report = { eligibleScreens: displays.length, offlineScreens: offline, conflicts, canPublish: blocking.length === 0, reservedSlotDays: reservations.length, screenIds: ids }
+    const report = { eligibleScreens: displays.length, offlineScreens: offline, conflicts, canPublish: blocking.length === 0, reservedSlotDays: reservations.length, screenIds: ids, excludedScreens }
     if (preview) return report
     if (blocking.length) throw new ApiError('SCHEDULE_CONFLICT', blocking.map(c=>c.message).join('; '),409)
     const data = { startsAt:input.startsAt,endsAt:input.endsAt,timezone:input.timezone,priority:priorities[input.priority],exclusive:input.exclusive,rules:input.rules as Prisma.InputJsonValue,targeting:input.target as Prisma.InputJsonValue,status:'PUBLISHED' }
