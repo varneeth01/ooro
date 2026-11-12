@@ -536,7 +536,25 @@ app.post('/api/auth/admin/login', async (request, reply) => {
     await Promise.all([resetAdminLoginFailures(user.id), clearAdminLoginRateLimit(email)])
     const tokens = await issueTokens(user.id, user.role, undefined, { userAgent: request.headers['user-agent'], ipAddress: request.ip })
     return ok(request, { ...tokens, user: { id: user.id, email: user.email, role: user.role, name: user.name } }, reply)
-  } catch (error) { throw authStoreError(error) }
+  } catch (error) {
+    // Log only safe Prisma identifiers for this 503; never log credentials,
+    // request bodies, SQL text, connection strings, or raw error messages.
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      request.log.error({
+        authStoreFailure: 'prisma_initialization',
+        prismaErrorCode: error.errorCode ?? 'UNKNOWN',
+      }, 'admin authentication store unavailable')
+    } else if (error instanceof Prisma.PrismaClientKnownRequestError && ['P1001', 'P2022'].includes(error.code)) {
+      const meta = error.meta ?? {}
+      request.log.error({
+        authStoreFailure: 'prisma_known_request',
+        prismaCode: error.code,
+        modelName: typeof meta.modelName === 'string' ? meta.modelName : undefined,
+        column: typeof meta.column === 'string' ? meta.column : undefined,
+      }, 'admin authentication store unavailable')
+    }
+    throw authStoreError(error)
+  }
 })
 
 app.post('/api/auth/admin/request-password-reset', async (request, reply) => {
