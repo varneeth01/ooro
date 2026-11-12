@@ -25,16 +25,16 @@ export async function middleware(request: NextRequest) {
     // Resume through a Node route handler (which may securely rotate the HttpOnly cookie).
     if (access === "anonymous" && request.cookies.has(SESSION_COOKIE)) {
       const next = pathname + request.nextUrl.search;
-      return sameOriginRedirect(`/api/auth/admin/resume?${new URLSearchParams({ next })}`);
+      return sameOriginRedirect(`/api/auth/admin/resume?${new URLSearchParams({ next })}`, request);
     }
     if (access === "unavailable") return new NextResponse("Admin authentication service unavailable. Please retry.", { status:503, headers:{"cache-control":"no-store"} });
     const destination = access === "forbidden" ? "/unauthorized" : `/admin/login?${new URLSearchParams({ next: pathname + request.nextUrl.search })}`;
-    return sameOriginRedirect(destination);
+    return sameOriginRedirect(destination, request);
   }
   const protectedRoute = protectedRoutePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
   if (!protectedRoute || request.cookies.has(SESSION_COOKIE) || request.cookies.has(WEB_SESSION_COOKIE)) return NextResponse.next();
   const loginPath = pathname === "/admin" || pathname.startsWith("/admin/") ? "/admin/login" : "/login";
-  return sameOriginRedirect(`${loginPath}?${new URLSearchParams({ next: pathname + request.nextUrl.search })}`);
+  return sameOriginRedirect(`${loginPath}?${new URLSearchParams({ next: pathname + request.nextUrl.search })}`, request);
 }
 
 export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)", "/api/admin/:path*", "/api/auth/admin/:path*"] };

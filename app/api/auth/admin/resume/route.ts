@@ -12,12 +12,12 @@ export async function GET(request: NextRequest) {
   try {
     // Route handlers can set the refreshed, sealed HttpOnly cookie.
     await getAuthenticatedAdmin();
-    return sameOriginRedirect(target);
+    return sameOriginRedirect(target, request);
   } catch (error) {
     if (error instanceof AdminAuthError && error.status === 502) {
       return new NextResponse("Authentication service is unavailable. Your session was not removed; please retry.", { status: 503, headers: { "cache-control": "no-store" } });
     }
-    const response = sameOriginRedirect(`/admin/login?${new URLSearchParams({ next: target })}`);
+    const response = sameOriginRedirect(`/admin/login?${new URLSearchParams({ next: target })}`, request);
     response.cookies.set("ooro_session", "", { httpOnly: true, path: "/", expires: new Date(0) });
     response.headers.set("cache-control", "no-store");
     return response;
