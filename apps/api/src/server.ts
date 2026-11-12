@@ -1213,10 +1213,10 @@ app.post('/api/device/heartbeat', async (request, reply) => {
       const playbackLocation = hasLocation ? { latitude, longitude, locationAccuracy: input.accuracyMeters, locationOccurredAt } : previousLocation ? { latitude: previousLocation.latitude, longitude: previousLocation.longitude, locationAccuracy: previousLocation.accuracyMeters, locationOccurredAt: previousLocation.occurredAt } : {}
       await tx.playbackEvent.create({ data: { eventId: randomSecret(16), displayId: display.id, campaignId: input.currentCampaignId, creativeId: input.currentCreativeId, assetId: input.currentAssetId, eventType: input.playbackState === 'PLAYING' ? 'PLAY_STARTED' : 'PLAY_FAILED', occurredAt: input.playbackStartedAt ?? occurredAt, position: input.playbackPositionMs, duration: input.expectedDurationMs, manifestVersion: input.manifestVersion, playerVersion: input.appVersion, errorCode: input.playbackState === 'FAILED' ? 'DEVICE_PLAYBACK_FAILED' : undefined, ...playbackLocation } as any })
     }
-    await tx.display.update({ where: { id: display.id }, data: { appVersion: input.appVersion, manifestVersion: input.manifestVersion, state: ['DISABLED','BLOCKED','MAINTENANCE'].includes(display.state) ? display.state : input.screenState ?? input.playbackState ?? 'READY', lastHeartbeatAt: new Date(), ...(hasLocation ? { lastLatitude: latitude, lastLongitude: longitude, lastLocationAccuracy: input.accuracyMeters, lastLocationAt: locationOccurredAt } : {}), currentCampaignId: input.currentCampaignId, currentCreativeId: input.currentCreativeId, currentAssetId: input.currentAssetId, currentPlaybackState: input.playbackState, currentPlaybackStartedAt: input.playbackStartedAt, currentPlaybackPositionMs: input.playbackPositionMs, currentExpectedDurationMs: input.expectedDurationMs, manufacturer: input.manufacturer, model: input.model, androidVersion: input.androidVersion ?? input.deviceVersion, batteryLevel: input.batteryLevel, chargingState: input.chargingState, lastNetworkType: input.networkType } })
+      await tx.display.update({ where: { id: display.id }, data: { appVersion: input.appVersion, manifestVersion: input.manifestVersion, state: ['DISABLED','BLOCKED','MAINTENANCE','UNPAIRED'].includes(display.state) ? display.state : input.screenState ?? input.playbackState ?? 'READY', lastHeartbeatAt: new Date(), ...(hasLocation ? { lastLatitude: latitude, lastLongitude: longitude, lastLocationAccuracy: input.accuracyMeters, lastLocationAt: locationOccurredAt } : {}), currentCampaignId: input.currentCampaignId, currentCreativeId: input.currentCreativeId, currentAssetId: input.currentAssetId, currentPlaybackState: input.playbackState, currentPlaybackStartedAt: input.playbackStartedAt, currentPlaybackPositionMs: input.playbackPositionMs, currentExpectedDurationMs: input.expectedDurationMs, manufacturer: input.manufacturer, model: input.model, androidVersion: input.androidVersion ?? input.deviceVersion, batteryLevel: input.batteryLevel, chargingState: input.chargingState, lastNetworkType: input.networkType } })
     return row
   })
-  const latest = await buildDisplayManifest(display.id); if (latest.manifest.version !== (input.manifestVersion ?? -1)) { try { await prisma.$transaction(async (tx) => { const pending = await tx.displayCommand.findFirst({ where: { displayId: display.id, commandType: { in: ['REFRESH_MANIFEST', 'SYNC_MANIFEST'] }, status: { in: ['QUEUED', 'DELIVERED'] } }, select: { id: true } }); if (!pending) await tx.displayCommand.create({ data: { displayId: display.id, commandType: 'REFRESH_MANIFEST', payload: { manifestVersion: latest.manifest.version }, expiresAt: null } }); }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }); } catch (error) { if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2034') throw error } }
+  const latest = await buildDisplayManifest(display.id); if (!['UNPAIRED','DISABLED'].includes(display.state) && latest.manifest.version !== (input.manifestVersion ?? -1)) { try { await prisma.$transaction(async (tx) => { const pending = await tx.displayCommand.findFirst({ where: { displayId: display.id, commandType: { in: ['REFRESH_MANIFEST', 'SYNC_MANIFEST'] }, status: { in: ['QUEUED', 'DELIVERED'] } }, select: { id: true } }); if (!pending) await tx.displayCommand.create({ data: { displayId: display.id, commandType: 'REFRESH_MANIFEST', payload: { manifestVersion: latest.manifest.version }, expiresAt: null } }); }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }); } catch (error) { if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2034') throw error } }
   const commands = await prisma.displayCommand.findMany({ where: { displayId: display.id, status: 'QUEUED', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { createdAt: 'asc' }, take: 20, select: { id: true, commandType: true, payload: true, expiresAt: true } })
   return ok(request, { accepted: true, heartbeatId: hb.id, serverTime: new Date(), currentManifestVersion: latest.manifest.version, manifestUpdateAvailable: latest.manifest.version !== (input.manifestVersion ?? -1), commands: asJson(commands) }, reply)
 })
@@ -1442,13 +1442,14 @@ app.delete('/api/admin/displays/:displayId', async (request, reply) => {
     const assignments = await tx.displayCampaignAssignment.findMany({ where: { displayId, active: true }, select: { campaignId: true } })
     await tx.displayCampaignAssignment.updateMany({ where: { displayId }, data: { active: false } })
     await tx.inventoryAllocation.updateMany({ where: { screenId: displayId, status: { in: ['RESERVED', 'ACTIVE'] } }, data: { status: 'CANCELLED' } })
+    await tx.displayCommand.updateMany({ where: { displayId, commandType: { in: ['REFRESH_MANIFEST', 'SYNC_MANIFEST'] }, status: { in: ['QUEUED', 'DELIVERED'] } }, data: { status: 'CANCELLED', error: 'SUPERSEDED_BY_SCREEN_REMOVAL' } })
     await tx.displayPairingCode.updateMany({ where: { displayId, consumedAt: null, revokedAt: null }, data: { revokedAt: new Date() } })
     let commandId: string | null = null
     const paired = Boolean(display.deviceTokenHash)
     if (paired) {
       const existing = await tx.displayCommand.findFirst({ where: { displayId, commandType: 'UNPAIR', status: { in: ['QUEUED', 'DELIVERED'] } }, orderBy: { createdAt: 'desc' } })
       const command = existing
-        ? await tx.displayCommand.update({ where: { id: existing.id }, data: { payload: { deleteAfterUnpair: true }, expiresAt: null } })
+        ? await tx.displayCommand.update({ where: { id: existing.id }, data: { payload: { deleteAfterUnpair: true }, status: 'QUEUED', deliveredAt: null, acknowledgedAt: null, failedAt: null, error: null, expiresAt: null } })
         : await tx.displayCommand.create({ data: { displayId, commandType: 'UNPAIR', payload: { deleteAfterUnpair: true }, expiresAt: null } })
       commandId = command.id
       await tx.display.update({ where: { id: displayId }, data: { state: 'DISABLED' } })
@@ -1457,6 +1458,29 @@ app.delete('/api/admin/displays/:displayId', async (request, reply) => {
     }
     await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_DELETE_REQUESTED', entityType: 'Display', entityId: displayId, before: { state: display.state }, after: { state: paired ? 'DISABLED_PENDING_UNPAIR' : 'DELETED', commandId, activeCampaignsRemoved: assignments.length }, requestId: request.id } })
     return { state: paired ? 'DISABLED_PENDING_UNPAIR' : 'DELETED', commandId, pendingUnpair: paired }
+  })
+  return ok(request, { displayId, ...result }, reply)
+})
+app.post('/api/admin/displays/:displayId/unpair', async (request, reply) => {
+  const auth = await requirePermission(request, 'device:write')
+  const { displayId } = request.params as { displayId: string }
+  const display = await prisma.display.findUnique({ where: { id: displayId }, select: { id: true, state: true, deviceTokenHash: true } })
+  if (!display || display.state === 'DELETED') throw notFound('Screen not found')
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.displayCampaignAssignment.updateMany({ where: { displayId }, data: { active: false } })
+    await tx.inventoryAllocation.updateMany({ where: { screenId: displayId, status: { in: ['RESERVED', 'ACTIVE'] } }, data: { status: 'CANCELLED' } })
+    await tx.displayCommand.updateMany({ where: { displayId, commandType: { in: ['REFRESH_MANIFEST', 'SYNC_MANIFEST'] }, status: { in: ['QUEUED', 'DELIVERED'] } }, data: { status: 'CANCELLED', error: 'SUPERSEDED_BY_UNPAIR' } })
+    await tx.displayPairingCode.updateMany({ where: { displayId, consumedAt: null, revokedAt: null }, data: { revokedAt: new Date() } })
+    let command = null
+    if (display.deviceTokenHash) {
+      const existing = await tx.displayCommand.findFirst({ where: { displayId, commandType: 'UNPAIR', status: { in: ['QUEUED', 'DELIVERED'] } }, orderBy: { createdAt: 'desc' } })
+      command = existing
+        ? await tx.displayCommand.update({ where: { id: existing.id }, data: { payload: {}, status: 'QUEUED', deliveredAt: null, acknowledgedAt: null, failedAt: null, error: null, expiresAt: null } })
+        : await tx.displayCommand.create({ data: { displayId, commandType: 'UNPAIR', payload: {}, expiresAt: null } })
+    }
+    const updated = await tx.display.update({ where: { id: displayId }, data: { state: 'UNPAIRED' } })
+    await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_UNPAIR_REQUESTED', entityType: 'Display', entityId: displayId, before: { state: display.state }, after: { state: 'UNPAIRED', commandId: command?.id ?? null, assignmentsRemoved: true }, requestId: request.id } })
+    return { state: updated.state, command, pendingDeviceCleanup: Boolean(command) }
   })
   return ok(request, { displayId, ...result }, reply)
 })
@@ -1558,7 +1582,9 @@ app.get('/api/admin/vehicles', async (request, reply) => { await requirePermissi
 app.get('/api/admin/displays', async (request, reply) => {
   await requirePermission(request, 'device:read')
   const rows = await prisma.display.findMany({
-    where: { state: { not: 'DELETED' } },
+    // Disabled screens are already removed from live fleet operations. Their
+    // UNPAIR command can still finish in the background if the player returns.
+    where: { state: { notIn: ['DELETED', 'DISABLED'] } },
     select: {
       id: true, deviceId: true, name: true, ownershipType: true, inventoryConfig: { select: { city: true } }, vehicleId: true,
       state: true, appVersion: true, manifestVersion: true, lastLatitude: true, lastLongitude: true, lastLocationAccuracy: true,
@@ -1618,7 +1644,7 @@ app.get('/api/admin/earnings', async (request, reply) => { await requirePermissi
 app.get('/api/admin/payouts', async (request, reply) => { await requirePermission(request, 'finance:read'); return ok(request, asJson(await prisma.payout.findMany({ orderBy: { createdAt: 'desc' }, take: 500 })), reply) })
 app.post('/api/admin/drivers/:driverId/restrict', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'SUSPENDED' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'SUSPENDED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_SUSPENDED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { suspended: true }, reply) })
 app.post('/api/admin/drivers/:driverId/reactivate', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN']); const { driverId } = request.params as { driverId: string }; const driver = await prisma.driver.findUnique({ where: { id: driverId } }); if (!driver) throw notFound('Driver not found'); transitionDriverOnboarding(driver.onboardingStatus, 'APPROVED'); await prisma.$transaction(async (tx) => { await tx.user.update({ where: { id: driver.userId }, data: { accountStatus: 'ACTIVE' } }); await tx.driver.update({ where: { id: driverId }, data: { onboardingStatus: 'APPROVED' } }); await tx.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DRIVER_REACTIVATED', entityType: 'Driver', entityId: driverId, requestId: request.id } }) }); return ok(request, { reactivated: true }, reply) })
-app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display || display.state === 'DELETED') throw notFound('Screen not found'); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: input.commandType === 'UNPAIR' ? null : new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
+app.post('/api/admin/displays/:displayId/commands', async (request, reply) => { const auth = await requireRoles(request, ['ADMIN','SUPER_ADMIN','OPERATIONS']); const { displayId } = request.params as { displayId: string }; const input = bodyOf(request, z.object({ commandType: z.enum(['WAKE','SLEEP','START_SESSION','STOP_SESSION','SYNC_MANIFEST','REFRESH_MANIFEST','HEALTH_CHECK','RESTART_PLAYER','RESTART_APP','CLEAR_CACHE','UNPAIR']), payload: z.record(z.string(), z.unknown()).optional() })); const display = await prisma.display.findUnique({ where: { id: displayId } }); if (!display || ['DELETED','DISABLED'].includes(display.state)) throw notFound('Screen not found'); if (display.state === 'UNPAIRED' && input.commandType !== 'UNPAIR') throw new ApiError('DISPLAY_UNPAIRED', 'Pair this screen before sending device commands', 409); const command = await prisma.displayCommand.create({ data: { displayId, commandType: input.commandType, payload: input.payload as any, expiresAt: input.commandType === 'UNPAIR' ? null : new Date(Date.now() + 120000) } }); await prisma.auditLog.create({ data: { actorId: auth.userId, actorRole: auth.role, action: 'DISPLAY_COMMAND_QUEUED', entityType: 'DisplayCommand', entityId: command.id, after: { commandType: input.commandType } as any, requestId: request.id } }); return ok(request, command, reply) })
 
 registerOperations(app)
 registerAdminManagement(app)

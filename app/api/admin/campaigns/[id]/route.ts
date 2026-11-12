@@ -94,6 +94,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ data: { id: result.id, status: result.status, activeScreens: 0 } });
   } catch (error) {
     const status = error instanceof AdminAuthError ? error.status : 503;
-    return NextResponse.json({ error: { message: error instanceof AdminAuthError ? "Campaign management access required." : "Campaign could not be removed. Please retry." } }, { status });
+    const message = error instanceof AdminAuthError
+      ? status === 401 ? "Your admin session expired. Sign in again and retry." : status === 403 ? "Your account does not have permission to manage campaigns." : "Admin authentication is temporarily unavailable. Retry shortly."
+      : "Campaign could not be removed. Please retry.";
+    return NextResponse.json({ error: { message } }, { status });
   }
 }

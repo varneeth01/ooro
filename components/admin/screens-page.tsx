@@ -56,8 +56,15 @@ export function ScreensPage({ canManage = false }: { canManage?: boolean }) {
     setBusy(true);
     setError("");
     try {
-      await deviceCommandRepository.createCommand(unpairing.screenId, "UNPAIR");
-      setNotice(`Unpair request queued for ${unpairing.screenName}. It will unpair when the player reconnects and acknowledges the command.`);
+      if (isMockDeviceData) {
+        await deviceCommandRepository.createCommand(unpairing.screenId, "UNPAIR");
+      } else {
+        const response = await fetch(`/api/admin/screens/${unpairing.screenId}/unpair`, { method: "POST" });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error?.message ?? "Unable to unpair screen.");
+        setScreens(current => current.map(screen => screen.screenId === unpairing.screenId ? { ...screen, pairingStatus: "UNPAIRED" } : screen));
+      }
+      setNotice(`${unpairing.screenName} is unpaired and removed from campaign delivery now. The player clears its local credential when it next connects.`);
       setUnpairing(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to queue unpair request.");
@@ -87,7 +94,7 @@ export function ScreensPage({ canManage = false }: { canManage?: boolean }) {
         </> : <div className="py-12 text-center"><p className="text-sm font-medium">{screens.length ? "No screens match these filters." : "No screens connected yet."}</p><p className="mt-2 text-sm text-neutral-500">{screens.length ? "Try a different search or status." : "Add your first OORO screen to begin building the network."}</p>{!screens.length && <div className="mt-5"><PrimaryButton href="/admin/screens/new"><Plus size={15} className="mr-2"/>Add screen</PrimaryButton></div>}</div>}
       </>}
     </SectionCard>
-    {unpairing && <ConfirmDialog title={`Unpair ${unpairing.screenName}?`} description="The player will clear its pairing credential only after it reconnects, receives this request, and acknowledges it. Until then, it remains paired." confirmLabel={busy ? "Queueing…" : "Queue unpair"} tone="danger" onClose={() => !busy && setUnpairing(null)} onConfirm={() => void queueUnpair()}/>}
+    {unpairing && <ConfirmDialog title={`Unpair ${unpairing.screenName}?`} description="The screen is removed from campaign delivery immediately. Its local player credential is cleared the next time it connects; history is preserved." confirmLabel={busy ? "Unpairing…" : "Unpair now"} tone="danger" onClose={() => !busy && setUnpairing(null)} onConfirm={() => void queueUnpair()}/>}
   </div>;
 }
 

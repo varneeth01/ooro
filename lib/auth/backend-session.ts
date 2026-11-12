@@ -84,7 +84,10 @@ export async function getAuthenticatedAdmin({ refreshSession = true } = {}) {
   try { auth = await backendAuth("/api/auth/session", current.accessToken); }
   catch (error) {
     if (!(error instanceof AdminAuthError)) throw new AdminAuthError("ADMIN_BACKEND_UNAVAILABLE", 502);
-    if (error.status !== 401 || !refreshSession) throw error;
+    // The API rejects an access token with 403 when an administrator's role
+    // changed after login. Refresh once so a newly promoted Super Admin can
+    // use the current role; refresh still revalidates the active account.
+    if (![401, 403].includes(error.status) || !refreshSession) throw error;
     current = await refresh(current); auth = await backendAuth("/api/auth/session", current.accessToken);
   }
   if (!["ADMIN", "SUPER_ADMIN", "OPERATIONS", "SUPPORT", "FINANCE"].includes(auth.role)) throw new AdminAuthError("ADMIN_ACCESS_DENIED", 403);
@@ -101,7 +104,7 @@ export async function proxyAdminRequest(path: string, init: RequestInit = {}) {
   const admin = await getAuthenticatedAdmin();
   const headers = new Headers(init.headers); headers.set("authorization", `Bearer ${admin.accessToken}`);
   let response = await fetch(backendUrl(path), { ...init, headers, cache: "no-store" });
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     const value = (await cookies()).get(SESSION_COOKIE)?.value; const tokens = value ? unseal(value) : null;
     if (!tokens) throw new AdminAuthError("SESSION_EXPIRED", 401);
     const next = await refresh(tokens); headers.set("authorization", `Bearer ${next.accessToken}`);
