@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { probeCreative } from "@/lib/creative-probe";
+import { prepareCreativeForPlayback } from "@/lib/creative-playback";
 import { NextResponse } from "next/server";
 import { requireAdminPermission, AdminAuthError } from "@/lib/auth/backend-session";
 import { webPrisma } from "@/lib/web-prisma";
@@ -59,7 +59,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!qrTargetUrl && typeof campaignOffer.ctaUrl === "string") qrTargetUrl = campaignOffer.ctaUrl.trim() || undefined;
     if (!qrLabel && typeof campaignOffer.ctaLabel === "string") qrLabel = campaignOffer.ctaLabel;
     if (!qrEnabled && qrTargetUrl) qrEnabled = true;
-    const media = await probeCreative(bytes, mimeType); width = media.width; height = media.height; if (media.durationSeconds) durationSeconds = media.durationSeconds;
+    const playbackMedia = await prepareCreativeForPlayback(bytes, fileName, mimeType);
+    fileName = playbackMedia.fileName; mimeType = playbackMedia.mimeType; bytes = playbackMedia.bytes;
+    width = playbackMedia.width; height = playbackMedia.height;
+    if (playbackMedia.durationSeconds) durationSeconds = playbackMedia.durationSeconds;
     const stored = await storeCreative(bytes, fileName, mimeType);
     const result = await webPrisma.$transaction(async tx => {
       const creative = await tx.creative.create({ data: { campaignId: id, name: fileName!, type: mimeType!.startsWith("video/") ? "VIDEO" : "IMAGE", durationSeconds: Math.round(durationSeconds!), brandName, promotionalText, qrEnabled, qrTargetUrl, qrLabel } });
@@ -72,12 +75,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const requestId = randomUUID();
     const failure = error instanceof Error ? error.message : "UNKNOWN";
     const r2Code = /^R2_UPLOAD_FAILED_([A-Za-z0-9_]{1,48})$/.exec(failure)?.[1];
-    const probeFailed = failure === "CREATIVE_PROBE_FAILED"; const probeUnavailable = failure === "CREATIVE_PROBE_UNAVAILABLE";
+    const probeFailed = failure === "CREATIVE_PROBE_FAILED" || failure === "CREATIVE_TRANSCODE_FAILED" || failure === "CREATIVE_NORMALIZED_SIZE_INVALID";
+    const probeUnavailable = failure === "CREATIVE_PROBE_UNAVAILABLE" || failure === "CREATIVE_TRANSCODER_UNAVAILABLE";
     console.error("[admin/creative-upload]", { requestId, code: r2Code ? `R2_UPLOAD_${r2Code}` : probeFailed ? "CREATIVE_PROBE_FAILED" : failure === "OBJECT_STORAGE_NOT_CONFIGURED" ? failure : "CREATIVE_UPLOAD_FAILURE", errorType: error instanceof Error ? error.name : "unknown" });
     const contentMismatch = error instanceof Error && error.message === "CREATIVE_CONTENT_TYPE_MISMATCH";
     const storageMissing = error instanceof Error && error.message === "OBJECT_STORAGE_NOT_CONFIGURED";
     const status = error instanceof AdminAuthError ? error.status : contentMismatch || probeFailed ? 422 : 503;
-    const message = contentMismatch ? "This file does not match its declared media type." : probeUnavailable ? "Video processing is not installed in the web service. Redeploy it with ffmpeg available, then retry." : probeFailed ? "Could not read this media file. Please upload a valid JPG, PNG, WebP, MP4 or WebM file." : storageMissing ? "Creative uploads are temporarily unavailable. Please contact your OORO administrator." : r2Code === "403" || r2Code === "401" || r2Code === "AccessDenied" || r2Code === "InvalidAccessKeyId" ? "Media storage authorization failed. Check the R2 access key and bucket upload permissions, then retry." : r2Code === "SignatureDoesNotMatch" ? "R2 rejected the request signature. Check the R2 account ID, endpoint, and access key, then retry." : r2Code === "NoSuchBucket" ? "R2 could not find the configured bucket. Check the bucket name, then retry." : r2Code ? "Media storage could not accept the upload. Please try again or contact support." : status === 503 ? "Unable to upload this creative. Your campaign draft remains saved; contact support with the reference ID." : "Admin access required";
+    const message = contentMismatch ? "This file does not match its declared media type." : probeUnavailable ? "Video processing is not installed in the web service. Redeploy it with ffmpeg available, then retry." : failure === "CREATIVE_NORMALIZED_SIZE_INVALID" ? "The video is too large after playback optimization. Upload a shorter or smaller video." : probeFailed ? "Could not prepare this media for playback. Please upload a valid JPG, PNG, WebP, MP4 or WebM file." : storageMissing ? "Creative uploads are temporarily unavailable. Please contact your OORO administrator." : r2Code === "403" || r2Code === "401" || r2Code === "AccessDenied" || r2Code === "InvalidAccessKeyId" ? "Media storage authorization failed. Check the R2 access key and bucket upload permissions, then retry." : r2Code === "SignatureDoesNotMatch" ? "R2 rejected the request signature. Check the R2 account ID, endpoint, and access key, then retry." : r2Code === "NoSuchBucket" ? "R2 could not find the configured bucket. Check the bucket name, then retry." : r2Code ? "Media storage could not accept the upload. Please try again or contact support." : status === 503 ? "Unable to upload this creative. Your campaign draft remains saved; contact support with the reference ID." : "Admin access required";
     return NextResponse.json({ error: { code: probeUnavailable ? "MEDIA_PROCESSING_UNAVAILABLE" : probeFailed ? "MEDIA_PROBE_FAILED" : storageMissing ? "STORAGE_NOT_CONFIGURED" : r2Code ? "R2_UPLOAD_UNAVAILABLE" : status === 503 ? "UPLOAD_UNAVAILABLE" : "UPLOAD_REJECTED", message }, requestId }, { status, headers: { "x-request-id": requestId, "cache-control": "no-store" } });
   }
 }
