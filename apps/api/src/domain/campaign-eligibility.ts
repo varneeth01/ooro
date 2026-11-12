@@ -71,7 +71,7 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
     const schedule = metadata.adminSchedule && typeof metadata.adminSchedule === 'object' && !Array.isArray(metadata.adminSchedule) ? metadata.adminSchedule as Record<string, unknown> : metadata;
     const playsPerLoop = typeof schedule.playsPerLoop === 'number' ? Math.max(1, Math.min(28, Math.round(schedule.playsPerLoop))) : 1;
     const dayNumbers: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7 };
-    const daysOfWeek = Array.isArray(schedule.days) ? schedule.days.map(day => dayNumbers[String(day).slice(0, 3).toUpperCase()]).filter((day): day is number => Boolean(day)) : [];
+    const daysOfWeek = Array.isArray(schedule.days) ? schedule.days.map(day => dayNumbers[String(day).slice(0, 3).toUpperCase()]).filter((day): day is number => Boolean(day)) : [1, 2, 3, 4, 5, 6, 7];
     return { id: creative.id, campaignId: campaign.id, creativeId: creative.id, assetId: creative.asset!.id, type: creative.type.toUpperCase() === 'VIDEO' ? 'VIDEO' : 'IMAGE', url: deliveryAssetUrl(creative.asset!.url), checksum: creative.asset!.checksum, durationSeconds: creative.asset!.durationSeconds ?? creative.durationSeconds, priority: campaign.priority, playsPerLoop, startAt: campaign.startsAt?.toISOString() ?? null, endAt: campaign.endsAt?.toISOString() ?? null, daysOfWeek, startTime: typeof schedule.startTime === 'string' ? schedule.startTime : null, endTime: typeof schedule.endTime === 'string' ? schedule.endTime : null, fitMode: typeof metadata.fitMode === 'string' ? metadata.fitMode : 'FIT', qrEnabled: Boolean(trackingUrl), qrTargetUrl: trackingUrl, qrLabel: creative.qrLabel ?? (typeof legacyOffer.ctaLabel === 'string' ? legacyOffer.ctaLabel : null), qrVersion: creative.qrVersion, offer: { ...offer, brandName: creative.brandName ?? metadata.brand ?? metadata.brandName, promotionalText: creative.promotionalText, ...(trackingUrl ? { qrUrl: trackingUrl, authorizedDestinationId: trackingLink?.id, scanCount, scanCountDisplayEnabled: offer.scanCountDisplayEnabled === true } : { qrUrl: null, authorizedDestinationId: null, scanCount: null }) } }
   })))).sort((a, b) => b.priority - a.priority || a.campaignId.localeCompare(b.campaignId) || a.id.localeCompare(b.id))
   const scheduledItems: DisplayManifest['items'] = []
@@ -89,7 +89,7 @@ export async function buildDisplayManifest(displayId: string, now = new Date()):
       for (const [sequence,creativeId] of rules.creativeIds.entries()) {
         const item = campaignItems.find(i=>i.creativeId===creativeId)
         if (!item) continue
-        const windows = rules.windows.length ? rules.windows : [{start:null,end:null}]
+        const windows = rules.windows.length ? rules.windows : [{start:rules.startTime ?? null,end:null}]
         for (const [windowIndex,windowRule] of windows.entries()) scheduledItems.push({...item,id:`${schedule.id}:${allocation.date.toISOString().slice(0,10)}:${sequence}:${windowIndex}`,scheduleId:schedule.id,sequence,exclusive:schedule.exclusive,priority:schedule.priority,daysOfWeek:rules.days,startAt:window.startAt.toISOString(),endAt:window.endAt.toISOString(),startTime:windowRule.start,endTime:windowRule.end,intervalSeconds:intervalSeconds(rules),playsPerLoop:rules.mode==='WEIGHTED'?rules.value:rules.mode==='SHARE'?Math.max(1,Math.round(28*rules.value/100)):1,durationSeconds:item.type==='IMAGE'?rules.imageDurationSeconds:item.durationSeconds})
       }
     }

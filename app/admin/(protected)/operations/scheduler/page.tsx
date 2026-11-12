@@ -9,7 +9,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     const admin = await getAuthenticatedAdmin({ refreshSession: false });
     if (!canAdmin(admin.role, "campaign:schedule")) redirect("/unauthorized");
     const { campaignId } = await searchParams;
-    return <OperationsScheduler canOverrideInventory={admin.role === "SUPER_ADMIN"} initialCampaignId={campaignId} />;
+    return <OperationsScheduler canOverrideInventory={admin.role === "SUPER_ADMIN"} canApproveCreative={["SUPER_ADMIN", "ADMIN"].includes(admin.role)} initialCampaignId={campaignId} />;
   } catch (error) {
     if (error instanceof AdminAuthError && error.status === 401) redirect("/admin/login");
     if (error instanceof AdminAuthError && error.status === 403) redirect("/unauthorized");

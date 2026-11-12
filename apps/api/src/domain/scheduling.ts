@@ -5,6 +5,7 @@ const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
 export const scheduleRules = z.object({
   days: z.array(z.number().int().min(1).max(7)).min(1).max(7),
   windows: z.array(z.object({ start: clock, end: clock }).refine(w => w.start < w.end, 'Windows must end after start; split overnight windows at midnight')).max(12),
+  startTime: clock.optional(),
   mode: z.enum(['WEIGHTED', 'SEQUENCE', 'EVERY_MINUTES', 'PLAYS_PER_HOUR', 'PLAYS_PER_DAY', 'SHARE']),
   value: z.number().int().min(1).max(1440),
   creativeIds: z.array(z.string().uuid()).min(1).max(100),
@@ -29,10 +30,12 @@ export function activeAt(start: Date, end: Date, rules: ScheduleRules, now: Date
   const local = new Date(now.getTime() + 330 * 60000)
   if (!rules.days.includes(local.getUTCDay() || 7)) return false
   const time = local.toISOString().slice(11,16)
-  return !rules.windows.length || rules.windows.some(w => time >= w.start && time < w.end)
+  return (!rules.startTime || time >= rules.startTime) && (!rules.windows.length || rules.windows.some(w => time >= w.start && time < w.end))
 }
 export function rulesOverlap(a: ScheduleRules, b: ScheduleRules) {
-  return a.days.some(d => b.days.includes(d)) && (!a.windows.length || !b.windows.length || a.windows.some(x => b.windows.some(y => x.start < y.end && y.start < x.end)))
+  const windows = (rules: ScheduleRules) => rules.windows.length ? rules.windows : [{ start: rules.startTime ?? '00:00', end: '23:59' }]
+  const aWindows = windows(a), bWindows = windows(b)
+  return a.days.some(d => b.days.includes(d)) && aWindows.some(x => bWindows.some(y => x.start < y.end && y.start < x.end))
 }
 export function distanceKm(a: number, b: number, c: number, d: number) {
   const r = (x: number) => x * Math.PI / 180
