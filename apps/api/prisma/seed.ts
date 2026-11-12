@@ -19,16 +19,20 @@ async function main() {
   const vehicle = await prisma.vehicle.upsert({ where: { registrationNumber: 'TS09AB1234' }, update: { driverId: driver.id, status: 'VERIFIED' }, create: { driverId: driver.id, type: 'AUTO', registrationNumber: 'TS09AB1234', manufacturer: 'OORO', model: 'Demo Auto', status: 'VERIFIED' } })
   const display = await prisma.display.upsert({ where: { deviceId: 'OORO-DEMO' }, update: { vehicleId: vehicle.id, state: 'READY' }, create: { deviceId: 'OORO-DEMO', name: 'OORO Demo Display', vehicleId: vehicle.id, state: 'READY' } })
   const pricing = [
-    ['10000000-0000-0000-0000-000000000001', 'Standard', 'SELF_SERVE', null, null, 5, true],
-    ['10000000-0000-0000-0000-000000000002', 'Premium+', 'SELF_SERVE', null, null, 10, true],
-    ['10000000-0000-0000-0000-000000000011', 'Brand · 1 month', 'BRAND', 1, 69, null, false],
-    ['10000000-0000-0000-0000-000000000012', 'Brand · 3+ months', 'BRAND', 3, 59, null, false],
-    ['10000000-0000-0000-0000-000000000013', 'Brand · 6+ months', 'BRAND', 6, 49, null, false],
-    ['10000000-0000-0000-0000-000000000021', 'Agency · 1 month', 'AGENCY', 1, 62, null, false],
-    ['10000000-0000-0000-0000-000000000022', 'Agency · 3+ months', 'AGENCY', 3, 52, null, false],
-    ['10000000-0000-0000-0000-000000000023', 'Agency · 6+ months', 'AGENCY', 6, 42, null, false],
+    ['10000000-0000-0000-0000-000000000001', 'Standard', 'SELF_SERVE', null, null, 5, true, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000002', 'Premium+', 'SELF_SERVE', null, null, 10, true, 'PREMIUM_PLUS'],
+    ['10000000-0000-0000-0000-000000000011', 'Brand · Standard · 1 month', 'BRAND', 1, 59, null, false, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000012', 'Brand · Standard · 3+ months', 'BRAND', 3, 59, null, false, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000013', 'Brand · Standard · 6+ months', 'BRAND', 6, 59, null, false, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000021', 'Agency · Standard · 1 month', 'AGENCY', 1, 49, null, false, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000022', 'Agency · Standard · 3+ months', 'AGENCY', 3, 49, null, false, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000023', 'Agency · Standard · 6+ months', 'AGENCY', 6, 49, null, false, 'STANDARD'],
+    ['10000000-0000-0000-0000-000000000031', 'Brand · Premium slot · 1 month', 'BRAND', 1, 69, null, false, 'PREMIUM_PLUS'],
+    ['10000000-0000-0000-0000-000000000032', 'Brand · Premium slot · 3+ months', 'BRAND', 3, 69, null, false, 'PREMIUM_PLUS'],
+    ['10000000-0000-0000-0000-000000000041', 'Agency · Premium slot · 1 month', 'AGENCY', 1, 69, null, false, 'PREMIUM_PLUS'],
+    ['10000000-0000-0000-0000-000000000042', 'Agency · Premium slot · 3+ months', 'AGENCY', 3, 69, null, false, 'PREMIUM_PLUS'],
   ] as const
-  for (const [id, name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic] of pricing) await prisma.pricingPlan.upsert({ where: { id }, update: { name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, active: true }, create: { id, name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, active: true } })
+  for (const [id, name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, deliveryTier] of pricing) await prisma.pricingPlan.upsert({ where: { id }, update: { name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, active: true, deliveryTier }, create: { id, name, customerType, commitmentMonths, autoDayRate, impressionRate, isPublic, active: true, deliveryTier } })
   await prisma.forecastSetting.upsert({ where: { key: 'DEFAULT' }, update: {}, create: { key: 'DEFAULT', averageRidesPerDay: 12, averagePassengersPerRide: 2, fallbackActiveAutoFactor: 0.6, minimumSelfServeBudget: 1000, forecastTtlMinutes: 15, inventoryHoldMinutes: 15 } })
   if (process.env.NODE_ENV !== 'production' && process.env.OORO_SEED_CAMPAIGN === 'true') {
     const campaign = await prisma.campaign.upsert({ where: { id: '00000000-0000-0000-0000-000000000101' }, update: { status: 'ACTIVE', startsAt: new Date(Date.now() - 86400000), endsAt: new Date(Date.now() + 86400000 * 30) }, create: { id: '00000000-0000-0000-0000-000000000101', name: 'OORO Development Campaign', status: 'ACTIVE', startsAt: new Date(Date.now() - 86400000), endsAt: new Date(Date.now() + 86400000 * 30), priority: 10 } })
