@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog, PageHeader, SecondaryButton, SectionCard } from "@/components/app/app-ui";
 import { AdminSubnav, ConnectivityStatus, EmptyHealth, HealthIssueList, LiveCreativePreview, OfflinePlaybackNote, PairingBadge, PlayerState, RelativeTime, StorageStatus } from "./admin-ui";
-import { deviceHealthRepository, deviceCommandRepository, pairingRepository, screenRepository } from "@/lib/admin/repositories";
+import { deviceHealthRepository, deviceCommandRepository, isMockDeviceData, pairingRepository, screenRepository } from "@/lib/admin/repositories";
 import type { DeviceActivity, DeviceCommand, DeviceHealth, PairingCode, Screen } from "@/lib/admin/types";
 import { exactTime } from "@/lib/admin/format";
 
@@ -16,14 +16,42 @@ export function ScreenDetailPage({ screenId, canManage = true }: { screenId: str
   useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
   async function queueSync() { setBusy(true); setError(""); try { setCommand(await deviceCommandRepository.createCommand(screenId, "REFRESH_MANIFEST")); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to queue manifest refresh"); } finally { setBusy(false); } }
   async function saveAssignment() { setBusy(true); setError(""); try { const response = await fetch(`/api/admin/screens/${screenId}/assignment`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId: assignmentVehicleId.trim() || null }) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error?.message || "Unable to update assignment"); setScreen(current => current ? { ...current, vehicleId: payload.data.vehicleId ?? undefined, vehicleIdentifier: undefined, pairingStatus: "UNPAIRED" } : current); setAssignmentVehicleId(""); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to update assignment"); } finally { setBusy(false); } }
-  async function confirmDeviceAction() { if (!confirmAction || busy) return; setBusy(true); setError(""); try { if (confirmAction === "unpair") { const queued = await deviceCommandRepository.createCommand(screenId, "UNPAIR"); setCommand(queued); setNotice("Unpair request queued. The screen will unpair when it reconnects and acknowledges the command."); } else { const response = await fetch(`/api/admin/screens/${screenId}`, { method: "DELETE" }); const body = await response.json().catch(() => null); if (!response.ok) throw new Error(body?.error?.message || "Screen could not be removed."); if (body.data?.pendingUnpair) setNotice("Screen disabled and removal queued. It will leave the active screen list after the device acknowledges unpairing."); else { router.push("/admin/screens"); router.refresh(); return; } } setConfirmAction(null); } catch (caught) { setError(caught instanceof Error ? caught.message : "Screen action failed. Retry."); } finally { setBusy(false); } }
+  async function confirmDeviceAction() {
+    if (!confirmAction || busy) return;
+    setBusy(true); setError("");
+    try {
+      if (confirmAction === "unpair") {
+        let queued: DeviceCommand | null = null;
+        if (isMockDeviceData) queued = await deviceCommandRepository.createCommand(screenId, "UNPAIR");
+        else {
+          const response = await fetch(`/api/admin/screens/${screenId}/unpair`, { method: "POST" });
+          const body = await response.json().catch(() => null);
+          if (!response.ok) throw new Error(body?.error?.message || "Screen could not be unpaired.");
+          queued = body.data?.command ?? null;
+        }
+        setCommand(queued);
+        setScreen(current => current ? { ...current, pairingStatus: "UNPAIRED" } : current);
+        setNotice("Unpaired and removed from campaign delivery now. The player clears its local credential the next time it connects.");
+      } else {
+        const response = await fetch(`/api/admin/screens/${screenId}`, { method: "DELETE" });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(body?.error?.message || "Screen could not be removed.");
+        router.push("/admin/screens");
+        router.refresh();
+        return;
+      }
+      setConfirmAction(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Screen action failed. Retry.");
+    } finally { setBusy(false); }
+  }
   if (!screen) return <div className="py-16 text-center text-sm">{error || "Loading screen…"}</div>;
   const reportedPlaying = health?.playerState === "PLAYING";
   const reportTime = health?.timestamp ? new Date(health.timestamp).getTime() : NaN;
   const freshReport = Number.isFinite(reportTime) && reportTime <= clock + 30_000 && clock - reportTime <= 120_000 && health?.connectivity === "ONLINE";
   const playing = reportedPlaying && freshReport;
   return <div className="space-y-7">
-    <PageHeader eyebrow="Admin / Screens" title={screen.screenName} description={`${screen.area}, ${screen.city} · ${screen.screenType.replaceAll("_", " ")}`} action={<div className="flex flex-wrap gap-2">{canManage && <>{screen.pairingStatus === "PAIRED" && <SecondaryButton onClick={() => setConfirmAction("unpair")}>Unpair</SecondaryButton>}<SecondaryButton onClick={() => setConfirmAction("delete")}>Delete screen</SecondaryButton></>}<SecondaryButton onClick={queueSync}><RefreshCw size={14} className="mr-2"/>Sync</SecondaryButton><Link href="/admin/screens" className="inline-flex items-center gap-2 px-3 text-sm text-neutral-500 hover:text-black"><ArrowLeft size={15}/>Back</Link></div>}/>
+    <PageHeader eyebrow="Admin / Screens" title={screen.screenName} description={`${screen.area}, ${screen.city} · ${screen.screenType.replaceAll("_", " ")}`} action={<div className="flex flex-wrap gap-2">{canManage && <>{screen.pairingStatus === "PAIRED" && <SecondaryButton onClick={() => setConfirmAction("unpair")}>Unpair</SecondaryButton>}<SecondaryButton onClick={() => setConfirmAction("delete")}>Delete screen</SecondaryButton></>}{screen.pairingStatus !== "UNPAIRED" && <SecondaryButton onClick={queueSync}><RefreshCw size={14} className="mr-2"/>Sync</SecondaryButton>}<Link href="/admin/screens" className="inline-flex items-center gap-2 px-3 text-sm text-neutral-500 hover:text-black"><ArrowLeft size={15}/>Back</Link></div>}/>
     <AdminSubnav/>{notice && <p role="status" className="rounded-lg border border-lime-200 bg-lime-50 px-4 py-3 text-sm text-lime-950">{notice}</p>}<div className="flex gap-4 text-sm underline"><Link href="/admin/operations/scheduler">Upcoming schedule / timeline</Link><Link href="/admin/proof-of-play">Proof of play</Link><Link href="/admin/logs">Audit log</Link></div>
     <div className="flex flex-wrap items-center gap-4 border-b border-neutral-200 pb-5"><ConnectivityStatus status={health?.connectivity ?? "NEVER_CONNECTED"}/><PairingBadge status={screen.pairingStatus}/>{command && <span className="text-xs text-neutral-500">Sync command: {command.status.toLowerCase()} · persisted for device acknowledgement</span>}</div>
     {pairing && <div className="flex flex-col gap-3 border border-[#d7e694] bg-[#f8fbdc] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-medium">Pairing code active</p><p className="mt-1 font-mono text-lg tracking-[.16em]">{pairing.code}</p></div><p className="text-xs text-neutral-500">Expires {exactTime(pairing.expiresAt)}</p></div>}
@@ -43,6 +71,6 @@ export function ScreenDetailPage({ screenId, canManage = true }: { screenId: str
     </div></div>
     <div className="grid gap-6 xl:grid-cols-2"><SectionCard title="Heartbeat history" description="Recent device heartbeat reports.">{history.length ? <div className="divide-y divide-neutral-100">{history.map(item => <div className="flex items-center justify-between gap-4 py-3 first:pt-0" key={item.id}><div><p className="text-sm"><RelativeTime value={item.timestamp}/></p><p className="mt-1 text-xs text-neutral-500">{item.networkType} · {item.freeStorageBytes ? `${(item.freeStorageBytes / 1024 ** 3).toFixed(1)} GB free` : "Storage unavailable"}</p></div><ConnectivityStatus status={health?.connectivity ?? "NEVER_CONNECTED"}/></div>)}</div> : <EmptyHealth/>}</SectionCard><SectionCard title="Activity" description="Latest reported operational events.">{activity.length ? <div className="divide-y divide-neutral-100">{activity.map(item => <div className="flex gap-3 py-3 first:pt-0" key={item.id}><Check size={14} className="mt-0.5 text-neutral-400"/><div><p className="text-sm">{item.type.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-neutral-500"><RelativeTime value={item.timestamp}/> · {item.detail || "No additional detail"}</p></div></div>)}</div> : <EmptyHealth title="No activity reported yet."/>}</SectionCard></div>
     <div className="flex items-start gap-3 border-t border-neutral-200 pt-5 text-xs leading-5 text-neutral-500"><ShieldAlert size={15} className="mt-0.5 shrink-0"/>Commands remain on the existing acknowledged device command queue. {busy ? "Queuing command…" : error}</div>
-    {confirmAction && <ConfirmDialog title={confirmAction === "unpair" ? `Unpair “${screen.screenName}”?` : `Delete “${screen.screenName}”?`} description={confirmAction === "unpair" ? "The player will clear its pairing credential after it receives this request. Until it reconnects and acknowledges, it remains paired. Campaign and proof history are preserved." : "This removes the screen from active operations and deactivates its campaign assignments. If paired, the player is disabled and removal waits for its next successful unpair acknowledgment. Proof of play and audit history are preserved."} confirmLabel={busy ? "Queuing…" : confirmAction === "unpair" ? "Queue unpair" : "Remove screen"} tone="danger" onClose={() => !busy && setConfirmAction(null)} onConfirm={() => void confirmDeviceAction()}/>}
+    {confirmAction && <ConfirmDialog title={confirmAction === "unpair" ? `Unpair “${screen.screenName}”?` : `Delete “${screen.screenName}”?`} description={confirmAction === "unpair" ? "The screen leaves campaign delivery immediately. The player clears its local credential at its next connection; campaign and proof history are preserved." : "This removes the screen from the active fleet and deactivates its campaign assignments immediately. If paired, the player receives a cleanup command when it next connects. Proof of play and audit history are preserved."} confirmLabel={busy ? confirmAction === "unpair" ? "Unpairing…" : "Removing…" : confirmAction === "unpair" ? "Unpair now" : "Remove now"} tone="danger" onClose={() => !busy && setConfirmAction(null)} onConfirm={() => void confirmDeviceAction()}/>}
   </div>;
 }
