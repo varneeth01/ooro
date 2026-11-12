@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 const CANONICAL_ORIGIN = "https://theooro.com";
 const PUBLIC_HOSTS = new Set([
@@ -39,8 +40,9 @@ export function sameOriginRedirect(path: string, request: NextRequest): NextResp
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || /[\r\n]/.test(path)) {
     throw new Error("Invalid same-origin redirect path");
   }
+  const publicHost = trustedPublicHost(request);
   const origin = process.env.NODE_ENV === "production"
-    ? (trustedPublicHost(request) ? `https://${trustedPublicHost(request)}` : CANONICAL_ORIGIN)
+    ? (publicHost ? `https://${publicHost}` : CANONICAL_ORIGIN)
     : request.nextUrl.origin;
   const response = NextResponse.redirect(new URL(path, origin), 307);
   response.headers.set("cache-control", "no-store");
